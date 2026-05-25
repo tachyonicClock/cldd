@@ -3,7 +3,7 @@ bases:
   - 'scenario/rfmnist.yml'
 
 name: "hi"
-strategy:
+learner:
   _type: StrategyA
   param_a: 1
   asdas: asda

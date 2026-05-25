@@ -1,0 +1,2 @@
+model:
+  type_: ResNet18

@@ -29,7 +29,7 @@ def hpearch(): ...
 )
 def run(config: str, dotlist: list[str]):
     try:
-        config_obj = get_config(Path(config), Path("config/base"), list(dotlist))
+        get_config(Path(config), Path("config/base"), list(dotlist))
     except BaseValidationError as e:
         for error in transform_error(e):
             logger.error(f"Validation: {error}")
