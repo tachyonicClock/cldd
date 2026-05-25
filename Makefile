@@ -14,3 +14,7 @@ clean-venv:
 fmt:
 	uvx ruff format
 	uvx ruff check --fix
+
+
+clean-logs:
+	rm -rv logs

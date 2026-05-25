@@ -4,7 +4,7 @@ import pytest
 from omegaconf import OmegaConf
 
 from src.config import converter
-from src.model import AnyModel, MLPArgs, ResNet18Args
+from src.model import AnyModel, PerceptronArgs, ResNet18Args
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +32,7 @@ def test_base_model_configs_parse_with_converter():
         model_config = config["model"]
 
         model = converter.structure(model_config, AnyModel)
-        assert isinstance(model, MLPArgs | ResNet18Args)
+        assert isinstance(model, PerceptronArgs | ResNet18Args)
         assert model.type_ == model_config["type_"]
         seen_types.add(model.type_)
 

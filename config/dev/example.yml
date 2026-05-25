@@ -1,0 +1,5 @@
+bases:
+  - drift_detector/ADWIN.yml
+  - learner/FT.yml
+  - model/Perceptron.yml
+  - scenario/rfmnist.yml

@@ -21,31 +21,30 @@ class ScenarioArgs:
         "DomainCIFAR100",
         "RotatedMNIST",
         "RotatedFashionMNIST",
+        "RotatedTinyMNIST",
     ]
     normalize_features: bool = True
-
-    gradual: bool = False
-    gradual_width: float = 0.5
+    gradual: float = 0.0
 
     def _get_dataset(self, seed: int):
+        kwargs = dict(
+            seed=seed,
+            normalize_features=self.normalize_features,
+            preload_test=False,
+        )
         match self.name:
             case "DomainCIFAR100ViT":
-                assert (
-                    not self.normalize_features
-                )  # ViT features are already normalized
-                return datasets.DomainCIFAR100ViT(seed=seed)
+                # ViT features are already normalized
+                assert not self.normalize_features
+                return datasets.DomainCIFAR100ViT(**kwargs)
             case "DomainCIFAR100":
-                return datasets.DomainCIFAR100(
-                    seed=seed, normalize_features=self.normalize_features
-                )
+                return datasets.DomainCIFAR100(**kwargs)
             case "RotatedMNIST":
-                return datasets.RotatedMNIST(
-                    seed=seed, normalize_features=self.normalize_features
-                )
+                return datasets.RotatedMNIST(**kwargs)
             case "RotatedFashionMNIST":
-                return datasets.RotatedFashionMNIST(
-                    seed=seed, normalize_features=self.normalize_features
-                )
+                return datasets.RotatedFashionMNIST(**kwargs)
+            case "RotatedTinyMNIST":
+                return datasets.RotatedTinyMNIST(**kwargs)
             case _:
                 raise ValueError(f"Unknown scenario name: {self.name}")
 
@@ -53,10 +52,8 @@ class ScenarioArgs:
         scenario = self._get_dataset(seed)
         train_tasks = scenario.train_tasks
 
-        if self.gradual:
-            train_tasks = fuzzy_sigmoid_transitions(
-                train_tasks, width=self.gradual_width
-            )
+        if self.gradual > 0.0:
+            train_tasks = fuzzy_sigmoid_transitions(train_tasks, width=self.gradual)
 
         return Scenario(
             train_tasks=train_tasks,

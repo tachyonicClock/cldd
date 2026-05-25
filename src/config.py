@@ -8,21 +8,24 @@ from src.scenario import ScenarioArgs
 from src.drift_detector import AnyDriftDetector
 from src.learner import AnyLearner
 from src.model import AnyModel
+import torch
 
 
 @dataclass
 class Config:
-    name: str
     scenario: ScenarioArgs
     drift_detector: AnyDriftDetector
     learner: AnyLearner
     model: AnyModel
 
-    device: str = "cpu"
+    device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
     mb_eval: int = 256
 
     seed: int = 0
+    name: Optional[str] = None
+    """Optional top level name for the experiment."""
+    trial: Optional[int] = None
     bases: Optional[list[str]] = None
 
 

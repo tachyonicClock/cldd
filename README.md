@@ -9,3 +9,8 @@ uv run ...
 ```
 uv run -m pytest
 ```
+
+
+```
+uv run main.py 
+```
