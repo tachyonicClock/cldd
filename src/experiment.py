@@ -20,9 +20,6 @@ class Experiment:
         self.scenario = config.scenario.build(config.seed)
         self.schema = self.scenario.schema
 
-        logger.info("Build drift detector.")
-        # self.drift_detector = config.drift_detector.build(config.seed)
-
         logger.info("Build model.")
         self.model = config.model.build(config.seed, self.schema)
 
@@ -30,6 +27,9 @@ class Experiment:
         self.learner = config.learner.build(
             config.seed, self.schema, self.device, self.model
         )
+
+        logger.info("Build drift detector.")
+        self.drift_detector = config.drift_detector.build(config.seed, self.learner)
 
         self.logdir = self.new_logdir()
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
@@ -64,11 +64,11 @@ class Experiment:
             config_dict = config.converter.unstructure(self.config)
             f.write(config.OmegaConf.to_yaml(config_dict))
 
-        logger.info("Attach handlers to event dispatcher")
         dispatcher = Dispatcher()
         self.tb_logger.attach_with(dispatcher)
+        self.drift_detector.attach_with(dispatcher)
 
-        results = ocl_train_eval_loop(
+        ocl_metrics = ocl_train_eval_loop(
             learner=self.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
@@ -78,14 +78,34 @@ class Experiment:
         )
 
         logger.info(f"Saving results to {self.logdir}")
-        results.ttt.write_to_file((self.logdir / "ttt").as_posix())
-        results_pickle = self.logdir / "ocl_metrics.pkl"
-        with open(results_pickle, "wb") as f:
-            results.ttt = None  # type: ignore
-            pickle.dump(results, f)
+        # Save Online Metrics
+        ocl_metrics.ttt.write_to_file((self.logdir / "ttt").as_posix())
 
-        logger.info(f"accuracy_seen_avg  {results.accuracy_seen_avg:.3f}")
-        logger.info(f"accuracy_all_avg   {results.accuracy_all_avg:.3f}")
-        logger.info(f"accuracy_final     {results.accuracy_final:.3f}")
+        # Save Continual Learning Metrics
+        ocl_pickle = self.logdir / "ocl_metrics.pkl"
+        with open(ocl_pickle, "wb") as f:
+            ocl_metrics.ttt = None  # type: ignore
+            pickle.dump(ocl_metrics, f)
 
-        return results
+        # Save Drift Detection Metrics
+        dd_metrics = self.drift_detector.metrics()
+        dd_pickle = self.logdir / "dd_metrics.pkl"
+        with open(dd_pickle, "wb") as f:
+            pickle.dump(dd_metrics, f)
+
+        print("-" * 30)
+        print("DRIFT DETECTION METRICS")
+        print("-" * 30)
+        for key, value in dd_metrics.items():
+            if isinstance(value, float):
+                print(f"{key.ljust(20)} {value:.3f}")
+            elif isinstance(value, int):
+                print(f"{key.ljust(20)} {value}")
+
+        print("-" * 30)
+        print("OCL METRICS")
+        print("-" * 30)
+        print(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
+        print(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
+        print(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
+        return ocl_metrics

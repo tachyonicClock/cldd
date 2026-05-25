@@ -3,3 +3,5 @@ bases:
   - learner/FT.yml
   - model/Perceptron.yml
   - scenario/rfmnist.yml
+
+mb_train: 16
