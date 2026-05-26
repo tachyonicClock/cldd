@@ -10,10 +10,11 @@ from src.config import converter
 LEARNER_TYPES = [
     obj
     for _, obj in inspect.getmembers(learner)
-    if inspect.isclass(obj) # Check if it's a class
-    and issubclass(obj, learner.LearnerArgs) # Check if it's a subclass of LearnerArgs
-    and obj is not learner.LearnerArgs # Exclude the base class itself
+    if inspect.isclass(obj)  # Check if it's a class
+    and issubclass(obj, learner.LearnerArgs)  # Check if it's a subclass of LearnerArgs
+    and obj is not learner.LearnerArgs  # Exclude the base class itself
 ]
+
 
 @pytest.mark.parametrize("learner_type", LEARNER_TYPES)
 def test_learner_construction(learner_type: Type[learner.LearnerArgs]):
@@ -24,8 +25,8 @@ def test_learner_construction(learner_type: Type[learner.LearnerArgs]):
     )
     model = Perceptron(schema, 1)
     config = learner_type()
-    
+
     # Check that it can be converted to and from a dictionary
     assert converter.structure(converter.unstructure(config), learner_type) == config
-    
+
     config.build(seed=0, schema=schema, device="cpu", model=model)

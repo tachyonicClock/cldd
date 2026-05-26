@@ -1,18 +1,10 @@
 from src.config import Config
 import optuna
-from typing import Any, Callable
+from typing import Callable
 from src.experiment import Experiment
 from loguru import logger
 from pprint import pprint
-
-
-def obj_dot_notation_set(key: str, obj: object, value: Any) -> object:
-    root = obj
-    parts = key.split(".")
-    for part in parts[:-1]:
-        obj = getattr(obj, part)
-    setattr(obj, parts[-1], value)
-    return root
+from src.util import obj_dot_notation_set
 
 
 def optimize_with_max_trials(
@@ -59,17 +51,22 @@ def optimize_with_max_trials(
     )
 
 
+def study_name_from_config(config: Config) -> str:
+    assert config.hpsearch is not None
+    return "/".join(
+        [
+            config.hpsearch.study_prefix,
+            config.label,
+            config.scenario_label,
+            config.method_label,
+        ]
+    )
+
+
 class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
-        study_name = "/".join(
-            [
-                config.hpsearch.study_prefix,
-                config.label,
-                config.scenario_label,
-                config.method_label,
-            ]
-        )
+        study_name = study_name_from_config(config)
         logger.info(f"Setup study `{study_name}`.")
         self.study = optuna.create_study(
             study_name=study_name,
@@ -103,4 +100,5 @@ class HPSearch:
         trial.set_user_attr("accuracy_seen_avg", metrics.accuracy_seen_avg)
         trial.set_user_attr("accuracy_all_avg", metrics.accuracy_all_avg)
         trial.set_user_attr("accuracy_final", metrics.accuracy_final)
+        trial.set_user_attr("logdir", experiment.logdir.as_posix())
         return metrics.accuracy_all_avg

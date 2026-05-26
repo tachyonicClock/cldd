@@ -1,5 +1,0 @@
-bases:
-  - scenario.yml
-  - boundary/00_abrupt.yml
-  - learner/EWC.yml
-  - drift_detector/oracle.yml

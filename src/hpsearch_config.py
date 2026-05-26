@@ -56,8 +56,12 @@ class HPSearchConfig:
     study_prefix: str = "bocl"
     storage: str = os.environ.get("OPTUNA_STORAGE", "sqlite:///optuna.db")
 
-    def suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
+    def suggest(
+        self, trial: optuna.Trial, startswith: str | None = None
+    ) -> Dict[str, Any]:
         suggestions = {}
         for name, suggest in self.args.items():
+            if startswith is not None and not name.startswith(startswith):
+                continue
             suggestions[name] = suggest._suggest(name, trial)
         return suggestions

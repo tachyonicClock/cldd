@@ -9,7 +9,6 @@ mb_test: 128
 
 hpsearch:
   n_trials: 5
-
   args:
     "learner.lr":
       type_: float

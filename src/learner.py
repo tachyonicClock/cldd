@@ -21,6 +21,7 @@ class LearnerArgs(ABC):
         self, seed: int, schema: Schema, device: str, model: nn.Module
     ) -> BatchClassifier: ...
 
+
 @dataclass
 class FTArgs(LearnerArgs):
     type_: ClassVar[str] = "FT"
@@ -35,6 +36,7 @@ class FTArgs(LearnerArgs):
             device=device,
             random_seed=seed,
         )
+
 
 @dataclass
 class EWCArgs(LearnerArgs):
@@ -94,8 +96,6 @@ class EWCArgs(LearnerArgs):
 # @dataclass
 # class ERArgs(LearnerArgs):
 #     type_: ClassVar[str] = "ER"
-
-
 
 
 AnyLearner = FTArgs | EWCArgs

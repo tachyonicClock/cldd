@@ -3,7 +3,6 @@ from capymoa.base.events import Dispatcher, Handler, LogScalar
 from capymoa.ocl.evaluation.events import (
     TrainBatchPredict,
     TrainTaskBegin,
-    TrainTaskEnd
 )
 from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN, PageHinkley, DDM, CUSUM
@@ -149,6 +148,7 @@ class OCLDD(Handler):
         metrics["ce_stream"] = np.concatenate(self._ce_stream).astype(np.float16)
         return metrics
 
+
 class OracleDriftDetector(BaseDriftDetector, Handler):
     def __init__(self):
         super().__init__()
@@ -157,7 +157,7 @@ class OracleDriftDetector(BaseDriftDetector, Handler):
     def attach_with(self, dispatcher: Dispatcher) -> Handler:
         dispatcher.subscribe(TrainTaskBegin, self.on_train_task_begin)
         return self
-    
+
     def on_train_task_begin(self, event: TrainTaskBegin):
         if event.train_task == 0:
             return
@@ -175,11 +175,12 @@ class OracleDriftDetector(BaseDriftDetector, Handler):
     def get_params(self) -> dict:
         return {}
 
+
 @dataclass
 class DriftDetectorArgs:
     type_: ClassVar[str]
 
-    max_delay: int = int(1000 / 4)
+    max_delay: int = 500
     rate_period: int = 1000
     max_early_detection: int = 0
 
@@ -187,22 +188,22 @@ class DriftDetectorArgs:
     use_batch_mean: bool = False
     error_stream_type: Literal["CE", "ERROR"] = "CE"
 
-    def build_eval_dd(self) -> EvaluateDriftDetector:
+    def build_dd_evaluator(self) -> EvaluateDriftDetector:
         return EvaluateDriftDetector(
             max_delay=self.max_delay,
             rate_period=self.rate_period,
             max_early_detection=self.max_early_detection,
         )
 
-    def _build_dd(self, seed: int, learner: Any) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         raise NotImplementedError(
             "Must implement _build method for drift detector config"
         )
 
     def build(self, seed: int, learner: Any) -> "OCLDD":
         return OCLDD(
-            drift_detector=self._build_dd(),
-            eval_dd=self.build_eval_dd(),
+            drift_detector=self.build_dd(),
+            eval_dd=self.build_dd_evaluator(),
             learner=learner,
             use_batch_mean=self.use_batch_mean,
             reset_on_drift=self.reset_on_drift,
@@ -215,7 +216,7 @@ class ADWINArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "ADWIN"
     delta: float = 0.002
 
-    def _build_dd(self) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         return ADWIN(self.delta)
 
 
@@ -229,7 +230,7 @@ class CUSUMArgs(DriftDetectorArgs):
     lambda_: float = 50
     """Threshold parameter of the CUSUM test."""
 
-    def _build_dd(self) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         return CUSUM(
             min_n_instances=self.min_n_instances,
             delta=self.delta,
@@ -244,12 +245,13 @@ class DDMArgs(DriftDetectorArgs):
     warning_level: float = 2.0
     out_control_level: float = 3.0
 
-    def _build_dd(self) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         return DDM(
             min_n_instances=self.min_n_instances,
             warning_level=self.warning_level,
             out_control_level=self.out_control_level,
         )
+
 
 @dataclass
 class PageHinkleyArgs(DriftDetectorArgs):
@@ -259,7 +261,7 @@ class PageHinkleyArgs(DriftDetectorArgs):
     lambda_: float = 50.0
     alpha: float = 0.9999
 
-    def _build_dd(self) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         return PageHinkley(
             min_n_instances=self.min_n_instances,
             delta=self.delta,
@@ -267,11 +269,12 @@ class PageHinkleyArgs(DriftDetectorArgs):
             alpha=self.alpha,
         )
 
+
 @dataclass
 class OracleArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "oracle"
 
-    def _build_dd(self) -> BaseDriftDetector:
+    def build_dd(self) -> BaseDriftDetector:
         return OracleDriftDetector()
 
 
