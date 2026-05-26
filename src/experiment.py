@@ -53,7 +53,7 @@ class Experiment:
         return [new_loader(task) for task in self.scenario.train_tasks]
 
     def test_streams(self) -> Sequence[DataLoader]:
-        new_loader = partial(DataLoader, batch_size=self.config.mb_eval, shuffle=False)
+        new_loader = partial(DataLoader, batch_size=self.config.mb_test, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
     def run(self) -> OCLMetrics:

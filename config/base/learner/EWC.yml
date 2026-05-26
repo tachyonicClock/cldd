@@ -1,2 +1,9 @@
 learner:
   type_: EWC
+
+hpsearch:
+  args:
+    "learner.lambda_":
+      type_: float
+      low: 1
+      high: 1000

@@ -1,0 +1,18 @@
+scenario:
+  name: RotatedTinyMNIST
+
+model:
+  type_: MLP
+
+mb_train: 32
+mb_test: 128
+
+hpsearch:
+  n_trials: 5
+
+  args:
+    "learner.lr":
+      type_: float
+      low: 1e-5
+      high: 1e-1
+      log: true

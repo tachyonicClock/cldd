@@ -21,7 +21,7 @@ class Config:
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
-    mb_eval: int = 256
+    mb_test: int = 256
 
     seed: int = 0
     label: str = "noname"

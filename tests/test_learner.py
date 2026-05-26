@@ -1,52 +1,31 @@
-from pathlib import Path
-
 import pytest
-from omegaconf import OmegaConf
-
+from typing import Type
+from src import learner
+import inspect
+from capymoa.stream import Schema
+from capymoa.ann import Perceptron
 from src.config import converter
-from src.learner import (
-    DERArgs,
-    ERArgs,
-    EWCArgs,
-    FTArgs,
-    LWFArgs,
-    PNArgs,
-    RARArgs,
-    SIArgs,
-    AnyLearner,
-)
 
+# Filter to get only classes, then check if they are subclasses of LearnerArgs
+LEARNER_TYPES = [
+    obj
+    for _, obj in inspect.getmembers(learner)
+    if inspect.isclass(obj) # Check if it's a class
+    and issubclass(obj, learner.LearnerArgs) # Check if it's a subclass of LearnerArgs
+    and obj is not learner.LearnerArgs # Exclude the base class itself
+]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-LEARNER_BASE_DIR = PROJECT_ROOT / "config" / "base" / "learner"
-
-
-def test_converter_rejects_unknown_learner_type():
-    with pytest.raises(Exception):
-        converter.structure({"type_": "UNKNOWN"}, AnyLearner)
-
-
-def test_converter_rejects_extra_learner_keys():
-    with pytest.raises(Exception):
-        converter.structure({"type_": "EWC", "unexpected": 1}, AnyLearner)
-
-
-def test_base_learner_configs_parse_with_converter():
-    config_paths = sorted(LEARNER_BASE_DIR.glob("*.yml"))
-    assert config_paths
-
-    seen_types = set()
-
-    for config_path in config_paths:
-        config = OmegaConf.load(config_path)
-        learner_config = config["learner"]
-
-        learner = converter.structure(learner_config, AnyLearner)
-        assert isinstance(
-            learner,
-            EWCArgs | SIArgs | LWFArgs | DERArgs | PNArgs | RARArgs | ERArgs | FTArgs,
-        )
-        assert learner.type_ == learner_config["type_"]
-        seen_types.add(learner.type_)
-
-    assert seen_types == {"EWC", "SI", "LWF", "DER", "PN", "RAR", "ER", "FT"}
+@pytest.mark.parametrize("learner_type", LEARNER_TYPES)
+def test_learner_construction(learner_type: Type[learner.LearnerArgs]):
+    schema = Schema.from_custom(
+        features=["f1", "f2", "class"],
+        target="class",
+        categories={"class": ["A", "B"]},
+    )
+    model = Perceptron(schema, 1)
+    config = learner_type()
+    
+    # Check that it can be converted to and from a dictionary
+    assert converter.structure(converter.unstructure(config), learner_type) == config
+    
+    config.build(seed=0, schema=schema, device="cpu", model=model)

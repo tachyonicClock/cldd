@@ -95,6 +95,7 @@ class HPSearch:
 
         logger.info(f"Trial {trial.number} with suggestions:")
         self.config.trial = trial.number
+        self.config.seed = trial.number
         pprint(self.config)
         experiment = Experiment(self.config)
         metrics = experiment.run()

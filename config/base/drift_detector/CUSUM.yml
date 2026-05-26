@@ -1,2 +1,2 @@
 drift_detector:
-  type_: EDDM
+  type_: CUSUM

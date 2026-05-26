@@ -3,9 +3,10 @@ from capymoa.base.events import Dispatcher, Handler, LogScalar
 from capymoa.ocl.evaluation.events import (
     TrainBatchPredict,
     TrainTaskBegin,
+    TrainTaskEnd
 )
 from capymoa.drift.base_detector import BaseDriftDetector
-from capymoa.drift.detectors import ADWIN
+from capymoa.drift.detectors import ADWIN, PageHinkley, DDM, CUSUM
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from dataclasses import dataclass, asdict
 from loguru import logger
@@ -50,6 +51,7 @@ class OCLDD(Handler):
         self._dd_preds = []  # Predicted positions of drifts by the drift detector
         self._ce_stream = []  # Per-instance cross-entropy loss stream for evaluation
         self._error_stream = []  # Per-instance correctness stream for evaluation
+        self._n_drifts = 0
 
     def attach_with(self, dispatcher: Dispatcher) -> Handler:
         self.upstream = dispatcher
@@ -90,12 +92,12 @@ class OCLDD(Handler):
         if self.use_batch_mean:
             self._ptr += batch_size
             self._add_element(ce_loss, error_rate)
-            self._poll_drift()
+            self._poll_drift(event)
         else:
             for i in range(batch_size):
                 self._ptr += 1
                 self._add_element(ce_losses[i], errors[i])
-                self._poll_drift()
+                self._poll_drift(event)
 
         # Log the error rate and cross-entropy
         self.log_scalar("dd/error_rate", error_rate, event.global_step)
@@ -109,12 +111,23 @@ class OCLDD(Handler):
         else:
             raise ValueError(f"Unsupported error stream type: {self.error_stream_type}")
 
-    def _poll_drift(self):
+    def _poll_drift(self, event: TrainBatchPredict):
         if self.drift_detector.detected_change():
-            self._dd_preds.append(self._ptr)
             logger.info(f"Predicted drift at instance {self._ptr}")
+            self._dd_preds.append(self._ptr)
+            self._n_drifts += 1
+            self._downstream.notify(
+                TrainTaskBegin(
+                    train_task=self._n_drifts,
+                    global_step=event.global_step,
+                    train_step=event.train_step,
+                )
+            )
             if self.reset_on_drift:
                 self.drift_detector.reset()
+
+        if self.drift_detector.detected_warning():
+            logger.warning(f"Predicted warning at instance {self._ptr}")
 
     def on_train_task_begin(self, event: TrainTaskBegin):
         # The start does not count as a drift.
@@ -136,6 +149,31 @@ class OCLDD(Handler):
         metrics["ce_stream"] = np.concatenate(self._ce_stream).astype(np.float16)
         return metrics
 
+class OracleDriftDetector(BaseDriftDetector, Handler):
+    def __init__(self):
+        super().__init__()
+        self._in_concept_change = False
+
+    def attach_with(self, dispatcher: Dispatcher) -> Handler:
+        dispatcher.subscribe(TrainTaskBegin, self.on_train_task_begin)
+        return self
+    
+    def on_train_task_begin(self, event: TrainTaskBegin):
+        if event.train_task == 0:
+            return
+        self._in_concept_change = True
+
+    def add_element(self, element: float) -> None:
+        pass
+
+    def detected_change(self) -> bool:
+        if self._in_concept_change:
+            self._in_concept_change = False
+            return True
+        return False
+
+    def get_params(self) -> dict:
+        return {}
 
 @dataclass
 class DriftDetectorArgs:
@@ -163,7 +201,7 @@ class DriftDetectorArgs:
 
     def build(self, seed: int, learner: Any) -> "OCLDD":
         return OCLDD(
-            drift_detector=self._build_dd(seed, learner),
+            drift_detector=self._build_dd(),
             eval_dd=self.build_eval_dd(),
             learner=learner,
             use_batch_mean=self.use_batch_mean,
@@ -177,23 +215,64 @@ class ADWINArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "ADWIN"
     delta: float = 0.002
 
-    def _build_dd(self, seed: int, learner: Any) -> BaseDriftDetector:
+    def _build_dd(self) -> BaseDriftDetector:
         return ADWIN(self.delta)
 
 
 @dataclass
-class EDDMArgs(DriftDetectorArgs):
-    type_: ClassVar[str] = "EDDM"
+class CUSUMArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "CUSUM"
+    min_n_instances: int = 30
+    """The minimum number of instances before permitting detecting change."""
+    delta: float = 0.005
+    """Delta parameter of the CUSUM test."""
+    lambda_: float = 50
+    """Threshold parameter of the CUSUM test."""
+
+    def _build_dd(self) -> BaseDriftDetector:
+        return CUSUM(
+            min_n_instances=self.min_n_instances,
+            delta=self.delta,
+            lambda_=self.lambda_,
+        )
 
 
 @dataclass
 class DDMArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "DDM"
+    min_n_instances: int = 30
+    warning_level: float = 2.0
+    out_control_level: float = 3.0
 
+    def _build_dd(self) -> BaseDriftDetector:
+        return DDM(
+            min_n_instances=self.min_n_instances,
+            warning_level=self.warning_level,
+            out_control_level=self.out_control_level,
+        )
+
+@dataclass
+class PageHinkleyArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "PageHinkley"
+    min_n_instances: int = 30
+    delta: float = 0.005
+    lambda_: float = 50.0
+    alpha: float = 0.9999
+
+    def _build_dd(self) -> BaseDriftDetector:
+        return PageHinkley(
+            min_n_instances=self.min_n_instances,
+            delta=self.delta,
+            lambda_=self.lambda_,
+            alpha=self.alpha,
+        )
 
 @dataclass
 class OracleArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "oracle"
 
+    def _build_dd(self) -> BaseDriftDetector:
+        return OracleDriftDetector()
 
-AnyDriftDetector = ADWINArgs | EDDMArgs | DDMArgs | OracleArgs
+
+AnyDriftDetector = ADWINArgs | CUSUMArgs | DDMArgs | OracleArgs
