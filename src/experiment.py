@@ -56,7 +56,7 @@ class Experiment:
         new_loader = partial(DataLoader, batch_size=self.config.mb_eval, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
-    def run(self):
+    def run(self) -> float:
         self.logdir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Saving config...")
@@ -108,4 +108,4 @@ class Experiment:
         print(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
         print(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
         print(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
-        return ocl_metrics
+        return ocl_metrics.accuracy_all_avg

@@ -5,3 +5,10 @@ bases:
   - scenario/rfmnist.yml
 
 mb_train: 16
+
+hpsearch:
+  args:
+    "drift_detector.delta":
+      type_: float
+      low: 0
+      high: 1

@@ -1,3 +1,4 @@
 drift_detector:
   type_: ADWIN
-  delta: 0.002
+  delta: 0.01
+  error_stream_type: ERROR

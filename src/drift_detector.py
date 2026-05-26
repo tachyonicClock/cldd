@@ -1,12 +1,27 @@
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 from capymoa.base.events import Dispatcher, Handler, LogScalar
-from capymoa.ocl.evaluation.events import TrainBatchPredict, TrainTaskEnd
+from capymoa.ocl.evaluation.events import (
+    TrainBatchPredict,
+    TrainTaskBegin,
+)
 from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import ADWIN
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from dataclasses import dataclass, asdict
 from loguru import logger
 import numpy as np
+from torch.nn.functional import cross_entropy
+import torch
+import enum
+
+
+class ErrorStreamType(enum.Enum):
+    CE = "CE"
+    """A stream of cross-entropy losses for each sample, used for drift detection. The
+    drift detector will be applied on this stream to detect drifts."""
+    ERROR = "ERROR"
+    """A bit stream where 1 means the model was correct on that sample, and 0 means it
+    was incorrect."""
 
 
 class OCLDD(Handler):
@@ -15,23 +30,31 @@ class OCLDD(Handler):
         drift_detector: BaseDriftDetector,
         eval_dd: EvaluateDriftDetector,
         learner: Any,
+        use_batch_mean: bool,
+        reset_on_drift: bool,
+        error_stream_type: ErrorStreamType,
     ):
-        self.drift_detector = drift_detector
         self._downstream = Dispatcher()
+        """Dispatcher used to notify the learners of detected drifts."""
         if isinstance(learner, Handler):
             logger.info("Drift detector will notify the learner of detected drifts.")
             learner.attach_with(self._downstream)
-        """Dispatcher used to notify the learners of detected drifts."""
+
+        self.reset_on_drift = reset_on_drift
+        self.drift_detector = drift_detector
+        self.use_batch_mean = use_batch_mean
+        self.error_stream_type = error_stream_type
         self._eval_dd = eval_dd
         self._ptr = 0
         self._dd_trues = []  # True positions of drifts in the scenario
         self._dd_preds = []  # Predicted positions of drifts by the drift detector
-        self._dd_corrects = []  # Was the model correct on each sample, used for evaluation of drift detector offline
+        self._ce_stream = []  # Per-instance cross-entropy loss stream for evaluation
+        self._error_stream = []  # Per-instance correctness stream for evaluation
 
     def attach_with(self, dispatcher: Dispatcher) -> Handler:
         self.upstream = dispatcher
         dispatcher.subscribe(TrainBatchPredict, self.on_train_batch_predict)
-        dispatcher.subscribe(TrainTaskEnd, self.on_train_task_end)
+        dispatcher.subscribe(TrainTaskBegin, self.on_train_task_begin)
 
         # If the drift detector is a handler itself. e.g. The oracle detector, then we
         # also attach it to the same dispatcher.
@@ -39,31 +62,66 @@ class OCLDD(Handler):
             self.drift_detector.attach_with(dispatcher)
         return self
 
-    def on_train_batch_predict(self, event: TrainBatchPredict):
-        self._ptr += event.y.size(0)
-        correct = (event.y == event.y_pred).bool().numpy()
-        self._dd_corrects.append(correct)
-
-        for c in correct:
-            self.drift_detector.add_element(c)
-
-        if self.drift_detector.detected_change():
-            logger.info(f"Detected drift at {event.global_step} (global_step).")
-            self._dd_preds.append(self._ptr)
-
+    def log_scalar(self, tag: str, scalar_value: float, global_step: int):
         self.upstream.notify(
             LogScalar(
-                tag="drift_detector_stream",
-                scalar_value=correct.sum() / correct.size,
-                global_step=event.global_step,
+                tag=tag,
+                scalar_value=scalar_value,
+                global_step=global_step,
             )
         )
 
-    def on_train_task_end(self, event: TrainTaskEnd):
-        logger.info(
-            f"End of task {event.train_task} at {event.global_step} (global_step)."
+    @torch.no_grad()
+    def on_train_batch_predict(self, event: TrainBatchPredict):
+        batch_size = len(event.y)
+        # Compute the cross-entropy loss and error for each instance in the batch, and
+        # add them to the respective streams to save for later.
+        ce_losses = (
+            cross_entropy(event.y_logits, event.y, reduction="none").cpu().numpy()
         )
+        ce_loss = ce_losses.mean()
+        errors = (event.y != event.y_pred).bool().cpu().numpy()
+        error_rate = errors.mean()
+        self._error_stream.append(errors)
+        self._ce_stream.append(ce_losses)
+
+        # Depending on the configuration, we either add the batch mean or each
+        # individual instance to the drift detector.
+        if self.use_batch_mean:
+            self._ptr += batch_size
+            self._add_element(ce_loss, error_rate)
+            self._poll_drift()
+        else:
+            for i in range(batch_size):
+                self._ptr += 1
+                self._add_element(ce_losses[i], errors[i])
+                self._poll_drift()
+
+        # Log the error rate and cross-entropy
+        self.log_scalar("dd/error_rate", error_rate, event.global_step)
+        self.log_scalar("dd/ce_loss", ce_loss, event.global_step)
+
+    def _add_element(self, ce_loss, error_rate):
+        if self.error_stream_type == ErrorStreamType.ERROR:
+            self.drift_detector.add_element(error_rate)
+        elif self.error_stream_type == ErrorStreamType.CE:
+            self.drift_detector.add_element(ce_loss)
+        else:
+            raise ValueError(f"Unsupported error stream type: {self.error_stream_type}")
+
+    def _poll_drift(self):
+        if self.drift_detector.detected_change():
+            self._dd_preds.append(self._ptr)
+            logger.info(f"Predicted drift at instance {self._ptr}")
+            if self.reset_on_drift:
+                self.drift_detector.reset()
+
+    def on_train_task_begin(self, event: TrainTaskBegin):
+        # The start does not count as a drift.
+        if event.train_task == 0:
+            return
         self._dd_trues.append(self._ptr)
+        logger.info("True drift at instance {}".format(self._ptr))
 
     def metrics(self) -> dict:
         metrics = asdict(
@@ -72,7 +130,10 @@ class OCLDD(Handler):
         metrics["trues"] = self._dd_trues
         metrics["preds"] = self._dd_preds
         metrics["tot_n_instances"] = self._ptr
-        metrics["corrects"] = np.concatenate(self._dd_corrects)
+
+        # Save the error streams as well for further analysis.
+        metrics["error_stream"] = np.concatenate(self._error_stream).astype(np.bool_)
+        metrics["ce_stream"] = np.concatenate(self._ce_stream).astype(np.float16)
         return metrics
 
 
@@ -80,9 +141,13 @@ class OCLDD(Handler):
 class DriftDetectorArgs:
     type_: ClassVar[str]
 
-    max_delay: int = 100
+    max_delay: int = int(1000 / 4)
     rate_period: int = 1000
     max_early_detection: int = 0
+
+    reset_on_drift: bool = True
+    use_batch_mean: bool = False
+    error_stream_type: Literal["CE", "ERROR"] = "CE"
 
     def build_eval_dd(self) -> EvaluateDriftDetector:
         return EvaluateDriftDetector(
@@ -91,9 +156,19 @@ class DriftDetectorArgs:
             max_early_detection=self.max_early_detection,
         )
 
-    def build(self, seed: int, learner: Any) -> "OCLDD":
+    def _build_dd(self, seed: int, learner: Any) -> BaseDriftDetector:
         raise NotImplementedError(
-            "Must implement build method for drift detector config"
+            "Must implement _build method for drift detector config"
+        )
+
+    def build(self, seed: int, learner: Any) -> "OCLDD":
+        return OCLDD(
+            drift_detector=self._build_dd(seed, learner),
+            eval_dd=self.build_eval_dd(),
+            learner=learner,
+            use_batch_mean=self.use_batch_mean,
+            reset_on_drift=self.reset_on_drift,
+            error_stream_type=ErrorStreamType(self.error_stream_type),
         )
 
 
@@ -102,11 +177,8 @@ class ADWINArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "ADWIN"
     delta: float = 0.002
 
-    def build(self, seed: int, learner: Any) -> OCLDD:
-
-        dd = ADWIN(self.delta)
-        logger.info(dd.CLI)
-        return OCLDD(dd, self.build_eval_dd(), learner)
+    def _build_dd(self, seed: int, learner: Any) -> BaseDriftDetector:
+        return ADWIN(self.delta)
 
 
 @dataclass
