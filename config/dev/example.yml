@@ -7,8 +7,10 @@ bases:
 mb_train: 16
 
 hpsearch:
+  n_trials: 5
   args:
-    "drift_detector.delta":
+    "learner.lr":
       type_: float
-      low: 0
-      high: 1
+      low: 1e-5
+      high: 1e-1
+      log: true

@@ -2,6 +2,7 @@ import click
 from pathlib import Path
 from src.config import get_config, Config
 from src.experiment import Experiment
+from src.hpsearch import HPSearch
 from cattrs import transform_error, BaseValidationError
 from loguru import logger
 import pprint
@@ -36,6 +37,7 @@ def cli(ctx, config: Path, dotlist: list[str]):
 def hpsearch(ctx):
     config = ctx.obj
     assert isinstance(config, Config)
+    HPSearch(config).optimize()
 
 
 @cli.command()
@@ -43,7 +45,6 @@ def hpsearch(ctx):
 def run(ctx):
     config = ctx.obj
     assert isinstance(config, Config)
-
     experiment = Experiment(config)
     experiment.run()
 

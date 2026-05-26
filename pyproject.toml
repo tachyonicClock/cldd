@@ -12,6 +12,7 @@ dependencies = [
     "mashumaro>=3.20",
     "omegaconf>=2.3.0",
     "optuna>=4.8.0",
+    "psycopg[binary]>=3.3.4",
     "tensorboard>=2.20.0",
 ]
 

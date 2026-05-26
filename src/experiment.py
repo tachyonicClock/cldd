@@ -1,7 +1,7 @@
 from src.tblogger import TensorboardLogger
 from src import config
 from capymoa.base.events import Dispatcher
-from capymoa.ocl.evaluation import ocl_train_eval_loop
+from capymoa.ocl.evaluation import OCLMetrics, ocl_train_eval_loop
 from typing import Sequence
 from torch.utils.data import DataLoader
 from functools import partial
@@ -42,9 +42,9 @@ class Experiment:
 
         return (
             Path("logs")
-            / (self.config.name or "unnamed")
-            / f"{self.config.scenario.name}_{self.config.scenario.gradual}"
-            / f"{self.config.learner.type_}_{self.config.drift_detector.type_}_{self.config.model.type_}"
+            / self.config.label
+            / self.config.scenario_label
+            / self.config.method_label
             / trial_id
         )
 
@@ -56,7 +56,7 @@ class Experiment:
         new_loader = partial(DataLoader, batch_size=self.config.mb_eval, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
-    def run(self) -> float:
+    def run(self) -> OCLMetrics:
         self.logdir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Saving config...")
@@ -108,4 +108,4 @@ class Experiment:
         print(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
         print(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
         print(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
-        return ocl_metrics.accuracy_all_avg
+        return ocl_metrics

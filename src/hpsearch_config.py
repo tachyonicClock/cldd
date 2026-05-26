@@ -7,7 +7,7 @@ import os
 class _SuggestBase:
     type_: ClassVar[str]
 
-    def _suggest(self, name: str, trial: optuna.Trial) -> None:
+    def _suggest(self, name: str, trial: optuna.Trial) -> Any:
         raise NotImplementedError
 
 
@@ -16,8 +16,8 @@ class SuggestCategorical(_SuggestBase):
     type_: ClassVar[str] = "categorical"
     choices: Sequence[Any]
 
-    def _suggest(self, name: str, trial: optuna.Trial) -> None:
-        trial.suggest_categorical(name=name, choices=self.choices)
+    def _suggest(self, name: str, trial: optuna.Trial) -> Any:
+        return trial.suggest_categorical(name=name, choices=self.choices)
 
 
 @dataclass
@@ -28,8 +28,8 @@ class SuggestInt(_SuggestBase):
     step: int = 1
     log: bool = False
 
-    def _suggest(self, name: str, trial: optuna.Trial) -> None:
-        trial.suggest_int(name=name, **asdict(self))
+    def _suggest(self, name: str, trial: optuna.Trial) -> Any:
+        return trial.suggest_int(name=name, **asdict(self))
 
 
 @dataclass
@@ -41,8 +41,8 @@ class SuggestFloat(_SuggestBase):
     step: float | None = None
     log: bool = False
 
-    def _suggest(self, name: str, trial: optuna.Trial) -> None:
-        trial.suggest_float(name=name, **asdict(self))
+    def _suggest(self, name: str, trial: optuna.Trial) -> float:
+        return trial.suggest_float(name=name, **asdict(self))
 
 
 SuggestAny = SuggestCategorical | SuggestInt | SuggestFloat
@@ -51,8 +51,13 @@ SuggestAny = SuggestCategorical | SuggestInt | SuggestFloat
 @dataclass
 class HPSearchConfig:
     args: Dict[str, SuggestAny]
+
+    n_trials: int
+    study_prefix: str = "bocl"
     storage: str = os.environ.get("OPTUNA_STORAGE", "sqlite:///optuna.db")
 
-    def suggest(self, trial: optuna.Trial) -> None:
+    def suggest(self, trial: optuna.Trial) -> Dict[str, Any]:
+        suggestions = {}
         for name, suggest in self.args.items():
-            suggest._suggest(name, trial)
+            suggestions[name] = suggest._suggest(name, trial)
+        return suggestions

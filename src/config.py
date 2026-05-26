@@ -8,7 +8,7 @@ from src.scenario import ScenarioArgs
 from src.drift_detector import AnyDriftDetector
 from src.learner import AnyLearner
 from src.model import AnyModel
-from hpsearch_config import HPSearchConfig, SuggestAny
+from src.hpsearch_config import HPSearchConfig, SuggestAny
 import torch
 
 
@@ -24,11 +24,19 @@ class Config:
     mb_eval: int = 256
 
     seed: int = 0
-    name: Optional[str] = None
+    label: str = "noname"
     """Optional top level name for the experiment."""
     trial: Optional[int] = None
     bases: Optional[list[str]] = None
     hpsearch: Optional[HPSearchConfig] = None
+
+    @property
+    def scenario_label(self) -> str:
+        return f"{self.scenario.name}_{self.scenario.gradual}"
+
+    @property
+    def method_label(self) -> str:
+        return f"{self.learner.type_}_{self.drift_detector.type_}_{self.model.type_}"
 
 
 # Setup cattrs converter for auto-disambiguation of union types.
