@@ -1,6 +1,6 @@
 import click
 from pathlib import Path
-from src.dd_hpearch import DDHPSearch
+from src.dd_hpsearch import DDHPSearch
 from src.config import get_config, Config
 from src.experiment import Experiment
 from src.hpsearch import HPSearch

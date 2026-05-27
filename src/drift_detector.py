@@ -45,7 +45,7 @@ class OCLDD(Handler):
         self.use_batch_mean = use_batch_mean
         self.error_stream_type = error_stream_type
         self._eval_dd = eval_dd
-        self._ptr = 0
+        self._stream_index = 0
         self._dd_trues = []  # True positions of drifts in the scenario
         self._dd_preds = []  # Predicted positions of drifts by the drift detector
         self._ce_stream = []  # Per-instance cross-entropy loss stream for evaluation
@@ -89,12 +89,12 @@ class OCLDD(Handler):
         # Depending on the configuration, we either add the batch mean or each
         # individual instance to the drift detector.
         if self.use_batch_mean:
-            self._ptr += batch_size
+            self._stream_index += batch_size
             self._add_element(ce_loss, error_rate)
             self._poll_drift(event)
         else:
             for i in range(batch_size):
-                self._ptr += 1
+                self._stream_index += 1
                 self._add_element(ce_losses[i], errors[i])
                 self._poll_drift(event)
 
@@ -112,8 +112,8 @@ class OCLDD(Handler):
 
     def _poll_drift(self, event: TrainBatchPredict):
         if self.drift_detector.detected_change():
-            logger.info(f"Predicted drift at instance {self._ptr}")
-            self._dd_preds.append(self._ptr)
+            logger.info(f"Predicted drift at instance {self._stream_index}")
+            self._dd_preds.append(self._stream_index)
             self._n_drifts += 1
             self._downstream.notify(
                 TrainTaskBegin(
@@ -126,22 +126,24 @@ class OCLDD(Handler):
                 self.drift_detector.reset()
 
         if self.drift_detector.detected_warning():
-            logger.warning(f"Predicted warning at instance {self._ptr}")
+            logger.warning(f"Predicted warning at instance {self._stream_index}")
 
     def on_train_task_begin(self, event: TrainTaskBegin):
         # The start does not count as a drift.
         if event.train_task == 0:
             return
-        self._dd_trues.append(self._ptr)
-        logger.info("True drift at instance {}".format(self._ptr))
+        self._dd_trues.append(self._stream_index)
+        logger.info("True drift at instance {}".format(self._stream_index))
 
     def metrics(self) -> dict:
         metrics = asdict(
-            self._eval_dd.calc_performance(self._dd_trues, self._dd_preds, self._ptr)
+            self._eval_dd.calc_performance(
+                self._dd_trues, self._dd_preds, self._stream_index
+            )
         )
         metrics["trues"] = self._dd_trues
         metrics["preds"] = self._dd_preds
-        metrics["tot_n_instances"] = self._ptr
+        metrics["tot_n_instances"] = self._stream_index
 
         # Save the error streams as well for further analysis.
         metrics["error_stream"] = np.concatenate(self._error_stream).astype(np.bool_)
@@ -278,4 +280,4 @@ class OracleArgs(DriftDetectorArgs):
         return OracleDriftDetector()
 
 
-AnyDriftDetector = ADWINArgs | CUSUMArgs | DDMArgs | OracleArgs
+AnyDriftDetector = ADWINArgs | CUSUMArgs | DDMArgs | PageHinkleyArgs | OracleArgs

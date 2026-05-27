@@ -1,13 +1,175 @@
 # Experiment 1: Drift Detection
 
+
+```python
+import optuna
+from typing import List, Dict
+
+# ---------------------------------------------------------
+# Variables & Experimental Constants
+# ---------------------------------------------------------
+# We hold the dataset constant to avoid a combinatorial explosion 
+# and prioritize hyperparameter search, seeds, and boundaries.
+CONSTANT_DATASET = "selected_dataset" 
+
+INDEPENDENT_VARS = ["strategy", "detector", "boundary"]
+DEPENDENT_VARS = ["cl_accuracy", "cl_metrics", "detector_metrics"]
+
+# Hyper-parameter search settings used in Phases 1 and 2
+OPTUNA_TRIALS = 30
+SAMPLER = optuna.samplers.TPESampler()
+
+# ---------------------------------------------------------
+# Phase 1: Tune the Strategy
+# ---------------------------------------------------------
+def phase_one_tune_strategy(strategies, boundaries, train_tasks, seeds) -> tuple:
+    """
+    Tunes the continual learning strategy assuming a perfect drift detector (Oracle).
+    """
+    best_strategy_configs = {}
+    error_rate_streams = {}
+
+    for strategy in strategies:
+        for boundary in boundaries:
+            # Draw holdout validation set from training data tasks
+            val_tasks = create_holdout_split(train_tasks)
+            oracle_detector = "Oracle"
+
+            # Auto-tune with Optuna (30 trials, TPE sampler)
+            def objective(trial):
+                config = sample_strategy_space(trial, strategy)
+                return evaluate_learner(strategy, config, oracle_detector, boundary, val_tasks)
+            
+            study = optuna.create_study(sampler=SAMPLER)
+            study.optimize(objective, n_trials=OPTUNA_TRIALS)
+            best_config = study.best_params
+            best_strategy_configs[(strategy, boundary)] = best_config
+
+            # Evaluate with multiple seeds (dictates init, stream order, within-task shuffle)
+            streams = []
+            for seed in seeds:
+                stream = test_then_train_evaluation(
+                    strategy, best_config, oracle_detector, boundary, val_tasks, seed
+                )
+                streams.append(stream)
+            
+            # Record error-rate stream for Phase 2
+            error_rate_streams[(strategy, boundary)] = streams
+
+    return best_strategy_configs, error_rate_streams
+
+# ---------------------------------------------------------
+# Phase 2: Tune the Detector
+# ---------------------------------------------------------
+def phase_two_tune_detector(error_rate_streams, detectors) -> Dict:
+    """
+    Tunes the detector for each strategy-boundary combination using Phase 1 error streams.
+    """
+    best_detector_configs = {}
+
+    for (strategy, boundary), streams in error_rate_streams.items():
+        for detector in detectors:
+            
+            def objective(trial):
+                config = sample_detector_space(trial, detector)
+                return evaluate_detector_on_streams(detector, config, streams)
+            
+            study = optuna.create_study(sampler=SAMPLER)
+            study.optimize(objective, n_trials=OPTUNA_TRIALS)
+            
+            best_detector_configs[(strategy, boundary, detector)] = study.best_params
+            
+    return best_detector_configs
+
+# ---------------------------------------------------------
+# Phase 3: Final Evaluation
+# ---------------------------------------------------------
+def phase_three_final_evaluation(best_strategy_configs, best_detector_configs, new_seeds) -> Dict:
+    """
+    Evaluates the best combination of strategy and detector using unobserved random seeds.
+    Populates Tables: A_BOCL, G_BOCL, and S_BOCL.
+    """
+    final_results = {} 
+
+    for (strategy, boundary), strat_config in best_strategy_configs.items():
+        # Retrieve the optimal detector and its configuration for this pair
+        best_detector, det_config = get_optimal_detector(best_detector_configs, strategy, boundary)
+        
+        # Evaluate using entirely new random seeds
+        results = run_full_pipeline(
+            strategy=strategy, 
+            strat_config=strat_config, 
+            detector=best_detector, 
+            det_config=det_config, 
+            boundary=boundary, 
+            seeds=new_seeds
+        )
+        final_results[(strategy, boundary)] = results
+        
+    return final_results
+
+# ---------------------------------------------------------
+# Supplementary & Detector Evaluation
+# ---------------------------------------------------------
+def supplementary_joint_search():
+    """
+    Small-scale supplementary experiment to observe interaction between 
+    detector and learner by performing hyper-parameter search over both jointly.
+    """
+    # TODO: Implement joint search logic (smaller scale)
+    pass 
+
+def evaluate_detectors_loocv(detectors, error_rate_streams, all_seeds) -> Dict:
+    """
+    Leave-one-out cross-validation to evaluate detectors.
+    Prevents hyperparameter search from overfitting to specific error-rate streams.
+    Populates Table: dd.
+    """
+    loocv_results = {}
+    for detector in detectors:
+        for holdout_seed in all_seeds:
+            # Tune using all seeds EXCEPT the holdout seed
+            train_seeds = [s for s in all_seeds if s != holdout_seed]
+            train_streams = get_streams_by_seeds(error_rate_streams, train_seeds)
+            best_config = tune_detector_custom(detector, train_streams)
+            
+            # Evaluate on the left-out seed
+            holdout_stream = get_streams_by_seeds(error_rate_streams, [holdout_seed])
+            score = test_detector(detector, best_config, holdout_stream)
+            loocv_results[(detector, holdout_seed)] = score
+            
+    return loocv_results
+
+# ---------------------------------------------------------
+# Execution Flow
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    hyperparam_seeds = [42, 43, 44]
+    evaluation_seeds = [99, 100, 101] # Must differ from hyperparam_seeds
+    
+    # 1. Tune Strategy
+    strat_configs, err_streams = phase_one_tune_strategy(
+        INDEPENDENT_VARS['strategy'], 
+        INDEPENDENT_VARS['boundary'], 
+        train_tasks, 
+        hyperparam_seeds
+    )
+    
+    # 2. Tune Detector
+    det_configs = phase_two_tune_detector(err_streams, INDEPENDENT_VARS['detector'])
+    
+    # 3. Final Evaluation
+    final_metrics = phase_three_final_evaluation(strat_configs, det_configs, evaluation_seeds)
+```
+
 Our goal is to evaluate error-rate-based drift detection algorithms for detecting
-gradual task boundaries from online windowed accuracy.
+gradual task boundaries.
 
 Manipulated Variables:
  * drift detector:
     * ADWIN   (Adaptive Windowing)
     * DDM     (Drift Detection Method)
-    * PH      (Page-Hinkley)
+    * CUSUM   (Page-Hinkley)
     * oracle  (Task boundary oracle)
  * strategy:
     * use boundaries:
@@ -183,4 +345,32 @@ Budget:
 /logs/exp_02_hp/$SCENARIO_$BOUNDARY/$STRATEGY_$DRIFT_DETECTOR/$TRIAL
 /logs/exp_02_eval/$SCENARIO_$BOUNDARY/$STRATEGY_$DRIFT_DETECTOR/$TRIAL
 /logs/exp_03_eval/$SCENARIO_$BOUNDARY/$STRATEGY_$DRIFT_DETECTOR/$TRIAL
+```
+
+
+```bash
+# 1. Hyperparameter Search Phase
+$ uv run main.py config/00_abrupt/EWC.yml hpsearch hp
+# creates: optuna study named 'bocl/hp/RotatedTinyMNIST_0.0/EWC_oracle_MLP'
+# creates: log files in 'logs/hp/RotatedTinyMNIST_0.0/EWC_oracle_MLP/*/dd_metrics.pkl'
+
+# 2. Update config files with best hyper-parameters
+$ uv run update_hp.py $STUDY_NAME
+# updates: config/00_abrupt/EWC.yml with hyper-parameters
+
+# 3. Use the best run to tune a drift detector.
+# consumes: log files and study
+$ uv run tune_dd.py $STUDY_NAME config/base/drift_detector/ADWIN.yml 
+# creates: optuna study named 'bocl/offline_dd/RotatedTinyMNIST_0.0/EWC_ADWIN_MLP
+# updates: logs/tune_dd/
+
+# 4. Update config files with best hyper-parameters
+$ uv run update_hp.py $DD_STUDY
+
+
+# 5. Evaluate Model
+$ uv run main.pu $CONFIG -a seed=$SEED run
+
+# Best hyper-parameters using oracle drift detector go here.
+config/00_abrupt/$LEARNER.yml
 ```

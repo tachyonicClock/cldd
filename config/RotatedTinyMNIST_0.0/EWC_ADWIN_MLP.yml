@@ -3,3 +3,8 @@ bases:
 - boundary/abrupt.yml
 - learner/EWC.yml
 - drift_detector/ADWIN.yml
+drift_detector:
+  delta: 0.09861332171794135
+learner:
+  lambda_: 474.48969112397646
+  lr: 0.00029939760120837445

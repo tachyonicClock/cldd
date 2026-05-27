@@ -101,6 +101,8 @@ class Experiment:
                 print(f"{key.ljust(20)} {value:.3f}")
             elif isinstance(value, int):
                 print(f"{key.ljust(20)} {value}")
+        print("PREDS", dd_metrics["preds"])
+        print("TRUES", dd_metrics["trues"])
 
         print("-" * 30)
         print("OCL METRICS")
