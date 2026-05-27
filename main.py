@@ -7,6 +7,7 @@ from src.hpsearch import HPSearch
 from cattrs import transform_error, BaseValidationError
 from loguru import logger
 import pprint
+from omegaconf import OmegaConf
 
 
 @click.group()
@@ -40,7 +41,12 @@ def hpsearch(ctx, label):
     config = ctx.obj
     assert isinstance(config, Config)
     config.label = label
-    HPSearch(config).optimize()
+    hpsearch_ = HPSearch(config)
+    hpsearch_.optimize()
+    # Save best config to 'logs/hp/00_abrupt/FT_oracle_MLP'
+    best_params = hpsearch_.study.best_trial.params
+    with open(config.logdir.parent / "best_params.yaml", "w") as f:
+        f.write(OmegaConf.to_yaml(best_params))
 
 
 @cli.command()

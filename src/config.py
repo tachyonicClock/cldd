@@ -10,6 +10,7 @@ from src.learner import AnyLearner
 from src.model import AnyModel
 from src.hpsearch_config import HPSearchConfig, SuggestAny
 import torch
+import time
 
 
 @dataclass
@@ -32,11 +33,26 @@ class Config:
 
     @property
     def scenario_label(self) -> str:
-        return f"{self.scenario.name}_{self.scenario.gradual}"
+        return self.scenario.label
 
     @property
     def method_label(self) -> str:
         return f"{self.learner.type_}_{self.drift_detector.type_}_{self.model.type_}"
+
+    @property
+    def logdir(self) -> Path:
+        if self.trial is None:
+            trial_id = time.strftime("%Y%m%d-%H%M%S")
+        else:
+            trial_id = f"{self.trial:03d}"
+
+        return (
+            Path("logs")
+            / self.label
+            / self.scenario_label
+            / self.method_label
+            / trial_id
+        )
 
 
 # Setup cattrs converter for auto-disambiguation of union types.

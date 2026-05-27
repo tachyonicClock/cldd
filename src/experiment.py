@@ -6,7 +6,6 @@ from typing import Sequence
 from torch.utils.data import DataLoader
 from functools import partial
 from pathlib import Path
-import time
 from loguru import logger
 import pickle
 
@@ -35,18 +34,7 @@ class Experiment:
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
 
     def new_logdir(self) -> Path:
-        if self.config.trial is None:
-            trial_id = time.strftime("%Y%m%d-%H%M%S")
-        else:
-            trial_id = f"{self.config.trial:03d}"
-
-        return (
-            Path("logs")
-            / self.config.label
-            / self.config.scenario_label
-            / self.config.method_label
-            / trial_id
-        )
+        return self.config.logdir
 
     def train_streams(self) -> Sequence[DataLoader]:
         new_loader = partial(DataLoader, batch_size=self.config.mb_train, shuffle=False)

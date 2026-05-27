@@ -25,6 +25,7 @@ class ScenarioArgs:
     ]
     normalize_features: bool = True
     gradual: float = 0.0
+    label: str = "unnamed-scenario"
 
     def _get_dataset(self, seed: int):
         kwargs = dict(

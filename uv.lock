@@ -51,6 +51,7 @@ dependencies = [
     { name = "capymoa" },
     { name = "cattrs" },
     { name = "click" },
+    { name = "doit" },
     { name = "loguru" },
     { name = "mashumaro" },
     { name = "omegaconf" },
@@ -69,6 +70,7 @@ requires-dist = [
     { name = "capymoa", editable = "../CapyMOA" },
     { name = "cattrs", specifier = ">=26.1.0" },
     { name = "click", specifier = ">=8.3.2" },
+    { name = "doit", specifier = ">=0.37.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mashumaro", specifier = ">=3.20" },
     { name = "omegaconf", specifier = ">=2.3.0" },
@@ -328,6 +330,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/85/12f0a49a7c4ffb70572b6c2ef13c90c88fd190debda93b23f026b25f9634/deprecated-1.3.1.tar.gz", hash = "sha256:b1b50e0ff0c1fddaa5708a2c6b0a6588bb09b892825ab2b214ac9ea9d92a5223", size = 2932523 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/d0/205d54408c08b13550c733c4b85429e7ead111c7f0014309637425520a9a/deprecated-1.3.1-py2.py3-none-any.whl", hash = "sha256:597bfef186b6f60181535a29fbe44865ce137a5079f295b479886c82729d5f3f", size = 11298 },
+]
+
+[[package]]
+name = "doit"
+version = "0.37.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/f6/3a817d438799bda4d4e5fd136175cf7c328c074fadc1422dec3b374907e7/doit-0.37.0.tar.gz", hash = "sha256:d3c72e0e46a8fa1ddabea8f830762402dee090caf33c30c2295ac7010db8f09c", size = 1450967 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9c/38/3d6dcbf8379cb86d71a2325210ca3469a33767d8254b74d8c343db26ce87/doit-0.37.0-py3-none-any.whl", hash = "sha256:a9f181566aa90faac515e276f85e6526019554ed7e13c12cf9dc094ffecf3e1b", size = 85780 },
 ]
 
 [[package]]

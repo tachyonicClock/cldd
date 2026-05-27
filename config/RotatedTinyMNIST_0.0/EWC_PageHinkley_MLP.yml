@@ -1,7 +1,0 @@
-bases:
-- scenario.yml
-- boundary/abrupt.yml
-- learner/EWC.yml
-- drift_detector/PageHinkley.yml
-
-drift_detector: {}
