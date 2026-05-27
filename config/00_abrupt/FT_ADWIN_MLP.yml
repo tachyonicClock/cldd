@@ -2,6 +2,8 @@ bases:
 - scenario.yml
 - boundary/00_abrupt.yml
 - learner/FT.yml
-- drift_detector/oracle.yml
+- drift_detector/ADWIN.yml
+drift_detector:
+  delta: 0.048504495642735006
 learner:
   lr: 0.0025021325439821885

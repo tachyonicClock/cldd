@@ -2,7 +2,12 @@ bases:
 - scenario.yml
 - boundary/02_slow.yml
 - learner/EWC.yml
-- drift_detector/oracle.yml
+- drift_detector/ADWIN.yml
+drift_detector:
+  delta: 0.09372757932860758
 learner:
+  buffer_capacity: 256
+  fim_batch_size: 32
+  gamma: 1.0
   lambda_: 935.7047781489539
   lr: 0.0022097212917702377

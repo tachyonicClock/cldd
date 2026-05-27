@@ -1,4 +1,5 @@
 from jinja2 import Template
+from loguru import logger
 
 
 LEARNER = ["DER", "ER", "EWC", "FT", "LWF", "PN", "RAR", "SI"]
@@ -53,7 +54,8 @@ for _ in DRIFT_DETECTORS:
     cmidrules.append(f"\\cmidrule(lr){{{start_col}-{end_col}}}")
     start_col = end_col + 1
 
-print(
+logger.info(
+    "{}",
     latex_template.render(
         drift_detectors=DRIFT_DETECTORS,
         boundaries=BOUNDARIES,
@@ -61,5 +63,5 @@ print(
         cmidrules=cmidrules,
         rows=table,
         col_spec=col_spec,
-    )
+    ),
 )

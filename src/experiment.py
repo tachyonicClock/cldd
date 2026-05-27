@@ -60,7 +60,7 @@ class Experiment:
             learner=self.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
-            progress_bar=True,
+            progress_bar=not self.config.quiet,
             dispatcher=dispatcher,
             attach_learner=False,
         )
@@ -81,21 +81,21 @@ class Experiment:
         with open(dd_pickle, "wb") as f:
             pickle.dump(dd_metrics, f)
 
-        print("-" * 30)
-        print("DRIFT DETECTION METRICS")
-        print("-" * 30)
+        logger.info("{}", "-" * 30)
+        logger.info("DRIFT DETECTION METRICS")
+        logger.info("{}", "-" * 30)
         for key, value in dd_metrics.items():
             if isinstance(value, float):
-                print(f"{key.ljust(20)} {value:.3f}")
+                logger.info(f"{key.ljust(20)} {value:.3f}")
             elif isinstance(value, int):
-                print(f"{key.ljust(20)} {value}")
-        print("PREDS", dd_metrics["preds"])
-        print("TRUES", dd_metrics["trues"])
+                logger.info(f"{key.ljust(20)} {value}")
+        logger.info("PREDS {}", dd_metrics["preds"])
+        logger.info("TRUES {}", dd_metrics["trues"])
 
-        print("-" * 30)
-        print("OCL METRICS")
-        print("-" * 30)
-        print(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
-        print(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
-        print(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
+        logger.info("{}", "-" * 30)
+        logger.info("OCL METRICS")
+        logger.info("{}", "-" * 30)
+        logger.info(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
+        logger.info(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
+        logger.info(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
         return ocl_metrics

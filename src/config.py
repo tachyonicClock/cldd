@@ -30,6 +30,7 @@ class Config:
     trial: Optional[int] = None
     bases: Optional[list[str]] = None
     hpsearch: Optional[HPSearchConfig] = None
+    quiet: bool = False
 
     @property
     def scenario_label(self) -> str:

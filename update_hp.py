@@ -3,6 +3,7 @@ import optuna
 import os
 from pathlib import Path
 import re
+from loguru import logger
 
 from src.util import dict_dot_notation_set
 import yaml
@@ -25,7 +26,7 @@ def main(study_name: str):
         raise ValueError(f"Study name `{study_name}` does not match expected format.")
 
     filename = (Path("config") / boundary / method).with_suffix(".yml")
-    print(f"Update `{filename}` with best trial from study `{study_name}`.")
+    logger.info(f"Update `{filename}` with best trial from study `{study_name}`.")
     study = optuna.load_study(study_name=study_name, storage=storage)
 
     obj = {}
