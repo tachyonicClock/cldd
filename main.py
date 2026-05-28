@@ -1,5 +1,4 @@
 import click
-import sys
 from typing import Any, Dict
 from pathlib import Path
 
@@ -21,9 +20,10 @@ def dotlist_dict_to_nested(dotlist_dict: Dict[str, Any]) -> dict:
 def trial_to_yml(directory: Path, config: Config, trial: optuna.trial.FrozenTrial):
     directory.mkdir(parents=True, exist_ok=True)
     file = directory / "best_params.yml"
+    yaml = OmegaConf.to_yaml(dotlist_dict_to_nested(trial.params))
     with open(file, "w") as f:
         f.write(f"# Scored {trial.value}\n")
-        f.write(OmegaConf.to_yaml(dotlist_dict_to_nested(trial.params)))
+        f.write(yaml)
 
     trial_dict = {
         "number": trial.number,
@@ -34,8 +34,9 @@ def trial_to_yml(directory: Path, config: Config, trial: optuna.trial.FrozenTria
         "state": trial.state.name,
         "config": config.apply_dotlist_dict(trial.params).dump(),
     }
+    yaml = OmegaConf.to_yaml(trial_dict)
     with open(directory / "best_trial.yml", "w") as f:
-        f.write(OmegaConf.to_yaml(trial_dict))
+        f.write(yaml)
 
 
 @click.group()
@@ -53,20 +54,10 @@ def trial_to_yml(directory: Path, config: Config, trial: optuna.trial.FrozenTria
     multiple=True,
     help="Additional config overrides in dotlist format.",
 )
-@click.option(
-    "-q",
-    "--quiet",
-    is_flag=True,
-    help="Only show warnings and errors.",
-)
 @click.pass_context
-def cli(ctx, config: list[str], dotlist: list[str], quiet: bool):
-    if quiet:
-        logger.remove()
-        logger.add(sys.stderr, level="WARNING")
+def cli(ctx, config: list[str], dotlist: list[str]):
     try:
         config_obj = get_config(config, dotlist)
-        config_obj.quiet = quiet
     except BaseValidationError as e:
         for error in transform_error(e):
             logger.error(f"Validation: {error}")

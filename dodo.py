@@ -36,6 +36,7 @@ EVALUATION_SEEDS = [2, 3]
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
 
+
 @dataclass
 class Unit:
     """Represents one experiment unit identified by strategy/detector/boundary/trial.
@@ -100,7 +101,7 @@ class Unit:
     def task_tune_strategy(self) -> dict:
         return {
             "name": self.identifier,
-            "actions": [(tune_strategy, (self.configs,))],
+            "actions": [(tune_strategy, (self.configs, self.identifier))],
             "file_dep": self.configs,
             "targets": [self.tune_strategy_hp],
         }
@@ -109,7 +110,7 @@ class Unit:
         configs = self.configs + [self.tune_strategy_hp]
         return {
             "name": self.identifier,
-            "actions": [(error_stream, (configs, seed, self.trial))],
+            "actions": [(error_stream, (configs, seed, self.trial, self.identifier))],
             "file_dep": configs,
             "targets": [self.error_stream],
         }
@@ -118,7 +119,7 @@ class Unit:
         configs = self.configs
         return {
             "name": self.identifier,
-            "actions": [(tune_detector, (configs, error_streams))],
+            "actions": [(tune_detector, (configs, error_streams, self.identifier))],
             "file_dep": configs,
             "targets": [self.tune_detector_hp, self.tune_detector_metrics],
         }
@@ -136,7 +137,12 @@ class Unit:
         configs = self.configs + configs
         return {
             "name": self.identifier,
-            "actions": [(evaluate, (configs, seed, self.trial, self.detector))],
+            "actions": [
+                (
+                    evaluate,
+                    (configs, seed, self.trial, self.detector, self.identifier),
+                )
+            ],
             "file_dep": configs,
             "targets": [self.ocl_metrics],
         }

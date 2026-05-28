@@ -66,7 +66,7 @@ class Experiment:
             learner=self.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
-            progress_bar=not self.config.quiet,
+            progress_bar=True,
             dispatcher=dispatcher,
             attach_learner=False,
         )

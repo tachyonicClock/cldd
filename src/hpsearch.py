@@ -82,8 +82,8 @@ class HPSearch:
         experiment = Experiment(self.config)
         metrics = experiment.run()
 
-        trial.set_user_attr("accuracy_seen_avg", metrics.accuracy_seen_avg)
-        trial.set_user_attr("accuracy_all_avg", metrics.accuracy_all_avg)
-        trial.set_user_attr("accuracy_final", metrics.accuracy_final)
-        trial.set_user_attr("logdir", experiment.logdir.as_posix())
-        return metrics.accuracy_all_avg
+        trial.set_user_attr("accuracy_seen_avg", float(metrics.accuracy_seen_avg))
+        trial.set_user_attr("accuracy_all_avg", float(metrics.accuracy_all_avg))
+        trial.set_user_attr("accuracy_final", float(metrics.accuracy_final))
+        trial.set_user_attr("logdir", str(experiment.logdir.as_posix()))
+        return float(metrics.accuracy_all_avg)

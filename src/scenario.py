@@ -31,7 +31,6 @@ class ScenarioArgs:
         kwargs = dict(
             seed=seed,
             normalize_features=self.normalize_features,
-            preload_test=False,
         )
         match self.name:
             case "DomainCIFAR100ViT":
@@ -41,11 +40,11 @@ class ScenarioArgs:
             case "DomainCIFAR100":
                 return datasets.DomainCIFAR100(**kwargs)
             case "RotatedMNIST":
-                return datasets.RotatedMNIST(**kwargs)
+                return datasets.RotatedMNIST(**kwargs, preload_test=False)
             case "RotatedFashionMNIST":
-                return datasets.RotatedFashionMNIST(**kwargs)
+                return datasets.RotatedFashionMNIST(**kwargs, preload_test=False)
             case "RotatedTinyMNIST":
-                return datasets.RotatedTinyMNIST(**kwargs)
+                return datasets.RotatedTinyMNIST(**kwargs, preload_test=False)
             case _:
                 raise ValueError(f"Unknown scenario name: {self.name}")
 

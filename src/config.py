@@ -29,7 +29,6 @@ class Config:
     """Optional top level name for the experiment."""
     trial: Optional[int] = None
     hpsearch: Optional[HPSearchConfig] = None
-    quiet: bool = False
 
     @property
     def scenario_label(self) -> str:
