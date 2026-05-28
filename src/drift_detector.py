@@ -38,7 +38,6 @@ class OCLDD(Handler):
         drift_detector: BaseDriftDetector,
         eval_dd: EvaluateDriftDetector,
         learner: Any,
-        use_batch_mean: bool,
         reset_on_drift: bool,
         error_stream_type: ErrorStreamType,
     ):
@@ -50,7 +49,6 @@ class OCLDD(Handler):
 
         self.reset_on_drift = reset_on_drift
         self.drift_detector = drift_detector
-        self.use_batch_mean = use_batch_mean
         self.error_stream_type = error_stream_type
         self._eval_dd = eval_dd
         self._stream_index = 0
@@ -94,17 +92,11 @@ class OCLDD(Handler):
         self._error_stream.append(errors)
         self._ce_stream.append(ce_losses)
 
-        # Depending on the configuration, we either add the batch mean or each
-        # individual instance to the drift detector.
-        if self.use_batch_mean:
-            self._stream_index += batch_size
-            self._add_element(ce_loss, error_rate)
+        # Add each individual instance to the drift detector.
+        for i in range(batch_size):
+            self._stream_index += 1
+            self._add_element(ce_losses[i], errors[i])
             self._poll_drift(event)
-        else:
-            for i in range(batch_size):
-                self._stream_index += 1
-                self._add_element(ce_losses[i], errors[i])
-                self._poll_drift(event)
 
         # Log the error rate and cross-entropy
         self.log_scalar("dd/error_rate", error_rate, event.global_step)
@@ -195,7 +187,6 @@ class DriftDetectorArgs:
     max_early_detection: int = 0
 
     reset_on_drift: bool = True
-    use_batch_mean: bool = False
     error_stream_type: Literal["CE", "ERROR"] = "CE"
 
     label: str | None = None
@@ -217,7 +208,6 @@ class DriftDetectorArgs:
             drift_detector=self.build_dd(),
             eval_dd=self.build_dd_evaluator(),
             learner=learner,
-            use_batch_mean=self.use_batch_mean,
             reset_on_drift=self.reset_on_drift,
             error_stream_type=ErrorStreamType(self.error_stream_type),
         )

@@ -12,7 +12,6 @@ detectors, boundaries, and seeds suitable for iterative experimentation.
 
 from itertools import product
 from pathlib import Path
-from types_ import Strategy, Detector, Boundary
 from dataclasses import dataclass
 from actions import (
     tune_strategy,
@@ -22,6 +21,9 @@ from actions import (
     evaluate,
 )
 
+Strategy = str
+Detector = str
+Boundary = str
 
 STRATEGY = ["EWC", "FT"]
 DETECTOR_AGNOSTIC = {"FT"}

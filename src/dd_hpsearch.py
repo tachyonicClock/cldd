@@ -81,10 +81,6 @@ class DDHPSearch:
         return self.study.best_trial.params
 
     def _objective(self, trial: optuna.Trial) -> float:
-        assert not self.config.drift_detector.use_batch_mean, (
-            "Batch mean is not supported for DDHPSearch."
-        )
-
         # Apply suggestions to config.
         # ONLY OPTIMIZE DRIFT DETECTOR HYPERPARAMETERS
         suggestions = self.hpsearch.suggest(trial, "drift_detector")
