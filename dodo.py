@@ -1,157 +1,208 @@
+"""Doit task graph for the drift-detection experiments.
+
+This file implements the three-phase workflow described in ``plan.md``:
+
+1) Tune continual-learning strategy hyper-parameters with an oracle detector.
+2) Generate error-rate streams and tune detector hyper-parameters.
+3) Evaluate final configurations on held-out random seeds.
+
+The current constants in this file select a reduced subset of strategies,
+detectors, boundaries, and seeds suitable for iterative experimentation.
+"""
+
 from itertools import product
 from pathlib import Path
-from typing import Sequence
 from types_ import Strategy, Detector, Boundary
-from actions import tune_strategy_hp, error_streams
+from dataclasses import dataclass
+from actions import (
+    tune_strategy,
+    error_stream,
+    tune_detector,
+    select_best_detector,
+    evaluate,
+)
 
 
 STRATEGY = ["EWC", "FT"]
-DETECTOR = ["ADWIN", "ORACLE"]
+DETECTOR_AGNOSTIC = {"FT"}
+DETECTOR = ["ADWIN"]
 BOUNDARY = [
     "abrupt",
     # "gradual",
     # "slow",
 ]
-SEEDS = [0, 1]
-ROOT = Path("doitdata")
+ERROR_STREAM_SEEDS = [0, 1]
+EVALUATION_SEEDS = [2, 3]
+ORACLE_DETECTOR = "oracle"
+BEST_DETECTOR = "BEST"
 
+@dataclass
+class Unit:
+    """Represents one experiment unit identified by strategy/detector/boundary/trial.
 
-def get_targets(tasks):
-    targets = []
-    for task in tasks:
-        targets.extend(task["targets"])
-    return targets
+    The instance also provides helper methods that construct doit task
+    dictionaries and canonical file locations used across all phases.
+    """
 
+    strategy: Strategy
+    detector: Detector
+    boundary: Boundary
+    trial: int = 0
 
-def _target(
-    func, strategy: Strategy, detector: Detector, boundary: Boundary, seed: int = 0
-) -> Path:
-    id_ = get_identifier(strategy, detector, boundary, seed)
-    target = ROOT / func.__name__ / f"{id_}.pkl"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    return target
+    @property
+    def trial_str(self) -> str:
+        return f"{self.trial:03d}"
 
+    @property
+    def identifier(self) -> str:
+        return f"{self.strategy}.{self.detector}.{self.boundary}.{self.trial_str}"
 
-def get_identifier(
-    strategy: Strategy, detector: Detector, boundary: Boundary, seed: int = 0
-) -> str:
-    return f"{strategy}.{detector}.{boundary}.{seed:02d}"
+    @property
+    def configs(self) -> list[Path]:
+        r = Path("config")
+        return [
+            r / "base.yml",
+            r / "strategy" / f"{self.strategy}.yml",
+            r / "detector" / f"{self.detector}.yml",
+            r / "boundary" / f"{self.boundary}.yml",
+        ]
 
-
-def split_identifier(id_: str) -> tuple[Strategy, Detector, Boundary, int]:
-    strategy, detector, boundary, seed = id_.split(".")
-    return strategy, detector, boundary, int(seed)
-
-
-def task_tune_strategy_hp():
-    detector = "ORACLE"
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
-        id_ = get_identifier(strategy, detector, boundary)
-
-        target = _target(task_tune_strategy_hp, strategy, detector, boundary)
-
-        args = dict(
-            strategy=strategy,
-            detector=detector,
-            boundary=boundary,
+    def logdir(self, label: str) -> Path:
+        return (
+            Path("logs")
+            / label
+            / self.boundary
+            / self.strategy
+            / self.detector
+            / self.trial_str
         )
-        yield {
-            "name": id_,
-            "actions": [(tune_strategy_hp, (), args)],
-            "file_dep": [],
-            "targets": [target],
+
+    @property
+    def tune_strategy_hp(self) -> Path:
+        return self.logdir(tune_strategy.__name__).parent / "best_params.yml"
+
+    @property
+    def tune_detector_hp(self) -> Path:
+        return self.logdir(tune_detector.__name__).parent / "best_params.yml"
+
+    @property
+    def tune_detector_metrics(self) -> Path:
+        return self.logdir(tune_detector.__name__).parent / "best_trial.yml"
+
+    @property
+    def error_stream(self) -> Path:
+        return self.logdir(error_stream.__name__) / "dd_metrics.pkl"
+
+    @property
+    def ocl_metrics(self) -> Path:
+        return self.logdir(evaluate.__name__) / "ocl_metrics.pkl"
+
+    def task_tune_strategy(self) -> dict:
+        return {
+            "name": self.identifier,
+            "actions": [(tune_strategy, (self.configs,))],
+            "file_dep": self.configs,
+            "targets": [self.tune_strategy_hp],
+        }
+
+    def task_error_stream(self, seed: int):
+        configs = self.configs + [self.tune_strategy_hp]
+        return {
+            "name": self.identifier,
+            "actions": [(error_stream, (configs, seed, self.trial))],
+            "file_dep": configs,
+            "targets": [self.error_stream],
+        }
+
+    def task_tune_hp_detector(self, error_streams: list[Path]):
+        configs = self.configs
+        return {
+            "name": self.identifier,
+            "actions": [(tune_detector, (configs, error_streams))],
+            "file_dep": configs,
+            "targets": [self.tune_detector_hp, self.tune_detector_metrics],
+        }
+
+    def task_select_best_detector(self, trial_files: list[Path]):
+        configs = self.configs
+        return {
+            "name": self.identifier,
+            "actions": [(select_best_detector, (trial_files, self.tune_detector_hp))],
+            "file_dep": configs + trial_files,
+            "targets": [self.tune_detector_hp],
+        }
+
+    def task_evaluate(self, seed: int, configs: list[Path]):
+        configs = self.configs + configs
+        return {
+            "name": self.identifier,
+            "actions": [(evaluate, (configs, seed, self.trial, self.detector))],
+            "file_dep": configs,
+            "targets": [self.ocl_metrics],
         }
 
 
-# def task_error_streams():
-#     for strategy, detector, boundary, seed in product(STRATEGY, DETECTOR, BOUNDARY, SEEDS):
-#         id_ = get_identifier(strategy, detector, boundary, seed)
-#         strategy_config = _target(task_tune_strategy_hp, strategy, "ORACLE", boundary)
-#         target = _target(task_error_streams, strategy, detector, boundary, seed)
-#         args = [target, strategy_config, strategy, detector, boundary, seed]
-#         yield {
-#             "name": id_,
-#             "actions": [(error_streams, args)],
-#             "file_dep": [strategy_config],
-#             "targets": [target],
-#         }
+def task_tune_strategy():
+    """Phase 1: tune strategy HP using the oracle detector for each boundary."""
+
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        yield Unit(strategy, ORACLE_DETECTOR, boundary).task_tune_strategy()
 
 
-# def task_tune_hp_detector():
-#     root = ROOT / task_tune_hp_detector.__name__
-#     root.mkdir(parents=True, exist_ok=True)
+def task_error_stream():
+    """Phase 1 output: create per-seed error streams using tuned strategy HP."""
 
-#     # Group error streams by strategy and boundary, so that we can tune the detector for
-#     # each group.
-#     grouped_tasks = {}
-#     for task in task_error_streams():
-#         strategy, detector, boundary, seed = split_identifier(task["name"])
-#         grouped_tasks.setdefault((strategy, boundary), []).append(task)
-
-#     # For each group, tune the detector and create a target file.
-#     for (strategy, boundary), tasks in grouped_tasks.items():
-#         for detector in DETECTOR:
-#             id_ = get_identifier(strategy, detector, boundary)
-#             target = _target(task_tune_hp_detector, strategy, detector, boundary)
-#             yield {
-#                 "name": id_,
-#                 "actions": [f"touch {target}"],
-#                 "file_dep": get_targets(tasks),
-#                 "targets": [target],
-#             }
+    for strategy, boundary, (trial, seed) in product(
+        STRATEGY, BOUNDARY, enumerate(ERROR_STREAM_SEEDS)
+    ):
+        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial).task_error_stream(seed)
 
 
-# def task_select_best_detector():
+def task_tune_hp_detector():
+    """Phase 2: tune detector HP from all error streams of a strategy/boundary."""
 
-#     # Group task_tune_hp_detector by strategy and boundary, so that we can find the best
-#     # detector for each group.
-#     grouped_tasks = {}
-#     for task in task_tune_hp_detector():
-#         strategy, _, boundary, _ = split_identifier(task["name"])
-#         grouped_tasks.setdefault((strategy, boundary), []).append(task)
+    for strategy, boundary, detector in product(STRATEGY, BOUNDARY, DETECTOR):
+        # Collect error streams for all trials of this strategy and boundary, which will
+        # be used for tuning the detector.
+        error_streams = []
+        for trial, _ in enumerate(ERROR_STREAM_SEEDS):
+            error_streams.append(
+                Unit(strategy, ORACLE_DETECTOR, boundary, trial).error_stream
+            )
 
-#     # For each group, find the best detector and create a target file.
-#     for (strategy, boundary), tasks in grouped_tasks.items():
-#         id_ = get_identifier(strategy, "BEST", boundary)
-#         target = _target(task_select_best_detector, strategy, "BEST", boundary)
-#         yield {
-#             "name": id_,
-#             "actions": [f"touch {target}"],
-#             "file_dep": get_targets(tasks),
-#             "targets": [target],
-#         }
+        yield Unit(strategy, detector, boundary).task_tune_hp_detector(error_streams)
 
 
-# def task_evaluate_oracle_detector():
-#     for task in task_tune_strategy_hp():
-#         strategy, detector, boundary, seed = split_identifier(task["name"])
-#         assert detector == "ORACLE"
-#         id_ = get_identifier(strategy, "ORACLE", boundary, seed)
+def task_select_best_detector():
+    """Phase 2 selection: choose the best detector from detector trial summaries."""
 
-#         target = _target(
-#             task_evaluate_oracle_detector, strategy, "ORACLE", boundary, seed
-#         )
-#         yield {
-#             "name": id_,
-#             "actions": [f"touch {target}"],
-#             "file_dep": task["targets"],
-#             "targets": [target],
-#         }
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        trial_files = []
+        for detector in DETECTOR:
+            trial_files.append(Unit(strategy, detector, boundary).tune_detector_metrics)
+        yield Unit(strategy, BEST_DETECTOR, boundary).task_select_best_detector(
+            trial_files
+        )
 
 
-# def task_evaluate_best_detector():
-#     root = ROOT / task_evaluate_best_detector.__name__
-#     root.mkdir(parents=True, exist_ok=True)
+def task_evaluate():
+    """Phase 3: evaluate tuned configurations on held-out evaluation seeds.
 
-#     for strategy, boundary in product(STRATEGY, BOUNDARY):
-#         id_ = get_identifier(strategy, "BEST", boundary)
-#         target          = _target(task_evaluate_best_detector, strategy, "BEST", boundary)
-#         detector_config = _target(task_select_best_detector, strategy, "BEST", boundary)
-#         strategy_config = _target(task_tune_strategy_hp, strategy, "ORACLE", boundary)
+    Detector-agnostic strategies are evaluated once with the oracle boundary
+    setting, while boundary-aware strategies are evaluated with the selected
+    best detector as well.
+    """
 
-#         yield {
-#             "name": id_,
-#             "actions": [f"touch {target}"],
-#             "file_dep": [detector_config, strategy_config],
-#             "targets": [target],
-#         }
+    for strategy, boundary, (trial, seed) in product(
+        STRATEGY, BOUNDARY, enumerate(EVALUATION_SEEDS)
+    ):
+        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        detector_hp = Unit(strategy, BEST_DETECTOR, boundary).tune_detector_hp
+
+        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial).task_evaluate(
+            seed, [strategy_hp]
+        )
+        if strategy not in DETECTOR_AGNOSTIC:
+            yield Unit(strategy, BEST_DETECTOR, boundary, trial).task_evaluate(
+                seed, [strategy_hp, detector_hp]
+            )

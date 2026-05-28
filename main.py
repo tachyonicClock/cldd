@@ -1,6 +1,9 @@
 import click
 import sys
+from typing import Any, Dict
 from pathlib import Path
+
+import optuna
 from src.dd_hpsearch import DDHPSearch
 from src.config import get_config, Config
 from src.experiment import Experiment
@@ -10,10 +13,39 @@ from loguru import logger
 from omegaconf import OmegaConf
 
 
+def dotlist_dict_to_nested(dotlist_dict: Dict[str, Any]) -> dict:
+    dotlist = [f"{k}={v}" for k, v in dotlist_dict.items()]
+    return dict(OmegaConf.from_dotlist(dotlist))
+
+
+def trial_to_yml(directory: Path, config: Config, trial: optuna.trial.FrozenTrial):
+    directory.mkdir(parents=True, exist_ok=True)
+    file = directory / "best_params.yml"
+    with open(file, "w") as f:
+        f.write(f"# Scored {trial.value}\n")
+        f.write(OmegaConf.to_yaml(dotlist_dict_to_nested(trial.params)))
+
+    trial_dict = {
+        "number": trial.number,
+        "value": trial.value,
+        "params": dotlist_dict_to_nested(trial.params),
+        "user_attrs": trial.user_attrs,
+        "system_attrs": trial.system_attrs,
+        "state": trial.state.name,
+        "config": config.apply_dotlist_dict(trial.params).dump(),
+    }
+    with open(directory / "best_trial.yml", "w") as f:
+        f.write(OmegaConf.to_yaml(trial_dict))
+
+
 @click.group()
-@click.argument(
-    "config",
+@click.option(
+    "--config",
+    "-c",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    multiple=True,
+    help="Path to config file(s). Can specify multiple, in which case they will be merged with later files taking precedence.",
 )
 @click.option(
     "--dotlist",
@@ -28,12 +60,12 @@ from omegaconf import OmegaConf
     help="Only show warnings and errors.",
 )
 @click.pass_context
-def cli(ctx, config: Path, dotlist: list[str], quiet: bool):
+def cli(ctx, config: list[str], dotlist: list[str], quiet: bool):
     if quiet:
         logger.remove()
         logger.add(sys.stderr, level="WARNING")
     try:
-        config_obj = get_config(Path(config), Path("config/base"), list(dotlist))
+        config_obj = get_config(config, dotlist)
         config_obj.quiet = quiet
     except BaseValidationError as e:
         for error in transform_error(e):
@@ -52,22 +84,27 @@ def hpsearch(ctx, label):
     config.label = label
     hpsearch_ = HPSearch(config)
     hpsearch_.optimize()
-    # Save best config to 'logs/hp/00_abrupt/FT_oracle_MLP'
-    best_params = hpsearch_.study.best_trial.params
-    config.logdir.parent.mkdir(parents=True, exist_ok=True)
-    with open(config.logdir.parent / "best_params.yaml", "w") as f:
-        f.write(OmegaConf.to_yaml(best_params))
+
+    # Save best config as YAML for reference.
+    trial_to_yml(config.logdir.parent, config, hpsearch_.study.best_trial)
 
 
 @cli.command(name="dd_hpsearch")
-@click.argument("source", type=str)
+@click.argument(
+    "error_streams",
+    nargs=-1,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
 @click.pass_context
-def dd_hpsearch(ctx, source):
+def dd_hpsearch(ctx, error_streams):
     """Hyperparameter search drift detector using a study name or metrics pickle."""
     config = ctx.obj
     assert isinstance(config, Config)
-    config.label = "dd_hpsearch"
-    DDHPSearch(config, source).optimize()
+    hpsearch_ = DDHPSearch(config, error_streams)
+    hpsearch_.optimize()
+
+    # Save best config as YAML for reference.
+    trial_to_yml(config.logdir.parent, config, hpsearch_.study.best_trial)
 
 
 @cli.command()

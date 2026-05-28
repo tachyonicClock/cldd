@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Sequence
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf
 from pathlib import Path
 import cattrs
 from cattrs.strategies import configure_tagged_union
@@ -36,10 +36,6 @@ class Config:
         return self.scenario.label
 
     @property
-    def method_label(self) -> str:
-        return f"{self.learner.type_}_{self.drift_detector.type_}_{self.model.type_}"
-
-    @property
     def logdir(self) -> Path:
         if self.trial is None:
             trial_id = time.strftime("%Y%m%d-%H%M%S")
@@ -50,9 +46,39 @@ class Config:
             Path("logs")
             / self.label
             / self.scenario_label
-            / self.method_label
+            / self.learner.type_
+            / (self.drift_detector.label or self.drift_detector.type_)
             / trial_id
         )
+
+    @property
+    def study_name(self) -> str:
+        if self.hpsearch is None:
+            raise ValueError("hpsearch config is required to generate study name.")
+        return "/".join(
+            [
+                self.hpsearch.study_prefix,
+                self.label,
+                self.scenario_label,
+                self.learner.type_,
+                self.drift_detector.label or self.drift_detector.type_,
+            ]
+        )
+
+    def apply_dotlist(self, dotlist: list[str]) -> "Config":
+        return converter.structure(
+            OmegaConf.merge(
+                converter.unstructure(self),
+                OmegaConf.from_dotlist(dotlist),
+            ),
+            Config,
+        )
+
+    def apply_dotlist_dict(self, dotlist_dict: dict) -> "Config":
+        return self.apply_dotlist([f"{k}={v}" for k, v in dotlist_dict.items()])
+
+    def dump(self) -> dict:
+        return converter.unstructure(self)
 
 
 # Setup cattrs converter for auto-disambiguation of union types.
@@ -72,7 +98,7 @@ type_tagged_union(AnyModel)
 type_tagged_union(SuggestAny)
 
 
-def get_config(configs: Sequence[Path], dotlist: list[str]) -> Config:
+def get_config(configs: Sequence[str | Path], dotlist: list[str]) -> Config:
     # Merge with precedence bases < config < dotlist
     bases = [OmegaConf.load(config) for config in configs]
     bases.append(OmegaConf.from_dotlist(dotlist))

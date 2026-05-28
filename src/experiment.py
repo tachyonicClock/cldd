@@ -8,6 +8,7 @@ from functools import partial
 from pathlib import Path
 from loguru import logger
 import pickle
+from shutil import rmtree
 
 
 class Experiment:
@@ -34,7 +35,12 @@ class Experiment:
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
 
     def new_logdir(self) -> Path:
-        return self.config.logdir
+        logdir = self.config.logdir
+        if logdir.exists():
+            logger.warning("Replacing pre-existing logdir at {}", logdir)
+            rmtree(logdir)
+        logdir.mkdir(parents=True, exist_ok=True)
+        return logdir
 
     def train_streams(self) -> Sequence[DataLoader]:
         new_loader = partial(DataLoader, batch_size=self.config.mb_train, shuffle=False)

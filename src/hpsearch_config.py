@@ -1,7 +1,6 @@
 from dataclasses import dataclass, asdict
 from typing import Dict, ClassVar, Sequence, Any
 import optuna
-import os
 
 
 class _SuggestBase:
@@ -54,7 +53,7 @@ class HPSearchConfig:
 
     n_trials: int
     study_prefix: str = "bocl"
-    storage: str = os.environ.get("OPTUNA_STORAGE", "sqlite:///optuna.db")
+    storage: str | None = None
 
     def suggest(
         self, trial: optuna.Trial, startswith: str | None = None

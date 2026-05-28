@@ -198,6 +198,8 @@ class DriftDetectorArgs:
     use_batch_mean: bool = False
     error_stream_type: Literal["CE", "ERROR"] = "CE"
 
+    label: str | None = None
+
     def build_dd_evaluator(self) -> EvaluateDriftDetector:
         return EvaluateDriftDetector(
             max_delay=self.max_delay,

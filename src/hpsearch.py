@@ -3,7 +3,6 @@ import optuna
 from typing import Callable
 from src.experiment import Experiment
 from loguru import logger
-from pprint import pprint
 from src.util import obj_dot_notation_set
 
 
@@ -51,25 +50,11 @@ def optimize_with_max_trials(
     )
 
 
-def study_name_from_config(config: Config) -> str:
-    assert config.hpsearch is not None
-    return "/".join(
-        [
-            config.hpsearch.study_prefix,
-            config.label,
-            config.scenario_label,
-            config.method_label,
-        ]
-    )
-
-
 class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
-        study_name = study_name_from_config(config)
-        logger.info(f"Setup study `{study_name}`.")
         self.study = optuna.create_study(
-            study_name=study_name,
+            study_name=config.study_name,
             storage=config.hpsearch.storage,
             direction="maximize",
             load_if_exists=True,

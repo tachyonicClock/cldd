@@ -1,0 +1,5 @@
+# NOT A REAL DETECTOR CONFIG. This is a placeholder for the best detector selection
+# step, which will read the tuning results of all detectors and select the best one for
+# each strategy and boundary type. The actual implementation of this step will depend on
+# how the tuning results are stored and how the best detector is determined (e.g., based
+# on a specific metric).

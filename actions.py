@@ -1,56 +1,91 @@
-from types_ import Strategy, Detector, Boundary
 from pathlib import Path
-from typing import Sequence
+from typing import Sequence, Dict, Any, List
 from loguru import logger
+from subprocess import check_call as _call, CalledProcessError
+from omegaconf import OmegaConf
 
 
-def tune_strategy_hp(
-    target: Path,
-    base_config: Path,
-    strategy: Strategy,
-    detector: Detector,
-    boundary: Boundary,
+def call(
+    command: str, configs: Sequence[Path], *args: Any, dotlist: Dict[str, Any] = {}
 ):
-    logger.info(f"Tuning strategy {strategy} with detector {detector} and boundary {boundary}")
-    target.touch()
+    cmd = "uv run main.py".split(" ")
+    for config in configs:
+        cmd += ["-c", config.as_posix()]
+    for k, v in dotlist.items():
+        cmd += ["-a", f"{k}={v}"]
+    cmd += [command]
+    cmd += map(str, args)
+    logger.info(" ".join(cmd))
+    try:
+        _call(cmd)
+    except CalledProcessError:
+        exit(1)
 
 
-def error_streams(
-    target: Path,
-    strategy_config: Path,
-    strategy: Strategy,
-    detector: Detector,
-    boundary: Boundary,
+def tune_strategy(configs: Sequence[Path]):
+    call("hpsearch", configs, tune_strategy.__name__)
+
+
+def error_stream(
+    configs: Sequence[Path],
     seed: int,
+    trial: int,
 ):
-    logger.info(f"Generating error streams for strategy {strategy} with detector {detector} and boundary {boundary} and seed {seed}")
-    target.touch()
+    call(
+        "run",
+        configs,
+        dotlist={"seed": seed, "trial": trial, "label": error_stream.__name__},
+    )
 
 
-def tune_hp_detector(
-    target: Path,
-    error_streams: Sequence[Path],
-    strategy: Strategy,
-    detector: Detector,
-    boundary: Boundary,
+def evaluate(
+    configs: Sequence[Path],
+    seed: int,
+    trial: int,
+    detector_label: str,
 ):
-    pass
+    call(
+        "run",
+        configs,
+        dotlist={
+            "seed": seed,
+            "trial": trial,
+            "label": evaluate.__name__,
+            "drift_detector.label": detector_label,
+        },
+    )
+
+
+def tune_detector(
+    configs: Sequence[Path],
+    error_streams: List[Path],
+):
+    call(
+        "dd_hpsearch",
+        configs,
+        *error_streams,
+        dotlist={"label": tune_detector.__name__},
+    )
 
 
 def select_best_detector(
+    trial_files: List[Path],
     target: Path,
-    detector_configs: Sequence[Path],
-    strategy: Strategy,
-    boundary: Boundary,
 ):
-    pass
-
-def evaluate(
-    target: Path,
-    strategy: Strategy,
-    strategy_config: Path,
-    detector: Detector,
-    detector_config: Path,
-    boundary: Boundary,
-):
-    pass
+    logger.info(f"Selecting best detector from trials: {trial_files}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    trials = []
+    for trial_file in trial_files:
+        with open(trial_file) as f:
+            trial_dict = OmegaConf.load(f)
+            trials.append(trial_dict)
+    best_trial = max(trials, key=lambda t: t["value"])
+    selection = {
+        "drift_detector": {
+            "type_": best_trial["config"]["drift_detector"]["type_"],
+            **best_trial["params"]["drift_detector"],
+        }
+    }
+    with open(target, "w") as f:
+        f.write(f"# Selected best trial with score {best_trial['value']}\n")
+        f.write(OmegaConf.to_yaml(selection))
