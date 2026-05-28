@@ -6,6 +6,26 @@ from loguru import logger
 from src.util import obj_dot_notation_set
 
 
+def recreate_study(
+    *, study_name: str, storage: str, direction: str = "maximize"
+) -> "optuna.study.Study":
+    summaries = optuna.get_all_study_summaries(storage=storage)
+    if any(summary.study_name == study_name for summary in summaries):
+        logger.warning(
+            "Deleting existing Optuna study '{}' from storage '{}'.",
+            study_name,
+            storage,
+        )
+        optuna.delete_study(study_name=study_name, storage=storage)
+
+    return optuna.create_study(
+        study_name=study_name,
+        storage=storage,
+        direction=direction,
+        load_if_exists=False,
+    )
+
+
 def optimize_with_max_trials(
     study: "optuna.study.Study",
     objective: Callable[[optuna.trial.Trial], tuple[float, ...] | float],
@@ -53,11 +73,9 @@ def optimize_with_max_trials(
 class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
-        self.study = optuna.create_study(
+        self.study = recreate_study(
             study_name=config.study_name,
-            storage=config.hpsearch.storage,
-            direction="maximize",
-            load_if_exists=True,
+            storage=config.hpsearch.storage
         )
         self.config = config
         self.hpsearch = config.hpsearch

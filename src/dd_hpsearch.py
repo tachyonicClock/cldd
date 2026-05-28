@@ -5,7 +5,7 @@ without the computational cost of running a full experiment for each trial.
 
 from src.config import Config
 from src.drift_detector import ErrorStreamType
-from src.hpsearch import optimize_with_max_trials
+from src.hpsearch import optimize_with_max_trials, recreate_study
 from src.util import obj_dot_notation_set
 import optuna
 import pickle
@@ -20,11 +20,9 @@ class DDHPSearch:
         self.config = config
         self.hpsearch = config.hpsearch
         self.error_streams = error_streams
-        self.study = optuna.create_study(
+        self.study = recreate_study(
             study_name=config.study_name,
             storage=config.hpsearch.storage,
-            direction="maximize",
-            load_if_exists=True,
         )
 
     def _evaluate_stream(self, dd_metrics: dict) -> dict:
