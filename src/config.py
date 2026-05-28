@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Sequence
 from omegaconf import OmegaConf, DictConfig
 from pathlib import Path
 import cattrs
@@ -28,7 +28,6 @@ class Config:
     label: str = "noname"
     """Optional top level name for the experiment."""
     trial: Optional[int] = None
-    bases: Optional[list[str]] = None
     hpsearch: Optional[HPSearchConfig] = None
     quiet: bool = False
 
@@ -73,14 +72,8 @@ type_tagged_union(AnyModel)
 type_tagged_union(SuggestAny)
 
 
-def get_config(config_path: Path, bases_dir: Path, dotlist: list[str]) -> Config:
-    config = OmegaConf.load(config_path)
-    if not isinstance(config, DictConfig):
-        raise ValueError(f"Expected a DictConfig, got {type(config)}")
-
+def get_config(configs: Sequence[Path], dotlist: list[str]) -> Config:
     # Merge with precedence bases < config < dotlist
-    bases = [OmegaConf.load(bases_dir / base) for base in config.get("bases", [])]
-    bases.append(config)
+    bases = [OmegaConf.load(config) for config in configs]
     bases.append(OmegaConf.from_dotlist(dotlist))
-
     return converter.structure(OmegaConf.merge(*bases), Config)

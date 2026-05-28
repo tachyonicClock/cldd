@@ -209,3 +209,4 @@ __marimo__/
 .vscode
 logs
 .doit.db.db
+.doit.**

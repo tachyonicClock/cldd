@@ -21,6 +21,8 @@ class DDHPSearch:
         assert config.hpsearch is not None
         self.config = config
         self.hpsearch = config.hpsearch
+        
+        pprint(config)
 
         base_attrs = self._load_source_metadata(source)
 
@@ -153,9 +155,12 @@ class DDHPSearch:
         self.config.trial = trial.number
         self.config.seed = trial.number
 
-        metrics_per_stream = [
-            self._evaluate_stream(dd_metrics) for dd_metrics in self.dd_metrics_runs
-        ]
+        metrics_per_stream = []
+        for dd_metrics in self.dd_metrics_runs:
+            metrics = self._evaluate_stream(dd_metrics)
+            metrics_per_stream.append(metrics)
+            logger.info(metrics)
+
         summary_metrics = self._mean_metrics(metrics_per_stream)
         logger.info("{}", summary_metrics)
         trial.set_user_attr("dd_metrics", summary_metrics)

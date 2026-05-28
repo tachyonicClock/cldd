@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-capymoa = { path = "../CapyMOA", editable = true }
+capymoa = { git = "https://github.com/tachyonicClock/CapyMOA", branch = "blurry-ocl" }
 
 [dependency-groups]
 dev = [

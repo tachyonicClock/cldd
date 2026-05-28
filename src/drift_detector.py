@@ -5,7 +5,15 @@ from capymoa.ocl.evaluation.events import (
     TrainTaskBegin,
 )
 from capymoa.drift.base_detector import BaseDriftDetector
-from capymoa.drift.detectors import ADWIN, PageHinkley, DDM, CUSUM
+from capymoa.drift.detectors import (
+    ABCD,
+    ADWIN,
+    CUSUM,
+    DDM,
+    PageHinkley,
+    SEED,
+    STEPD,
+)
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from dataclasses import dataclass, asdict
 from loguru import logger
@@ -228,9 +236,9 @@ class CUSUMArgs(DriftDetectorArgs):
     min_n_instances: int = 30
     """The minimum number of instances before permitting detecting change."""
     delta: float = 0.005
-    """Delta parameter of the CUSUM test."""
+    """Sensitivity to shift magnitude. Becomes less sensitive as it increases."""
     lambda_: float = 50
-    """Threshold parameter of the CUSUM test."""
+    """Decision threshold. Becomes less sensitive as it increases."""
 
     def build_dd(self) -> BaseDriftDetector:
         return CUSUM(
@@ -273,6 +281,73 @@ class PageHinkleyArgs(DriftDetectorArgs):
 
 
 @dataclass
+class SEEDArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "SEED"
+    delta: float = 0.05
+    block_size: int = 32
+    epsilon_prime: float = 0.01
+    alpha: float = 0.8
+    compress_term: int = 75
+
+    def build_dd(self) -> BaseDriftDetector:
+        return SEED(
+            delta=self.delta,
+            block_size=self.block_size,
+            epsilon_prime=self.epsilon_prime,
+            alpha=self.alpha,
+            compress_term=self.compress_term,
+        )
+
+
+@dataclass
+class STEPDArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "STEPD"
+    window_size: int = 30
+    alpha_drift: float = 0.003
+    alpha_warning: float = 0.05
+
+    def build_dd(self) -> BaseDriftDetector:
+        return STEPD(
+            window_size=self.window_size,
+            alpha_drift=self.alpha_drift,
+            alpha_warning=self.alpha_warning,
+        )
+
+
+@dataclass
+class ABCDArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "ABCD"
+    delta_drift: float = 0.002
+    delta_warn: float = 0.01
+    model_id: str = "ae"
+    split_type: str = "ed"
+    encoding_factor: float = 0.5
+    update_epochs: int = 50
+    num_splits: int = 20
+    max_size: float = float("inf")
+    subspace_threshold: float = 2.5
+    n_min: int = 100
+    maximum_absolute_value: float = 1.0
+    bonferroni: bool = False
+
+    def build_dd(self) -> BaseDriftDetector:
+        return ABCD(
+            delta_drift=self.delta_drift,
+            delta_warn=self.delta_warn,
+            model_id=self.model_id,
+            split_type=self.split_type,
+            encoding_factor=self.encoding_factor,
+            update_epochs=self.update_epochs,
+            num_splits=self.num_splits,
+            max_size=self.max_size,
+            subspace_threshold=self.subspace_threshold,
+            n_min=self.n_min,
+            maximum_absolute_value=self.maximum_absolute_value,
+            bonferroni=self.bonferroni,
+        )
+
+
+@dataclass
 class OracleArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "oracle"
 
@@ -280,4 +355,13 @@ class OracleArgs(DriftDetectorArgs):
         return OracleDriftDetector()
 
 
-AnyDriftDetector = ADWINArgs | CUSUMArgs | DDMArgs | PageHinkleyArgs | OracleArgs
+AnyDriftDetector = (
+    ADWINArgs
+    | CUSUMArgs
+    | DDMArgs
+    | PageHinkleyArgs
+    | SEEDArgs
+    | STEPDArgs
+    | ABCDArgs
+    | OracleArgs
+)

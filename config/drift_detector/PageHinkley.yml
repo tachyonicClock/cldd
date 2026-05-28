@@ -1,0 +1,27 @@
+drift_detector:
+  type_: PageHinkley
+  delta: 0.01
+  error_stream_type: ERROR
+
+
+hpsearch:
+  args:
+    "drift_detector.delta":
+      type_: float
+      low: 0.0001
+      high: 0.1
+      log: true
+    "drift_detector.min_n_instances":
+      type_: int
+      low: 30
+      high: 2000
+      log: true
+    "drift_detector.lambda_":
+      type_: int
+      low: 30
+      high: 2000
+      log: true
+    "drift_detector.alpha":
+      type_: float
+      low: 0.5
+      high: 0.999

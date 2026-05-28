@@ -1,7 +1,0 @@
-bases:
-- scenario.yml
-- boundary/01_gradual.yml
-- learner/FT.yml
-- drift_detector/oracle.yml
-learner:
-  lr: 0.0008538476283006447

@@ -1,0 +1,15 @@
+drift_detector:
+  type_: DDM
+
+hpsearch:
+  args:
+    "drift_detector.min_n_instances":
+      type_: int
+      low: 30
+      high: 2000
+      log: true
+    "drift_detector.out_control_level":
+      type_: float
+      low: 1.75
+      high: 4
+      step: 0.25

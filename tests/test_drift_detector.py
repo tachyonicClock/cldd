@@ -5,9 +5,13 @@ from omegaconf import OmegaConf
 
 from src.config import converter
 from src.drift_detector import (
+    ABCDArgs,
     ADWINArgs,
+    CUSUMArgs,
     DDMArgs,
-    EDDMArgs,
+    PageHinkleyArgs,
+    SEEDArgs,
+    STEPDArgs,
     AnyDriftDetector,
     OracleArgs,
 )
@@ -38,8 +42,27 @@ def test_base_drift_detector_configs_parse_with_converter():
         detector_config = config["drift_detector"]
 
         detector = converter.structure(detector_config, AnyDriftDetector)
-        assert isinstance(detector, ADWINArgs | EDDMArgs | DDMArgs | OracleArgs)
+        assert isinstance(
+            detector,
+            ADWINArgs
+            | CUSUMArgs
+            | DDMArgs
+            | PageHinkleyArgs
+            | SEEDArgs
+            | STEPDArgs
+            | ABCDArgs
+            | OracleArgs,
+        )
         assert detector.type_ == detector_config["type_"]
         seen_types.add(detector.type_)
 
-    assert seen_types == {"ADWIN", "EDDM", "DDM", "oracle"}
+    assert seen_types == {
+        "ABCD",
+        "ADWIN",
+        "CUSUM",
+        "DDM",
+        "PageHinkley",
+        "SEED",
+        "STEPD",
+        "oracle",
+    }

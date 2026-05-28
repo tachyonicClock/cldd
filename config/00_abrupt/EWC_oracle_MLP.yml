@@ -1,8 +1,0 @@
-bases:
-- scenario.yml
-- boundary/00_abrupt.yml
-- learner/EWC.yml
-- drift_detector/oracle.yml
-learner:
-  lambda_: 967.3775395602892
-  lr: 0.005853975683963141
