@@ -74,8 +74,7 @@ class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
         self.study = recreate_study(
-            study_name=config.study_name,
-            storage=config.hpsearch.storage
+            study_name=config.study_name, storage=config.hpsearch.storage
         )
         self.config = config
         self.hpsearch = config.hpsearch

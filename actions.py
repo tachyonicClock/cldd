@@ -15,6 +15,11 @@ def call(
     if dotlist is None:
         dotlist = {}
 
+    # Disable progress bar for all subprocesses to avoid messy logs. Can be re-enabled
+    # with config overrides.
+    dotlist["disable_progress_bar"] = True
+
+    # Construct command with config files and dotlist overrides
     cmd = "uv run main.py".split(" ")
     for config in configs:
         cmd += ["-c", config.as_posix()]
@@ -36,6 +41,7 @@ def call(
             with open(log_file, "w") as f:
                 _call(cmd, stdout=f, stderr=STDOUT)
     except CalledProcessError:
+        logger.error(f"error occured check logs at: {log_file}")
         exit(1)
 
 
@@ -53,7 +59,11 @@ def error_stream(
     call(
         "run",
         configs,
-        dotlist={"seed": seed, "trial": trial, "label": label},
+        dotlist={
+            "seed": seed,
+            "trial": trial,
+            "label": label,
+        },
         identifier=f"{label}.{identifier}",
     )
 

@@ -1,5 +1,6 @@
 drift_detector:
   type_: STEPD
+  error_stream_type: ERROR # ONLY SUPPORTS BIT STREAM
 
 hpsearch:
   args:

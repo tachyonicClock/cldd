@@ -66,14 +66,21 @@ class Experiment:
             learner=self.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
-            progress_bar=True,
+            progress_bar=not self.config.disable_progress_bar,
             dispatcher=dispatcher,
             attach_learner=False,
         )
 
         logger.info(f"Saving results to {self.logdir}")
-        # Save Online Metrics
-        ocl_metrics.ttt.write_to_file((self.logdir / "ttt").as_posix())
+        ttt_pickle = self.logdir / "ttt_metrics.pkl"
+        with open(ttt_pickle, "wb") as f:
+            pickle.dump(
+                {
+                    "cumulative": ocl_metrics.ttt.cumulative.metrics_dict(),  # type: ignore
+                    "windowed": ocl_metrics.ttt.metrics_per_window(),
+                },
+                f,
+            )  # type: ignore
 
         # Save Continual Learning Metrics
         ocl_pickle = self.logdir / "ocl_metrics.pkl"

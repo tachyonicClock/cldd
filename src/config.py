@@ -23,12 +23,16 @@ class Config:
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
     mb_test: int = 256
+    disable_progress_bar: bool = False
 
     seed: int = 0
     label: str = "noname"
     """Optional top level name for the experiment."""
     trial: Optional[int] = None
     hpsearch: Optional[HPSearchConfig] = None
+
+    include: Sequence[Path] = ()
+    """List of config files to include. NOT RECURSIVE."""
 
     @property
     def scenario_label(self) -> str:
@@ -98,7 +102,14 @@ type_tagged_union(SuggestAny)
 
 
 def get_config(configs: Sequence[str | Path], dotlist: list[str]) -> Config:
-    # Merge with precedence bases < config < dotlist
-    bases = [OmegaConf.load(config) for config in configs]
-    bases.append(OmegaConf.from_dotlist(dotlist))
-    return converter.structure(OmegaConf.merge(*bases), Config)
+
+    configs_merged = OmegaConf.merge(*(OmegaConf.load(c) for c in configs))
+
+    include = list(configs_merged["include"])  # type: ignore
+    include_merged = OmegaConf.merge(*(OmegaConf.load(i) for i in include))
+
+    dotlist_dict = OmegaConf.from_dotlist(dotlist)
+
+    # Merge with precedence includes < configs < dotlist
+    all_merged = OmegaConf.merge(include_merged, configs_merged, dotlist_dict)
+    return converter.structure(all_merged, Config)

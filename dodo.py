@@ -25,9 +25,12 @@ Strategy = str
 Detector = str
 Boundary = str
 
-STRATEGY = ["EWC", "FT"]
+STRATEGY = [
+    "EWC",
+    "FT",
+]
 DETECTOR_AGNOSTIC = {"FT"}
-DETECTOR = ["ADWIN"]
+DETECTOR = ["ADWIN", "CUSUM", "DDM", "SEED", "STEPD", "PH"]
 BOUNDARY = [
     "abrupt",
     # "gradual",

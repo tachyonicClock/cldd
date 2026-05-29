@@ -7,5 +7,5 @@ hpsearch:
     "drift_detector.delta":
       type_: float
       low: 0.0001
-      high: 0.1
-      log: false
+      high: 0.01
+      log: true

@@ -1,0 +1,7 @@
+include:
+  - config/base.yml
+  - config/boundary/abrupt.yml
+  - config/strategy/EWC.yml
+  - config/detector/ADWIN.yml
+
+label: run_example

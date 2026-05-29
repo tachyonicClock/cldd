@@ -67,7 +67,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "capymoa", git = "https://github.com/tachyonicClock/CapyMOA?branch=blurry-ocl" },
+    { name = "capymoa", editable = "../CapyMOA" },
     { name = "cattrs", specifier = ">=26.1.0" },
     { name = "click", specifier = ">=8.3.2" },
     { name = "doit", specifier = ">=0.37.0" },
@@ -85,7 +85,7 @@ dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 [[package]]
 name = "capymoa"
 version = "0.13.0"
-source = { git = "https://github.com/tachyonicClock/CapyMOA?branch=blurry-ocl#70773a363474bddf5bca45455cc93c45cc9112ae" }
+source = { editable = "../CapyMOA" }
 dependencies = [
     { name = "deprecated" },
     { name = "jpype1" },
@@ -97,6 +97,37 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
     { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "commitizen", marker = "extra == 'dev'", specifier = "~=3.24" },
+    { name = "deprecated", specifier = "~=1.3" },
+    { name = "invoke", marker = "extra == 'dev'", specifier = "~=3.0" },
+    { name = "jpype1", specifier = "~=1.6,!=1.7.0" },
+    { name = "jupyter", marker = "extra == 'dev'", specifier = "~=1.1" },
+    { name = "matplotlib", specifier = "~=3.10" },
+    { name = "myst-parser", marker = "extra == 'doc'" },
+    { name = "nbmake", marker = "extra == 'dev'", specifier = "~=1.5" },
+    { name = "nbsphinx", marker = "extra == 'doc'" },
+    { name = "numpy", specifier = "~=2.2" },
+    { name = "pandas", specifier = "~=2.2" },
+    { name = "pydata-sphinx-theme", marker = "extra == 'doc'" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "~=9.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = "~=7.0" },
+    { name = "pytest-subtests", marker = "extra == 'dev'", specifier = "~=0.15" },
+    { name = "pytest-xdist", marker = "extra == 'dev'", specifier = "~=3.8" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = "~=0.14" },
+    { name = "scikit-learn", specifier = "~=1.7" },
+    { name = "seaborn", specifier = "~=0.13" },
+    { name = "sphinx", marker = "extra == 'doc'", specifier = "==8.1.3" },
+    { name = "sphinx-design", marker = "extra == 'doc'" },
+    { name = "sphinxcontrib-programoutput", marker = "extra == 'doc'" },
+    { name = "stubgenj", marker = "extra == 'dev'", specifier = "~=0.2" },
+    { name = "torch", specifier = "~=2.9" },
+    { name = "torchvision", specifier = "~=0.24" },
+    { name = "tqdm", specifier = "~=4.67" },
+    { name = "wget", marker = "extra == 'dev'", specifier = "~=3.2" },
 ]
 
 [[package]]

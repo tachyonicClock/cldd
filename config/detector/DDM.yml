@@ -1,5 +1,6 @@
 drift_detector:
   type_: DDM
+  error_stream_type: ERROR
 
 hpsearch:
   args:
@@ -10,6 +11,6 @@ hpsearch:
       log: true
     "drift_detector.out_control_level":
       type_: float
-      low: 1.75
-      high: 4
+      low: 1.5
+      high: 4.0
       step: 0.25

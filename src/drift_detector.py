@@ -256,8 +256,8 @@ class DDMArgs(DriftDetectorArgs):
 
 
 @dataclass
-class PageHinkleyArgs(DriftDetectorArgs):
-    type_: ClassVar[str] = "PageHinkley"
+class PHArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "PH"
     min_n_instances: int = 30
     delta: float = 0.005
     lambda_: float = 50.0
@@ -351,7 +351,7 @@ AnyDriftDetector = (
     ADWINArgs
     | CUSUMArgs
     | DDMArgs
-    | PageHinkleyArgs
+    | PHArgs
     | SEEDArgs
     | STEPDArgs
     | ABCDArgs
