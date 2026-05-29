@@ -31,7 +31,7 @@ class Config:
     trial: Optional[int] = None
     hpsearch: Optional[HPSearchConfig] = None
 
-    include: Sequence[Path] = ()
+    include: Sequence[Path] | None = None
     """List of config files to include. NOT RECURSIVE."""
 
     @property
@@ -105,8 +105,11 @@ def get_config(configs: Sequence[str | Path], dotlist: list[str]) -> Config:
 
     configs_merged = OmegaConf.merge(*(OmegaConf.load(c) for c in configs))
 
-    include = list(configs_merged["include"])  # type: ignore
-    include_merged = OmegaConf.merge(*(OmegaConf.load(i) for i in include))
+    include = list(configs_merged.get("include", []))  # type: ignore
+    if len(include) > 0:
+        include_merged = OmegaConf.merge(*(OmegaConf.load(i) for i in include))
+    else:
+        include_merged = {}
 
     dotlist_dict = OmegaConf.from_dotlist(dotlist)
 

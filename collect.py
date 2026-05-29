@@ -57,10 +57,11 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
 
     record = {}
     # Index
-    record["learner"] = config.learner.type_
+    record["strategy"] = config.learner.type_
     record["detector"] = config.drift_detector.type_
     record["detector_label"] = config.drift_detector.label
     record["boundary"] = config.scenario.label
+    record["seed"] = config.seed
 
     # Drift Detection Metrics
     record = copy_keys(record, dd_metrics, "dd", dd_metric_keys)

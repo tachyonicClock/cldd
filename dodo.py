@@ -19,6 +19,7 @@ from actions import (
     tune_detector,
     select_best_detector,
     evaluate,
+    collect_evaluate_records,
 )
 
 Strategy = str
@@ -30,14 +31,27 @@ STRATEGY = [
     "FT",
 ]
 DETECTOR_AGNOSTIC = {"FT"}
-DETECTOR = ["ADWIN", "CUSUM", "DDM", "SEED", "STEPD", "PH"]
+DETECTOR = [
+    "ADWIN",
+    "CUSUM",
+    "DDM",
+    "SEED",
+    "STEPD",
+    "PH",
+]
 BOUNDARY = [
     "abrupt",
-    # "gradual",
-    # "slow",
+    "gradual",
+    "slow",
 ]
-ERROR_STREAM_SEEDS = [0, 1]
-EVALUATION_SEEDS = [2, 3]
+ERROR_STREAM_SEEDS = [
+    0,
+    # 1,
+]
+EVALUATION_SEEDS = [
+    2,
+    # 3,
+]
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
 
@@ -125,7 +139,7 @@ class Unit:
         return {
             "name": self.identifier,
             "actions": [(tune_detector, (configs, error_streams, self.identifier))],
-            "file_dep": configs,
+            "file_dep": configs + error_streams,
             "targets": [self.tune_detector_hp, self.tune_detector_metrics],
         }
 
@@ -196,6 +210,24 @@ def task_select_best_detector():
         )
 
 
+def iter_evaluate_specs():
+    """Yield evaluate unit, seed, and extra config dependencies."""
+
+    for strategy, boundary, (trial, seed) in product(
+        STRATEGY, BOUNDARY, enumerate(EVALUATION_SEEDS)
+    ):
+        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        detector_hp = Unit(strategy, BEST_DETECTOR, boundary).tune_detector_hp
+
+        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial), seed, [strategy_hp]
+        if strategy not in DETECTOR_AGNOSTIC:
+            yield (
+                Unit(strategy, BEST_DETECTOR, boundary, trial),
+                seed,
+                [strategy_hp, detector_hp],
+            )
+
+
 def task_evaluate():
     """Phase 3: evaluate tuned configurations on held-out evaluation seeds.
 
@@ -204,16 +236,23 @@ def task_evaluate():
     best detector as well.
     """
 
-    for strategy, boundary, (trial, seed) in product(
-        STRATEGY, BOUNDARY, enumerate(EVALUATION_SEEDS)
-    ):
-        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
-        detector_hp = Unit(strategy, BEST_DETECTOR, boundary).tune_detector_hp
+    for unit, seed, configs in iter_evaluate_specs():
+        yield unit.task_evaluate(seed, configs)
 
-        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial).task_evaluate(
-            seed, [strategy_hp]
-        )
-        if strategy not in DETECTOR_AGNOSTIC:
-            yield Unit(strategy, BEST_DETECTOR, boundary, trial).task_evaluate(
-                seed, [strategy_hp, detector_hp]
-            )
+
+def task_collect_evaluate():
+    """Collect all evaluate outputs into one CSV for analysis."""
+
+    evaluate_dirs: list[Path] = []
+    file_deps: list[Path] = []
+
+    for unit, _, _ in iter_evaluate_specs():
+        evaluate_dirs.append(unit.logdir(evaluate.__name__))
+        file_deps.append(unit.ocl_metrics)
+
+    target = Path("logs") / evaluate.__name__ / "data_frame.csv"
+    return {
+        "actions": [(collect_evaluate_records, (evaluate_dirs, target))],
+        "file_dep": file_deps + ["collect.py"],
+        "targets": [target],
+    }

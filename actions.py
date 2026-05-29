@@ -39,6 +39,7 @@ def call(
             _call(cmd)
         else:
             with open(log_file, "w") as f:
+                f.write(f"$ {' '.join(cmd)}\n\n")
                 _call(cmd, stdout=f, stderr=STDOUT)
     except CalledProcessError:
         logger.error(f"error occured check logs at: {log_file}")
@@ -121,3 +122,13 @@ def select_best_detector(
     with open(target, "w") as f:
         f.write(f"# Selected best trial with score {best_trial['value']}\n")
         f.write(OmegaConf.to_yaml(selection))
+
+
+def collect_evaluate_records(
+    evaluate_dirs: List[Path],
+    target: Path,
+):
+    from collect import load_records
+    target.parent.mkdir(parents=True, exist_ok=True)
+    df = load_records(evaluate_dirs)
+    df.to_csv(target, index=False, float_format="%.4f")
