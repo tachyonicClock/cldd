@@ -100,6 +100,27 @@ def tune_detector(
     )
 
 
+def dd_run(
+    configs: Sequence[Path],
+    error_stream: Path,
+    trial: int,
+    detector_label: str,
+    identifier: str,
+):
+    label = dd_run.__name__
+    call(
+        "dd_run",
+        configs,
+        error_stream,
+        dotlist={
+            "label": label,
+            "trial": trial,
+            "drift_detector.label": detector_label,
+        },
+        identifier=f"{label}.{identifier}",
+    )
+
+
 def select_best_detector(
     trial_files: List[Path],
     target: Path,
@@ -130,4 +151,15 @@ def collect_evaluate_records(
 
     target.parent.mkdir(parents=True, exist_ok=True)
     df = load_records(evaluate_dirs)
+    df.to_csv(target, index=False, float_format="%.4f")
+
+
+def collect_dd_run_records(
+    dd_run_dirs: List[Path],
+    target: Path,
+):
+    from collect import load_dd_run_records
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    df = load_dd_run_records(dd_run_dirs)
     df.to_csv(target, index=False, float_format="%.4f")

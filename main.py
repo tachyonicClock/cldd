@@ -1,9 +1,11 @@
 import click
 from typing import Any, Dict
 from pathlib import Path
+import pickle
 
 import optuna
 from src.dd_hpsearch import DDHPSearch
+from src.dd_eval import evaluate_dd_stream
 from src.config import get_config, Config
 from src.experiment import Experiment
 from src.hpsearch import HPSearch
@@ -96,6 +98,35 @@ def dd_hpsearch(ctx, error_streams):
 
     # Save best config as YAML for reference.
     trial_to_yml(config.logdir.parent, config, hpsearch_.study.best_trial)
+
+
+@cli.command(name="dd_run")
+@click.argument(
+    "error_stream",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.pass_context
+def dd_run(ctx, error_stream):
+    """Run drift detector evaluation on a single frozen error-rate stream."""
+    config = ctx.obj
+    assert isinstance(config, Config)
+
+    with open(error_stream, "rb") as f:
+        dd_metrics = pickle.load(f)
+
+    metrics = evaluate_dd_stream(config.drift_detector, dd_metrics)
+    config.logdir.mkdir(parents=True, exist_ok=True)
+    with open(config.logdir / "dd_metrics.pkl", "wb") as f:
+        pickle.dump(metrics, f)
+
+    logger.info("Saved drift-detector metrics to {}", config.logdir / "dd_metrics.pkl")
+    for key, value in metrics.items():
+        if isinstance(value, float):
+            logger.info(f"{key.ljust(20)} {value:.3f}")
+        elif isinstance(value, int):
+            logger.info(f"{key.ljust(20)} {value}")
+    logger.info("PREDS {}", metrics["preds"])
+    logger.info("TRUES {}", metrics["trues"])
 
 
 @cli.command()

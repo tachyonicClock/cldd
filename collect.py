@@ -73,3 +73,30 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
 def load_records(dirs: Sequence[Path | str]) -> pd.DataFrame:
     """Load the results from multiple directories."""
     return pd.DataFrame([load_record(dirname) for dirname in dirs])
+
+
+def load_dd_run_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
+    """Load drift-detector replay results from one dd_run directory."""
+    dirname = Path(dirname)
+    with open(dirname / "dd_metrics.pkl", "rb") as f:
+        dd_metrics = pickle.load(f)
+
+    # Expected layout: logs/dd_run/<boundary>/<strategy>/<detector>/<trial>
+    trial = int(dirname.name)
+    detector = dirname.parent.name
+    strategy = dirname.parent.parent.name
+    boundary = dirname.parent.parent.parent.name
+
+    record: Dict[str, int | str | float | bool] = {
+        "strategy": strategy,
+        "detector": detector,
+        "detector_label": detector,
+        "boundary": boundary,
+        "trial": trial,
+    }
+    return copy_keys(record, dd_metrics, "dd", dd_metric_keys)
+
+
+def load_dd_run_records(dirs: Sequence[Path | str]) -> pd.DataFrame:
+    """Load drift-detector replay results from multiple dd_run directories."""
+    return pd.DataFrame([load_dd_run_record(dirname) for dirname in dirs])

@@ -23,3 +23,6 @@ clean-logs:
 	rm -r logs
 	mkdir -p /local/scratch/antonlee/log/blurry-ocl
 	ln -s /local/scratch/antonlee/log/blurry-ocl logs
+
+rsync-cuda9: clean-logs
+	rsync -aP cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/

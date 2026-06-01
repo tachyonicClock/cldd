@@ -17,9 +17,11 @@ from actions import (
     tune_strategy,
     error_stream,
     tune_detector,
+    dd_run,
     select_best_detector,
     evaluate,
     collect_evaluate_records,
+    collect_dd_run_records,
 )
 
 Strategy = str
@@ -118,6 +120,14 @@ class Unit:
     def ocl_metrics(self) -> Path:
         return self.logdir(evaluate.__name__) / "ocl_metrics.pkl"
 
+    @property
+    def evaluate_dd_metrics(self) -> Path:
+        return self.logdir(evaluate.__name__) / "dd_metrics.pkl"
+
+    @property
+    def dd_run_metrics(self) -> Path:
+        return self.logdir(dd_run.__name__) / "dd_metrics.pkl"
+
     def task_tune_strategy(self) -> dict:
         return {
             "name": self.identifier,
@@ -164,7 +174,31 @@ class Unit:
                 )
             ],
             "file_dep": configs,
-            "targets": [self.ocl_metrics],
+            "targets": [self.ocl_metrics, self.evaluate_dd_metrics],
+        }
+
+    def task_dd_run(
+        self,
+        oracle_error_stream: Path,
+        detector_configs: list[Path],
+    ):
+        configs = self.configs + detector_configs
+        return {
+            "name": self.identifier,
+            "actions": [
+                (
+                    dd_run,
+                    (
+                        configs,
+                        oracle_error_stream,
+                        self.trial,
+                        self.detector,
+                        self.identifier,
+                    ),
+                )
+            ],
+            "file_dep": configs + [oracle_error_stream],
+            "targets": [self.dd_run_metrics],
         }
 
 
@@ -241,6 +275,27 @@ def task_evaluate():
         yield unit.task_evaluate(seed, configs)
 
 
+def task_dd_run():
+    """Replay tuned detector configs on oracle evaluate error streams."""
+
+    for strategy, boundary, detector, (trial, _) in product(
+        STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
+    ):
+        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
+        oracle_metrics = Unit(
+            strategy,
+            ORACLE_DETECTOR,
+            boundary,
+            trial,
+        ).evaluate_dd_metrics
+
+        yield Unit(strategy, detector, boundary, trial).task_dd_run(
+            oracle_metrics,
+            [strategy_hp, detector_hp],
+        )
+
+
 def task_collect_evaluate():
     """Collect all evaluate outputs into one CSV for analysis."""
 
@@ -254,6 +309,27 @@ def task_collect_evaluate():
     target = Path("logs") / evaluate.__name__ / "data_frame.csv"
     return {
         "actions": [(collect_evaluate_records, (evaluate_dirs, target))],
+        "file_dep": file_deps + ["collect.py"],
+        "targets": [target],
+    }
+
+
+def task_dd_collect():
+    """Collect all dd_run outputs into one CSV for analysis."""
+
+    dd_run_dirs: list[Path] = []
+    file_deps: list[Path] = []
+
+    for strategy, boundary, detector, (trial, _) in product(
+        STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
+    ):
+        unit = Unit(strategy, detector, boundary, trial)
+        dd_run_dirs.append(unit.logdir(dd_run.__name__))
+        file_deps.append(unit.dd_run_metrics)
+
+    target = Path("logs") / dd_run.__name__ / "data_frame.csv"
+    return {
+        "actions": [(collect_dd_run_records, (dd_run_dirs, target))],
         "file_dep": file_deps + ["collect.py"],
         "targets": [target],
     }

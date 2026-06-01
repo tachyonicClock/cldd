@@ -4,14 +4,13 @@ without the computational cost of running a full experiment for each trial.
 """
 
 from src.config import Config
-from src.drift_detector import ErrorStreamType
+from src.dd_eval import evaluate_dd_stream
 from src.hpsearch import optimize_with_max_trials, recreate_study
 from src.util import obj_dot_notation_set
 import optuna
 import pickle
 from pathlib import Path
 from loguru import logger
-from dataclasses import asdict
 
 
 class DDHPSearch:
@@ -24,38 +23,6 @@ class DDHPSearch:
             study_name=config.study_name,
             storage=config.hpsearch.storage,
         )
-
-    def _evaluate_stream(self, dd_metrics: dict) -> dict:
-        evaluator = self.config.drift_detector.build_dd_evaluator()
-        dd = self.config.drift_detector.build_dd()
-
-        error_stream_type = ErrorStreamType(
-            self.config.drift_detector.error_stream_type
-        )
-        if error_stream_type == ErrorStreamType.CE:
-            stream = dd_metrics["ce_stream"]
-        elif error_stream_type == ErrorStreamType.ERROR:
-            stream = dd_metrics["error_stream"]
-        else:
-            raise ValueError(f"Unsupported error stream type: {error_stream_type}")
-
-        preds = []
-        for i, element in enumerate(stream):
-            dd.add_element(element)
-            if dd.detected_change():
-                preds.append(i)
-                if self.config.drift_detector.reset_on_drift:
-                    dd.reset()
-
-        metrics = asdict(
-            evaluator.calc_performance(
-                dd_metrics["trues"], preds, dd_metrics["tot_n_instances"]
-            )
-        )
-        metrics["trues"] = dd_metrics["trues"]
-        metrics["preds"] = preds
-        metrics["tot_n_instances"] = dd_metrics["tot_n_instances"]
-        return metrics
 
     def _mean_metrics(self, metrics_per_stream: list[dict]) -> dict[str, float]:
         keys = metrics_per_stream[0].keys()
@@ -94,7 +61,7 @@ class DDHPSearch:
         for error_stream_file in self.error_streams:
             with open(error_stream_file, "rb") as f:
                 dd_metrics = pickle.load(f)
-            metrics = self._evaluate_stream(dd_metrics)
+            metrics = evaluate_dd_stream(self.config.drift_detector, dd_metrics)
             metrics_per_stream.append(metrics)
 
         summary_metrics = self._mean_metrics(metrics_per_stream)
