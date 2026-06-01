@@ -210,3 +210,4 @@ __marimo__/
 logs
 .doit.db.db
 .doit.**
+nohup.out

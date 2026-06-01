@@ -5,6 +5,12 @@
 uv run ...
 ```
 
+# Full Run
+
+```
+nohup notirun.sh ./mpsdodo.py -g 2 -n 8 &
+```
+
 # Run Tests
 ```
 uv run -m pytest
@@ -40,3 +46,12 @@ flowchart LR
     G1 -. consumed by .-> H
     H -. writes .-> H1["logs/final-eval/metrics.csv"]
 ```
+
+## TODO
+
+- [ ] Strategies
+    - [ ] Add PN
+    - [ ] Add DER++
+    - [ ] How will I handle strategies that use substeps?
+- [ ] Increase number of hpsearch trials.
+- [ ] 

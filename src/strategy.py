@@ -14,11 +14,52 @@ import torch
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
 
 
+class _AutoAugmentCIFAR10(nn.Module):
+    mean = [0.507, 0.487, 0.441]
+    std = [0.267, 0.256, 0.276]
+
+    def __init__(self):
+        super().__init__()
+        self._augment = T.AutoAugment(T.AutoAugmentPolicy.CIFAR10)
+        mean = torch.tensor(self.mean, dtype=torch.float32).view(1, 3, 1, 1)
+        std = torch.tensor(self.std, dtype=torch.float32).view(1, 3, 1, 1)
+        self.register_buffer("_mean", mean, persistent=False)
+        self.register_buffer("_std", std, persistent=False)
+
+    def _stats(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        if x.dim() == 4:
+            return self._mean, self._std
+        if x.dim() == 3:
+            return self._mean[0], self._std[0]
+        raise ValueError(f"Expected a 3D or 4D tensor, got shape={tuple(x.shape)}")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.shape[-3] != 3:
+            raise ValueError(
+                f"AutoAugCIFAR10 expects 3 channels, got shape={tuple(x.shape)}"
+            )
+
+        input_dtype = x.dtype
+        x_float = x.to(torch.float32)
+        mean, std = self._stats(x_float)
+
+        # Unnormalize -> uint8 -> AutoAugment -> normalize back.
+        x_img = x_float * std + mean
+        x_uint8 = (x_img.clamp(0.0, 1.0) * 255.0).round().to(torch.uint8)
+        x_uint8 = self._augment(x_uint8)
+        x_img = x_uint8.to(torch.float32) / 255.0
+        x_norm = (x_img - mean) / std
+
+        if torch.is_floating_point(x):
+            return x_norm.to(input_dtype)
+        return x_norm
+
+
 def build_augment(augment_type: AugmentTypes) -> nn.Module:
     if augment_type == "Dropout":
         return nn.Dropout(p=0.5)
     elif augment_type == "AutoAugCIFAR10":
-        return T.AutoAugment(T.AutoAugmentPolicy.CIFAR10)
+        return _AutoAugmentCIFAR10()
     else:
         raise ValueError(f"Invalid augment_type: {augment_type}")
 

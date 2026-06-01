@@ -1,6 +1,9 @@
 learner:
   type_: DER
 
+scenario:
+  normalize_features: true
+
 hpsearch:
   args:
     # Weight of the DER replay-logit loss term.
