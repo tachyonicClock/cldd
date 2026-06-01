@@ -6,8 +6,8 @@ hpsearch:
   args:
     "drift_detector.min_n_instances":
       type_: int
-      low: 30
-      high: 2000
+      low: 10
+      high: 1000
       log: true
     "drift_detector.out_control_level":
       type_: float

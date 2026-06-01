@@ -53,7 +53,7 @@ class HPSearchConfig:
 
     n_trials: int
     study_prefix: str = "bocl"
-    storage: str = "sqlite:///logs/optuna.db"
+    storage: str = "logs/optuna.journal.log"
 
     def suggest(
         self, trial: optuna.Trial, startswith: str | None = None

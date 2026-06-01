@@ -44,14 +44,8 @@ BOUNDARY = [
     "gradual",
     "slow",
 ]
-ERROR_STREAM_SEEDS = [
-    0,
-    # 1,
-]
-EVALUATION_SEEDS = [
-    2,
-    # 3,
-]
+ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
+EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
 

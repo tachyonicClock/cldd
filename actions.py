@@ -27,7 +27,6 @@ def call(
         cmd += ["-a", f"{k}={v}"]
     cmd += [command]
     cmd += map(str, args)
-    logger.info(" ".join(cmd))
 
     log_file = None
     if identifier is not None:
@@ -96,7 +95,7 @@ def tune_detector(
         "dd_hpsearch",
         configs,
         *error_streams,
-        dotlist={"label": label},
+        dotlist={"label": label, "hpsearch.n_trials": 30},
         identifier=f"{label}.{identifier}",
     )
 
@@ -105,7 +104,6 @@ def select_best_detector(
     trial_files: List[Path],
     target: Path,
 ):
-    logger.info(f"Selecting best detector from trials: {trial_files}")
     target.parent.mkdir(parents=True, exist_ok=True)
     trials = []
     for trial_file in trial_files:
@@ -129,6 +127,7 @@ def collect_evaluate_records(
     target: Path,
 ):
     from collect import load_records
+
     target.parent.mkdir(parents=True, exist_ok=True)
     df = load_records(evaluate_dirs)
     df.to_csv(target, index=False, float_format="%.4f")

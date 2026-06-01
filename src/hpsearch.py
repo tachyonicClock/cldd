@@ -4,25 +4,25 @@ from typing import Callable
 from src.experiment import Experiment
 from loguru import logger
 from src.util import obj_dot_notation_set
+from pathlib import Path
 
 
 def recreate_study(
     *, study_name: str, storage: str, direction: str = "maximize"
 ) -> "optuna.study.Study":
-    summaries = optuna.get_all_study_summaries(storage=storage)
-    if any(summary.study_name == study_name for summary in summaries):
-        logger.warning(
-            "Deleting existing Optuna study '{}' from storage '{}'.",
-            study_name,
-            storage,
-        )
+    storage = optuna.storages.JournalStorage(
+        optuna.storages.journal.JournalFileBackend(Path(storage).as_posix())
+    )
+
+    try:
         optuna.delete_study(study_name=study_name, storage=storage)
+    except KeyError:
+        pass
 
     return optuna.create_study(
         study_name=study_name,
         storage=storage,
         direction=direction,
-        load_if_exists=False,
     )
 
 

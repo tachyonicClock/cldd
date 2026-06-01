@@ -1,5 +1,6 @@
 drift_detector:
   type_: SEED
+  error_stream_type: ERROR
 
 hpsearch:
   args:

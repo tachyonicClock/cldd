@@ -14,7 +14,12 @@ clean-venv:
 fmt:
 	uvx ruff format
 	uvx ruff check --fix
+# 	Clear notebook outputs
+	find . -name "*.ipynb" -exec jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace {} \;
 
 
 clean-logs:
-	rm -rv logs
+	rm -r logs/*
+	rm -r logs
+	mkdir -p /local/scratch/antonlee/log/blurry-ocl
+	ln -s /local/scratch/antonlee/log/blurry-ocl logs
