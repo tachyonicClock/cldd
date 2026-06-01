@@ -6,7 +6,7 @@ import cattrs
 from cattrs.strategies import configure_tagged_union
 from src.scenario import ScenarioArgs
 from src.drift_detector import AnyDriftDetector
-from src.learner import AnyLearner
+from src.strategy import AnyLearner
 from src.model import AnyModel
 from src.hpsearch_config import HPSearchConfig, SuggestAny
 import torch

@@ -95,7 +95,7 @@ def tune_detector(
         "dd_hpsearch",
         configs,
         *error_streams,
-        dotlist={"label": label, "hpsearch.n_trials": 30},
+        dotlist={"label": label},
         identifier=f"{label}.{identifier}",
     )
 

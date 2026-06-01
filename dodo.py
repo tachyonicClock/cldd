@@ -26,26 +26,26 @@ Strategy = str
 Detector = str
 Boundary = str
 
-STRATEGY = [
-    "EWC",
-    "FT",
-]
-DETECTOR_AGNOSTIC = {"FT"}
+STRATEGY = ["FT", "EWC", "ER", "LWF", "DER"]
+DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [
     "ADWIN",
-    "CUSUM",
-    "DDM",
-    "SEED",
-    "STEPD",
-    "PH",
+    # "CUSUM",
+    # "DDM",
+    # "SEED",
+    # "STEPD",
+    # "PH",
 ]
 BOUNDARY = [
     "abrupt",
-    "gradual",
-    "slow",
+    # "gradual",
+    # "slow",
 ]
-ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
-EVALUATION_SEEDS = [5, 6, 7, 8, 9]
+ERROR_STREAM_SEEDS = [0]
+EVALUATION_SEEDS = [1]
+
+# ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
+# EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
 

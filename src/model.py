@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 from torch import nn
 from capymoa.stream import Schema
-from capymoa.ann import Perceptron
+from capymoa.ann import Perceptron, resnet20_32x32
 from torch import manual_seed
 
 
@@ -24,8 +24,12 @@ class PerceptronArgs(ModelArgs):
 
 
 @dataclass
-class ResNet18Args(ModelArgs):
-    type_: ClassVar[str] = "ResNet18"
+class ResNet_32x32Args(ModelArgs):
+    type_: ClassVar[str] = "resnet20_32x32"
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        manual_seed(seed)
+        return resnet20_32x32(schema.get_num_classes())
 
 
-AnyModel = PerceptronArgs | ResNet18Args
+AnyModel = PerceptronArgs | ResNet_32x32Args

@@ -1,2 +1,11 @@
 learner:
   type_: DER
+
+hpsearch:
+  args:
+    # Weight of the DER replay-logit loss term.
+    "learner.alpha":
+      type_: float
+      low: 0.1
+      high: 2.0
+      log: true

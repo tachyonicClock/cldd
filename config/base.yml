@@ -1,14 +1,14 @@
 scenario:
-  name: RotatedTinyMNIST
+  name: DomainCIFAR100
 
 model:
-  type_: MLP
+  type_: resnet20_32x32
 
 mb_train: 32
 mb_test: 128
 
 hpsearch:
-  n_trials: 30
+  n_trials: 5
   args:
     "learner.lr":
       type_: float
