@@ -9,6 +9,7 @@ import torch
 
 file = Path(__file__).resolve()
 
+
 @dataclass
 class ModelArgs:
     type_: ClassVar[str]
@@ -44,7 +45,6 @@ class ResNet_32x32Args(ModelArgs):
             del state_dict["linear.bias"]
             model.load_state_dict(state_dict, strict=False)
         return model
-        
 
 
 AnyModel = PerceptronArgs | ResNet_32x32Args

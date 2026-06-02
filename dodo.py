@@ -32,7 +32,7 @@ STRATEGY = [
     "FT",
     "EWC",
     "SI",
-    "PN",
+    # "PN",
     "ER",
     "LWF",
     "DER",
@@ -48,15 +48,15 @@ DETECTOR = [
 ]
 BOUNDARY = [
     "abrupt",
-    # "gradual",
-    # "slow",
+    "gradual",
+    "slow",
 ]
-ERROR_STREAM_SEEDS = [0, 1, 2]
-EVALUATION_SEEDS = [5, 6, 7]
+# ERROR_STREAM_SEEDS = [0, 1, 2]
+ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
+# EVALUATION_SEEDS = [5, 6, 7]
+EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 
 
-# ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
-# EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
 
