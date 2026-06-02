@@ -46,7 +46,13 @@ def call(
 
 
 def tune_strategy(configs: Sequence[Path], identifier: str):
-    call("hpsearch", configs, tune_strategy.__name__, identifier=identifier)
+    call(
+        "hpsearch",
+        configs,
+        tune_strategy.__name__,
+        identifier=identifier,
+        dotlist={"scenario.validation": True},
+    )
 
 
 def error_stream(

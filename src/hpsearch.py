@@ -103,4 +103,4 @@ class HPSearch:
         trial.set_user_attr("accuracy_all_avg", float(metrics.accuracy_all_avg))
         trial.set_user_attr("accuracy_final", float(metrics.accuracy_final))
         trial.set_user_attr("logdir", str(experiment.logdir.as_posix()))
-        return float(metrics.accuracy_all_avg)
+        return float(metrics.accuracy_final)

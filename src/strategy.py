@@ -14,6 +14,7 @@ import torch
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
 
 DEFAULT_BUFFER_CAPACITY = 1_000
+SUBSTEPS = 5
 
 
 class _AutoAugmentCIFAR10(nn.Module):
@@ -101,6 +102,8 @@ class FTArgs(LearnerArgs):
 @dataclass
 class EWCArgs(LearnerArgs):
     """Elastic Weight Consolidation"""
+
+    type_: ClassVar[str] = "EWC"
 
     lambda_: float = 1000.0
     """Weight of the EWC regularisation term."""
@@ -224,6 +227,7 @@ class ERArgs(LearnerArgs):
                 random_seed=seed,
             ),
             buffer_capacity=self.buffer_capacity,
+            repeat=SUBSTEPS,
         )
 
 
@@ -254,6 +258,7 @@ class DERArgs(LearnerArgs):
             buffer_capacity=self.buffer_capacity,
             seed=seed,
             augment=build_augment(self.augment),
+            substeps=SUBSTEPS,
         )
 
 
