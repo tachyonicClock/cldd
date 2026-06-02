@@ -1,2 +1,10 @@
 learner:
   type_: PN
+model:
+  batch_norm: false
+hpsearch:
+  args:
+    "learner.prune_fraction":
+      type_: float
+      low: 0.5
+      high: 0.9

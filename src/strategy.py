@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from capymoa.stream import Schema
-from typing import ClassVar, Literal, override
+from typing import ClassVar, Literal, cast, override
 from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
-from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER
+from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet
 from torch.optim import Adam
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
@@ -12,6 +12,8 @@ import torch
 
 
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
+
+DEFAULT_BUFFER_CAPACITY = 1_000
 
 
 class _AutoAugmentCIFAR10(nn.Module):
@@ -27,10 +29,12 @@ class _AutoAugmentCIFAR10(nn.Module):
         self.register_buffer("_std", std, persistent=False)
 
     def _stats(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        mean = cast(torch.Tensor, self._mean)
+        std = cast(torch.Tensor, self._std)
         if x.dim() == 4:
-            return self._mean, self._std
+            return mean, std
         if x.dim() == 3:
-            return self._mean[0], self._std[0]
+            return mean[0], std[0]
         raise ValueError(f"Expected a 3D or 4D tensor, got shape={tuple(x.shape)}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -78,6 +82,8 @@ class LearnerArgs(ABC):
 
 @dataclass
 class FTArgs(LearnerArgs):
+    """Finetuning"""
+
     type_: ClassVar[str] = "FT"
 
     def build(
@@ -94,7 +100,7 @@ class FTArgs(LearnerArgs):
 
 @dataclass
 class EWCArgs(LearnerArgs):
-    type_: ClassVar[str] = "EWC"
+    """Elastic Weight Consolidation"""
 
     lambda_: float = 1000.0
     """Weight of the EWC regularisation term."""
@@ -122,13 +128,35 @@ class EWCArgs(LearnerArgs):
         )
 
 
-# @dataclass
-# class SIArgs(LearnerArgs):
-#     type_: ClassVar[str] = "SI"
+@dataclass
+class SIArgs(LearnerArgs):
+    """Synaptic Intelligence"""
+
+    type_: ClassVar[str] = "SI"
+
+    lambda_: float = 1.0
+    """Weight of the SI regularisation term."""
+    eps: float = 1e-7
+    """Damping value used during SI importance consolidation."""
+
+    @override
+    def build(
+        self, seed: int, schema: Schema, device: str, model: nn.Module
+    ) -> BatchClassifier:
+        return SI(
+            schema=schema,
+            model=model,
+            optimiser=Adam(model.parameters(), lr=self.lr),
+            lambda_=self.lambda_,
+            eps=self.eps,
+            device=torch.device(device),
+        )
 
 
 @dataclass
 class LWFArgs(LearnerArgs):
+    """Learning Without Forgetting"""
+
     type_: ClassVar[str] = "LWF"
     alpha: float = 1.0
     """Weight of the distillation loss term."""
@@ -151,9 +179,60 @@ class LWFArgs(LearnerArgs):
 
 
 @dataclass
+class PNArgs(LearnerArgs):
+    """PackNet"""
+
+    type_: ClassVar[str] = "PN"
+
+    prune_fraction: float = 0.5
+    """Fraction of trainable parameters pruned at each task boundary."""
+
+    @override
+    def build(
+        self, seed: int, schema: Schema, device: str, model: nn.Module
+    ) -> BatchClassifier:
+        return PackNet(
+            schema=schema,
+            model=model,
+            optimiser=Adam(model.parameters(), lr=self.lr),
+            prune_fraction=self.prune_fraction,
+            ensemble_output=True,
+            mask_test=False,
+            mask_train=False,
+            device=torch.device(device),
+        )
+
+
+@dataclass
+class ERArgs(LearnerArgs):
+    """Experience Replay"""
+
+    type_: ClassVar[str] = "ER"
+    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
+    """Capacity of the experience replay buffer."""
+
+    @override
+    def build(
+        self, seed: int, schema: Schema, device: str, model: nn.Module
+    ) -> BatchClassifier:
+        return ExperienceReplay(
+            learner=Finetune(
+                schema,
+                model,
+                optimizer=Adam(model.parameters(), lr=self.lr),
+                device=device,
+                random_seed=seed,
+            ),
+            buffer_capacity=self.buffer_capacity,
+        )
+
+
+@dataclass
 class DERArgs(LearnerArgs):
+    """Dark Experience Replay"""
+
     type_: ClassVar[str] = "DER"
-    buffer_capacity: int = 256
+    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
     """Capacity of the experience replay buffer."""
     alpha: float = 0.5
     """Weight of the DER replay-logit loss term."""
@@ -178,36 +257,4 @@ class DERArgs(LearnerArgs):
         )
 
 
-# @dataclass
-# class PNArgs(LearnerArgs):
-#     type_: ClassVar[str] = "PN"
-
-
-# @dataclass
-# class RARArgs(LearnerArgs):
-#     type_: ClassVar[str] = "RAR"
-
-
-@dataclass
-class ERArgs(LearnerArgs):
-    type_: ClassVar[str] = "ER"
-    buffer_capacity: int = 256
-    """Capacity of the experience replay buffer."""
-
-    @override
-    def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
-    ) -> BatchClassifier:
-        return ExperienceReplay(
-            learner=Finetune(
-                schema,
-                model,
-                optimizer=Adam(model.parameters(), lr=self.lr),
-                device=device,
-                random_seed=seed,
-            ),
-            buffer_capacity=self.buffer_capacity,
-        )
-
-
-AnyLearner = FTArgs | EWCArgs | ERArgs | LWFArgs | DERArgs
+AnyLearner = FTArgs | EWCArgs | ERArgs | LWFArgs | DERArgs | SIArgs | PNArgs

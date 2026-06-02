@@ -27,9 +27,11 @@ class PerceptronArgs(ModelArgs):
 class ResNet_32x32Args(ModelArgs):
     type_: ClassVar[str] = "resnet20_32x32"
 
+    batch_norm: bool = True
+
     def build(self, seed: int, schema: Schema) -> nn.Module:
         manual_seed(seed)
-        return resnet20_32x32(schema.get_num_classes())
+        return resnet20_32x32(schema.get_num_classes(), self.batch_norm)
 
 
 AnyModel = PerceptronArgs | ResNet_32x32Args

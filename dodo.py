@@ -31,6 +31,8 @@ Boundary = str
 STRATEGY = [
     "FT",
     "EWC",
+    "SI",
+    "PN",
     "ER",
     "LWF",
     "DER",
@@ -281,7 +283,6 @@ def task_dd_run():
     for strategy, boundary, detector, (trial, _) in product(
         STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
     ):
-        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
         detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
         oracle_metrics = Unit(
             strategy,
@@ -292,7 +293,7 @@ def task_dd_run():
 
         yield Unit(strategy, detector, boundary, trial).task_dd_run(
             oracle_metrics,
-            [strategy_hp, detector_hp],
+            [detector_hp],
         )
 
 

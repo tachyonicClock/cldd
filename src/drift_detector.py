@@ -131,6 +131,8 @@ class OCLDD(Handler):
     def on_train_task_begin(self, event: TrainTaskBegin):
         # The start does not count as a drift.
         if event.train_task == 0:
+            # We always know about the first task.
+            self._downstream.notify(event)
             return
         self._dd_trues.append(self._stream_index)
         logger.info("True drift at instance {}".format(self._stream_index))

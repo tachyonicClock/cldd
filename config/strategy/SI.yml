@@ -1,2 +1,11 @@
 learner:
   type_: SI
+
+hpsearch:
+  args:
+    "learner.lambda_":
+      type_: float
+      low: 0.1
+      high: 1000
+      log: true
+

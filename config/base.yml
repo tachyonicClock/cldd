@@ -12,6 +12,6 @@ hpsearch:
   args:
     "learner.lr":
       type_: float
-      low: 1e-5
-      high: 1e-1
+      low: 0.0001
+      high: 0.01
       log: true
