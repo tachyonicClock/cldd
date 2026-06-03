@@ -1,3 +1,5 @@
+from dataclasses import asdict
+
 from src.tblogger import TensorboardLogger
 from src import config
 from capymoa.base.events import Dispatcher
@@ -95,9 +97,9 @@ class Experiment:
             pickle.dump(dd_metrics, f)
 
         logger.info("{}", "-" * 30)
-        logger.info("DRIFT DETECTION METRICS")
+        logger.info("METRICS")
         logger.info("{}", "-" * 30)
-        for key, value in dd_metrics.items():
+        for key, value in (dd_metrics | asdict(ocl_metrics)).items():
             if isinstance(value, float):
                 logger.info(f"{key.ljust(20)} {value:.3f}")
             elif isinstance(value, int):
@@ -105,9 +107,6 @@ class Experiment:
         logger.info("PREDS {}", dd_metrics["preds"])
         logger.info("TRUES {}", dd_metrics["trues"])
 
-        logger.info("{}", "-" * 30)
-        logger.info("OCL METRICS")
-        logger.info("{}", "-" * 30)
         logger.info(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
         logger.info(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
         logger.info(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")

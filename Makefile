@@ -19,10 +19,14 @@ fmt:
 
 
 clean-logs:
-	rm -r logs/*
-	rm -r logs
+	rm nohup.out || true
+	rm -r logs/* || true
+	rm -r logs || true
 	mkdir -p /local/scratch/antonlee/log/blurry-ocl
 	ln -s /local/scratch/antonlee/log/blurry-ocl logs
 
 rsync-cuda9: clean-logs
 	rsync -aP cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/
+
+archive:
+	7z a $(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z logs/

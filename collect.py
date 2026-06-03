@@ -10,6 +10,7 @@ import pandas as pd
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
+    "accuracy_final",
     "accuracy_all_avg",
     "accuracy_seen_avg",
     "forward_transfer",

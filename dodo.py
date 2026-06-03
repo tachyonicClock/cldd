@@ -32,10 +32,9 @@ STRATEGY = [
     "FT",
     "EWC",
     "SI",
-    # "PN",
+    "iCaRL",
     "ER",
     "LWF",
-    "DER",
 ]
 DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [

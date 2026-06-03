@@ -3,6 +3,9 @@ from capymoa.base.events import Dispatcher, Handler, LogScalar
 from capymoa.ocl.evaluation.events import (
     TrainBatchPredict,
     TrainTaskBegin,
+    TrainTaskEnd,
+    TestBegin,
+    TestEnd,
 )
 from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import (
@@ -62,6 +65,8 @@ class OCLDD(Handler):
         self.upstream = dispatcher
         dispatcher.subscribe(TrainBatchPredict, self.on_train_batch_predict)
         dispatcher.subscribe(TrainTaskBegin, self.on_train_task_begin)
+        dispatcher.subscribe(TestBegin, self._proxy)
+        dispatcher.subscribe(TestEnd, self._proxy)
 
         # If the drift detector is a handler itself. e.g. The oracle detector, then we
         # also attach it to the same dispatcher.
@@ -114,6 +119,14 @@ class OCLDD(Handler):
         if self.drift_detector.detected_change():
             logger.info(f"Predicted drift at instance {self._stream_index}")
             self._dd_preds.append(self._stream_index)
+
+            self._downstream.notify(
+                TrainTaskEnd(
+                    train_task=self._n_drifts,
+                    global_step=event.global_step,
+                    train_step=event.train_step,
+                )
+            )
             self._n_drifts += 1
             self._downstream.notify(
                 TrainTaskBegin(
@@ -122,6 +135,7 @@ class OCLDD(Handler):
                     train_step=event.train_step,
                 )
             )
+
             if self.reset_on_drift:
                 self.drift_detector.reset()
 
@@ -136,6 +150,9 @@ class OCLDD(Handler):
             return
         self._dd_trues.append(self._stream_index)
         logger.info("True drift at instance {}".format(self._stream_index))
+
+    def _proxy(self, event):
+        self._downstream.notify(event)
 
     def metrics(self) -> dict:
         metrics = asdict(

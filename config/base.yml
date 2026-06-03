@@ -3,6 +3,7 @@ scenario:
 
 model:
   type_: resnet20_32x32
+  pretrained: false
 
 mb_train: 32
 mb_test: 128

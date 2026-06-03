@@ -4,8 +4,8 @@ from typing import ClassVar, Literal, cast, override
 from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
-from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet
-from torch.optim import Adam
+from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet, ICaRL
+from torch.optim import AdamW as Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
 import torch
@@ -93,7 +93,7 @@ class FTArgs(LearnerArgs):
         return Finetune(
             schema,
             model,
-            optimizer=Adam(model.parameters(), lr=self.lr),
+            optimizer=Optimizer(model.parameters(), lr=self.lr),
             device=device,
             random_seed=seed,
         )
@@ -122,7 +122,7 @@ class EWCArgs(LearnerArgs):
         return EWC(
             schema=schema,
             model=model,
-            optimiser=Adam(model.parameters(), lr=self.lr),
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
             lambda_=self.lambda_,
             buffer_capacity=self.buffer_capacity,
             fim_batch_size=self.fim_batch_size,
@@ -149,7 +149,7 @@ class SIArgs(LearnerArgs):
         return SI(
             schema=schema,
             model=model,
-            optimiser=Adam(model.parameters(), lr=self.lr),
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
             lambda_=self.lambda_,
             eps=self.eps,
             device=torch.device(device),
@@ -174,7 +174,7 @@ class LWFArgs(LearnerArgs):
         return LWF(
             schema=schema,
             model=model,
-            optimiser=Adam(model.parameters(), lr=self.lr),
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
             device=torch.device(device),
             alpha=self.alpha,
             temperature=self.temperature,
@@ -197,7 +197,7 @@ class PNArgs(LearnerArgs):
         return PackNet(
             schema=schema,
             model=model,
-            optimiser=Adam(model.parameters(), lr=self.lr),
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
             prune_fraction=self.prune_fraction,
             ensemble_output=True,
             mask_test=False,
@@ -222,7 +222,7 @@ class ERArgs(LearnerArgs):
             learner=Finetune(
                 schema,
                 model,
-                optimizer=Adam(model.parameters(), lr=self.lr),
+                optimizer=Optimizer(model.parameters(), lr=self.lr),
                 device=device,
                 random_seed=seed,
             ),
@@ -236,7 +236,7 @@ class DERArgs(LearnerArgs):
     """Dark Experience Replay"""
 
     type_: ClassVar[str] = "DER"
-    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
+    capacity: int = DEFAULT_BUFFER_CAPACITY
     """Capacity of the experience replay buffer."""
     alpha: float = 0.5
     """Weight of the DER replay-logit loss term."""
@@ -252,14 +252,46 @@ class DERArgs(LearnerArgs):
         return DER(
             schema=schema,
             model=model,
-            optimiser=Adam(model.parameters(), lr=self.lr),
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
             device=torch.device(device),
             alpha=self.alpha,
-            buffer_capacity=self.buffer_capacity,
+            buffer_capacity=self.capacity,
             seed=seed,
             augment=build_augment(self.augment),
             substeps=SUBSTEPS,
         )
 
 
-AnyLearner = FTArgs | EWCArgs | ERArgs | LWFArgs | DERArgs | SIArgs | PNArgs
+@dataclass
+class ICaRLArgs(LearnerArgs):
+    """Incremental Classifier and Representation Learning"""
+
+    type_: ClassVar[str] = "iCaRL"
+    capacity: int = DEFAULT_BUFFER_CAPACITY
+    """Total exemplar memory capacity across all classes."""
+    distillation_weight: float = 1.0
+    """Weight of the distillation term in the iCaRL loss."""
+
+    @override
+    def build(
+        self, seed: int, schema: Schema, device: str, model: nn.Module
+    ) -> BatchClassifier:
+        feature_extractor = getattr(model, "features", None)
+        if feature_extractor is None:
+            raise ValueError(
+                "Model must have a 'features' method to be used with iCaRL."
+            )
+
+        return ICaRL(
+            schema=schema,
+            model=model,
+            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            feature_extractor=feature_extractor,
+            capacity=self.capacity,
+            batch_size=64,
+            distillation_weight=self.distillation_weight,
+            device=torch.device(device),
+        )
+
+
+AnyLearner = FTArgs | EWCArgs | ERArgs | LWFArgs | DERArgs | SIArgs | PNArgs | ICaRLArgs
