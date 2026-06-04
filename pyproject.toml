@@ -16,6 +16,7 @@ dependencies = [
     "optuna>=4.8.0",
     "psycopg[binary]>=3.3.4",
     "tensorboard>=2.20.0",
+    "transformers>=5.10.1",
 ]
 
 [tool.uv.sources]

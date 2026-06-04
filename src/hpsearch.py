@@ -74,7 +74,9 @@ class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
         self.study = recreate_study(
-            study_name=config.study_name, storage=config.hpsearch.storage
+            study_name=config.study_name,
+            storage=config.hpsearch.storage,
+            direction="maximize" if config.hpsearch.maximize else "minimize",
         )
         self.config = config
         self.hpsearch = config.hpsearch
@@ -99,8 +101,8 @@ class HPSearch:
         experiment = Experiment(self.config)
         metrics = experiment.run()
 
-        trial.set_user_attr("accuracy_seen_avg", float(metrics.accuracy_seen_avg))
-        trial.set_user_attr("accuracy_all_avg", float(metrics.accuracy_all_avg))
-        trial.set_user_attr("accuracy_final", float(metrics.accuracy_final))
+        trial.set_user_attr("accuracy_seen_avg", float(metrics["accuracy_seen_avg"]))
+        trial.set_user_attr("accuracy_all_avg", float(metrics["accuracy_all_avg"]))
+        trial.set_user_attr("accuracy_final", float(metrics["accuracy_final"]))
         trial.set_user_attr("logdir", str(experiment.logdir.as_posix()))
-        return float(metrics.accuracy_final)
+        return float(metrics[self.hpsearch.metric])

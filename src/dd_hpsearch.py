@@ -22,6 +22,7 @@ class DDHPSearch:
         self.study = recreate_study(
             study_name=config.study_name,
             storage=config.hpsearch.storage,
+            direction="maximize" if config.hpsearch.maximize else "minimize",
         )
 
     def _mean_metrics(self, metrics_per_stream: list[dict]) -> dict[str, float]:
@@ -66,4 +67,4 @@ class DDHPSearch:
 
         summary_metrics = self._mean_metrics(metrics_per_stream)
         trial.set_user_attr("dd_metrics", summary_metrics)
-        return -summary_metrics["wasserstein_distance"]
+        return summary_metrics[self.hpsearch.metric]

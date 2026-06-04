@@ -7,12 +7,12 @@ hpsearch:
     "learner.alpha":
       type_: float
       low: 0.0
-      high: 2.0
+      high: 5.0
 
     # Distillation temperature.
     "learner.temperature":
       type_: float
       low: 1.0
-      high: 10.0
+      high: 4.0
       log: true
 

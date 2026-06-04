@@ -23,7 +23,15 @@ logs = Path("logs") / "console"
     type=int,
     help="Number of subprocesses to run",
 )
-def main(gpu: Sequence[int], n_subprocesses: int):
+@click.option(
+    "-r",
+    "--run",
+    default=[],
+    multiple=True,
+    type=str,
+    help="Name of the run to execute",
+)
+def main(gpu: Sequence[int], n_subprocesses: int, run: Sequence[str]):
     # Setup nvidia-mps
     logs.mkdir(parents=True, exist_ok=True)
 
@@ -55,8 +63,11 @@ def main(gpu: Sequence[int], n_subprocesses: int):
 
     try:
         # Run the main script
+        cmd = ["uv", "run", "doit", "-n", str(n_subprocesses)]
+        if run:
+            cmd.extend(run)
         sp.run(
-            ["uv", "run", "doit", "-n", str(n_subprocesses)],
+            cmd,
             check=True,
             env=client_env,
         )

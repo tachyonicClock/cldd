@@ -1,7 +1,5 @@
 learner:
   type_: PN
-model:
-  batch_norm: false
 hpsearch:
   args:
     "learner.prune_fraction":

@@ -5,7 +5,7 @@ hpsearch:
   args:
     "learner.lambda_":
       type_: float
-      low: 0.1
-      high: 1000
+      low: 0.001
+      high: 0.5
       log: true
 

@@ -8,7 +8,10 @@ uv run ...
 # Full Run
 
 ```
-nohup notirun.sh ./mpsdodo.py -g 2 -n 8 &
+nohup notirun.sh ./mpsdodo.py -g 2 -n 8    \
+    -r tune_strategy:EWC.oracle.abrupt.000 \
+    -r tune_strategy:SI.oracle.abrupt.000  \
+    -r tune_strategy:FT.oracle.abrupt.000  &
 ```
 
 # Run Tests

@@ -8,6 +8,8 @@ from src.scenario import ScenarioArgs
 from src.drift_detector import AnyDriftDetector
 from src.strategy import AnyLearner
 from src.model import AnyModel
+from src.optimizer import AnyOptimizer
+from src.scheduler import AnyScheduler
 from src.hpsearch_config import HPSearchConfig, SuggestAny
 import torch
 import time
@@ -19,6 +21,8 @@ class Config:
     drift_detector: AnyDriftDetector
     learner: AnyLearner
     model: AnyModel
+    optimizer: AnyOptimizer
+    scheduler: Optional[AnyScheduler] = None
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
@@ -98,6 +102,8 @@ def type_tagged_union(type_):
 type_tagged_union(AnyDriftDetector)
 type_tagged_union(AnyLearner)
 type_tagged_union(AnyModel)
+type_tagged_union(AnyOptimizer)  # TODO: Re-enable when we have more optimizers
+# type_tagged_union(AnyScheduler) # TODO: Re-enable when we have more schedulers
 type_tagged_union(SuggestAny)
 
 

@@ -1,18 +1,28 @@
 scenario:
   name: DomainCIFAR100
+  normalize_features: true
 
 model:
-  type_: resnet20_32x32
-  pretrained: false
+  type_: AirbenchCNN
+
+optimizer:
+  type_: AdamW
+  lr: 0.0 # OVERRIDEN BY SCHEDULER
+
+scheduler:
+  # type_: OneCycleLR
+  max_lr: 0.001
+  pct_start: 0.06
+  three_phase: false
 
 mb_train: 32
 mb_test: 128
 
-hpsearch:
-  n_trials: 30
-  args:
-    "learner.lr":
-      type_: float
-      low: 0.0001
-      high: 0.01
-      log: true
+# hpsearch:
+#   n_trials: 30
+#   args: null
+  #   "optimizer.lr":
+  #     type_: float
+  #     low: 0.0001
+  #     high: 0.01
+  #     log: true

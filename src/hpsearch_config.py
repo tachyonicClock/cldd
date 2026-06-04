@@ -53,7 +53,9 @@ class HPSearchConfig:
 
     n_trials: int
     study_prefix: str = "bocl"
+    metric: str = "accuracy_forgetful"
     storage: str = "logs/optuna.journal.log"
+    maximize: bool = True
 
     def suggest(
         self, trial: optuna.Trial, startswith: str | None = None

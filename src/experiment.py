@@ -3,8 +3,8 @@ from dataclasses import asdict
 from src.tblogger import TensorboardLogger
 from src import config
 from capymoa.base.events import Dispatcher
-from capymoa.ocl.evaluation import OCLMetrics, ocl_train_eval_loop
-from typing import Sequence
+from capymoa.ocl.evaluation import ocl_train_eval_loop
+from typing import Dict, Sequence
 from torch.utils.data import DataLoader
 from functools import partial
 from pathlib import Path
@@ -24,10 +24,29 @@ class Experiment:
 
         logger.info("Build model.")
         self.model = config.model.build(config.seed, self.schema)
+        n_parameters = sum(p.numel() for p in self.model.parameters())
+        n_buffers = sum(p.numel() for p in self.model.buffers())
+        logger.info(f"Model has {n_parameters} parameters and {n_buffers} buffers.")
+
+        logger.info("Build learner (optimizer).")
+        self.optimizer = config.optimizer.build_optimizer(self.model.parameters())
+
+        self.scheduler = None
+        if config.scheduler is not None:
+            logger.info("Build learner (scheduler).")
+            total = sum(len(task) for task in self.scenario.train_tasks)  # type: ignore
+            self.scheduler = config.scheduler.build(
+                self.optimizer,
+                total_steps=int(total / config.mb_train + 100),  # type: ignore
+            )
 
         logger.info("Build learner (strategy).")
         self.learner = config.learner.build(
-            config.seed, self.schema, self.device, self.model
+            config.seed,
+            self.schema,
+            self.device,
+            self.model,
+            self.optimizer,
         )
 
         logger.info("Build drift detector.")
@@ -52,7 +71,7 @@ class Experiment:
         new_loader = partial(DataLoader, batch_size=self.config.mb_test, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
-    def run(self) -> OCLMetrics:
+    def run(self) -> Dict:
         self.logdir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Saving config...")
@@ -60,16 +79,18 @@ class Experiment:
             config_dict = config.converter.unstructure(self.config)
             f.write(config.OmegaConf.to_yaml(config_dict))
 
-        dispatcher = Dispatcher()
-        self.tb_logger.attach_with(dispatcher)
-        self.drift_detector.attach_with(dispatcher)
+        self.dispatcher = Dispatcher()
+        self.tb_logger.attach_with(self.dispatcher)
+        self.drift_detector.attach_with(self.dispatcher)
+        if self.scheduler is not None:
+            self.scheduler.attach_with(self.dispatcher)
 
         ocl_metrics = ocl_train_eval_loop(
             learner=self.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
             progress_bar=not self.config.disable_progress_bar,
-            dispatcher=dispatcher,
+            dispatcher=self.dispatcher,
             attach_learner=False,
         )
 
@@ -107,7 +128,11 @@ class Experiment:
         logger.info("PREDS {}", dd_metrics["preds"])
         logger.info("TRUES {}", dd_metrics["trues"])
 
+        accuracy_forgetful = ocl_metrics.accuracy_matrix.trace() / ocl_metrics.n_tasks
+        logger.info(f"accuracy_forgetful {accuracy_forgetful:.3f}")
         logger.info(f"accuracy_seen_avg  {ocl_metrics.accuracy_seen_avg:.3f}")
         logger.info(f"accuracy_all_avg   {ocl_metrics.accuracy_all_avg:.3f}")
         logger.info(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
+        ocl_metrics = asdict(ocl_metrics)
+        ocl_metrics["accuracy_forgetful"] = accuracy_forgetful
         return ocl_metrics

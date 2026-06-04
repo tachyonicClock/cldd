@@ -5,7 +5,7 @@ from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet, ICaRL
-from torch.optim import AdamW as Optimizer
+from torch.optim import Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
 import torch
@@ -14,7 +14,9 @@ import torch
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
 
 DEFAULT_BUFFER_CAPACITY = 1_000
-SUBSTEPS = 5
+AUX_BATCH_SIZE = 64
+"""Batch size for auxiliary computations such as FIM estimation in EWC."""
+SUBSTEPS = 1
 
 
 class _AutoAugmentCIFAR10(nn.Module):
@@ -72,12 +74,15 @@ def build_augment(augment_type: AugmentTypes) -> nn.Module:
 @dataclass
 class LearnerArgs(ABC):
     type_: ClassVar[str]
-    lr: float = 0.001
-    """Learning rate for the optimizer used to train the model."""
 
     @abstractmethod
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier: ...
 
 
@@ -88,12 +93,17 @@ class FTArgs(LearnerArgs):
     type_: ClassVar[str] = "FT"
 
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         return Finetune(
             schema,
             model,
-            optimizer=Optimizer(model.parameters(), lr=self.lr),
+            optimizer=optimizer,
             device=device,
             random_seed=seed,
         )
@@ -110,22 +120,25 @@ class EWCArgs(LearnerArgs):
     gamma: float = 1.0
     """Discount factor for the importance of previous tasks. Should be in [0, 1].
     Usually close to 1.0."""
-    fim_batch_size: int = 32
-    """Batch size for computing the Fisher Information Matrix (FIM)."""
-    buffer_capacity: int = 256
+    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
     """Capacity of the buffer used to store samples for FIM estimation."""
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         return EWC(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             lambda_=self.lambda_,
             buffer_capacity=self.buffer_capacity,
-            fim_batch_size=self.fim_batch_size,
+            fim_batch_size=AUX_BATCH_SIZE,
             device=torch.device(device),
             gamma=self.gamma,
         )
@@ -144,12 +157,17 @@ class SIArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         return SI(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             lambda_=self.lambda_,
             eps=self.eps,
             device=torch.device(device),
@@ -168,13 +186,18 @@ class LWFArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         model.to(device)
         return LWF(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             device=torch.device(device),
             alpha=self.alpha,
             temperature=self.temperature,
@@ -192,12 +215,17 @@ class PNArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         return PackNet(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             prune_fraction=self.prune_fraction,
             ensemble_output=True,
             mask_test=False,
@@ -216,13 +244,18 @@ class ERArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         return ExperienceReplay(
             learner=Finetune(
                 schema,
                 model,
-                optimizer=Optimizer(model.parameters(), lr=self.lr),
+                optimizer=optimizer,
                 device=device,
                 random_seed=seed,
             ),
@@ -245,14 +278,19 @@ class DERArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         model.to(device)
 
         return DER(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             device=torch.device(device),
             alpha=self.alpha,
             buffer_capacity=self.capacity,
@@ -274,7 +312,12 @@ class ICaRLArgs(LearnerArgs):
 
     @override
     def build(
-        self, seed: int, schema: Schema, device: str, model: nn.Module
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
     ) -> BatchClassifier:
         feature_extractor = getattr(model, "features", None)
         if feature_extractor is None:
@@ -285,10 +328,10 @@ class ICaRLArgs(LearnerArgs):
         return ICaRL(
             schema=schema,
             model=model,
-            optimiser=Optimizer(model.parameters(), lr=self.lr),
+            optimiser=optimizer,
             feature_extractor=feature_extractor,
             capacity=self.capacity,
-            batch_size=64,
+            batch_size=AUX_BATCH_SIZE,
             distillation_weight=self.distillation_weight,
             device=torch.device(device),
         )

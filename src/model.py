@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 from torch import nn
 from capymoa.stream import Schema
 from capymoa.ann import Perceptron, resnet20_32x32
@@ -31,12 +31,12 @@ class PerceptronArgs(ModelArgs):
 class ResNet_32x32Args(ModelArgs):
     type_: ClassVar[str] = "resnet20_32x32"
 
-    batch_norm: bool = True
+    norm: Literal["Identity", "BatchNorm", "LayerNorm", "GroupNorm"] = "BatchNorm"
     pretrained: bool = True
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         manual_seed(seed)
-        model = resnet20_32x32(schema.get_num_classes(), self.batch_norm)
+        model = resnet20_32x32(schema.get_num_classes(), self.norm)
         if self.pretrained:
             state_dict = torch.load(file.parent / "resnet20-12fca82f.th")["state_dict"]
             # Remove prefix "module." from state dict keys if present
@@ -47,4 +47,44 @@ class ResNet_32x32Args(ModelArgs):
         return model
 
 
-AnyModel = PerceptronArgs | ResNet_32x32Args
+@dataclass
+class ConvNeXtArgs(ModelArgs):
+    type_: ClassVar[str] = "ConvNextV2"
+    pretrained: bool = False
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .convnext import ConvNextV2
+
+        manual_seed(seed)
+        return ConvNextV2(
+            num_classes=schema.get_num_classes(), pretrained=self.pretrained
+        )
+
+
+@dataclass
+class AirbenchCNNArgs(ModelArgs):
+    type_: ClassVar[str] = "AirbenchCNN"
+
+    block1_width: int = 64
+    block2_width: int = 128
+    block3_width: int = 128
+    groupnorm_groups: int = 8
+    scaling_factor: float = 1 / 9
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.airbench import AirbenchCNN
+
+        manual_seed(seed)
+        return AirbenchCNN(
+            num_classes=schema.get_num_classes(),
+            widths={
+                "block1": self.block1_width,
+                "block2": self.block2_width,
+                "block3": self.block3_width,
+            },
+            groupnorm_groups=self.groupnorm_groups,
+            scaling_factor=self.scaling_factor,
+        )
+
+
+AnyModel = PerceptronArgs | ResNet_32x32Args | ConvNeXtArgs | AirbenchCNNArgs

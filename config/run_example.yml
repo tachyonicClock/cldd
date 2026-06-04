@@ -1,7 +1,7 @@
 include:
   - config/base.yml
   - config/boundary/abrupt.yml
-  - config/strategy/EWC.yml
-  - config/detector/ADWIN.yml
+  - config/strategy/FT.yml
+  - config/detector/oracle.yml
 
 label: run_example
