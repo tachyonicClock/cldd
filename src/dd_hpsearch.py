@@ -5,7 +5,7 @@ without the computational cost of running a full experiment for each trial.
 
 from src.config import Config
 from src.dd_eval import evaluate_dd_stream
-from src.hpsearch import optimize_with_max_trials, recreate_study
+from src.hpsearch import optimize_with_max_trials
 from src.util import obj_dot_notation_set
 import optuna
 import pickle
@@ -19,11 +19,7 @@ class DDHPSearch:
         self.config = config
         self.hpsearch = config.hpsearch
         self.error_streams = error_streams
-        self.study = recreate_study(
-            study_name=config.study_name,
-            storage=config.hpsearch.storage,
-            direction="maximize" if config.hpsearch.maximize else "minimize",
-        )
+        self.study = self.hpsearch.new_study(config.study_name)
 
     def _mean_metrics(self, metrics_per_stream: list[dict]) -> dict[str, float]:
         keys = metrics_per_stream[0].keys()

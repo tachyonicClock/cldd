@@ -8,21 +8,17 @@ model:
 optimizer:
   type_: AdamW
   lr: 0.0 # OVERRIDEN BY SCHEDULER
-
+  weight_decay: 0.0 
+  
 scheduler:
+  # https://docs.pytorch.org/docs/2.12/generated/torch.optim.lr_scheduler.OneCycleLR.html#onecyclelr
   # type_: OneCycleLR
-  max_lr: 0.001
-  pct_start: 0.06
+  max_lr: 0.0015
+  pct_start: 0.32
+  div_factor: 19         # initial_lr = max_lr/div_factor
+  final_div_factor: 3400 
+  anneal_strategy: cos
   three_phase: false
 
 mb_train: 32
 mb_test: 128
-
-# hpsearch:
-#   n_trials: 30
-#   args: null
-  #   "optimizer.lr":
-  #     type_: float
-  #     low: 0.0001
-  #     high: 0.01
-  #     log: true

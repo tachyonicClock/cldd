@@ -4,26 +4,6 @@ from typing import Callable
 from src.experiment import Experiment
 from loguru import logger
 from src.util import obj_dot_notation_set
-from pathlib import Path
-
-
-def recreate_study(
-    *, study_name: str, storage: str, direction: str = "maximize"
-) -> "optuna.study.Study":
-    storage = optuna.storages.JournalStorage(
-        optuna.storages.journal.JournalFileBackend(Path(storage).as_posix())
-    )
-
-    try:
-        optuna.delete_study(study_name=study_name, storage=storage)
-    except KeyError:
-        pass
-
-    return optuna.create_study(
-        study_name=study_name,
-        storage=storage,
-        direction=direction,
-    )
 
 
 def optimize_with_max_trials(
@@ -73,13 +53,12 @@ def optimize_with_max_trials(
 class HPSearch:
     def __init__(self, config: Config) -> None:
         assert config.hpsearch is not None
-        self.study = recreate_study(
-            study_name=config.study_name,
-            storage=config.hpsearch.storage,
-            direction="maximize" if config.hpsearch.maximize else "minimize",
-        )
         self.config = config
         self.hpsearch = config.hpsearch
+        if self.hpsearch.args is None:
+            logger.warning("Running only 1 trial since the search space is empty.")
+            self.hpsearch.n_trials = 1
+        self.study = self.hpsearch.new_study(config.study_name)
 
     def optimize(self) -> None:
         optimize_with_max_trials(
@@ -97,7 +76,6 @@ class HPSearch:
         logger.info(f"Trial {trial.number} with suggestions:")
         self.config.trial = trial.number
         self.config.seed = trial.number
-        logger.info("{}", self.config)
         experiment = Experiment(self.config)
         metrics = experiment.run()
 

@@ -97,15 +97,17 @@ class AirbenchCNN(nn.Module):
                 "block3": 128,
             }
 
-        self.net = nn.Sequential(
+        self.features = nn.Sequential(
             ConvGroup(3, widths["block1"], groupnorm_groups),
             ConvGroup(widths["block1"], widths["block2"], groupnorm_groups),
             ConvGroup(widths["block2"], widths["block3"], groupnorm_groups),
             nn.MaxPool2d(3),
             Flatten(),
+        )
+        self.classifier = nn.Sequential(
             nn.Linear(widths["block3"], num_classes, bias=False),
             Mul(scaling_factor),
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.net(x)
+        return self.classifier(self.features(x))

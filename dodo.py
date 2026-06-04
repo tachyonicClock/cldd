@@ -24,6 +24,8 @@ from actions import (
     collect_dd_run_records,
 )
 
+DEBUG_MODE = False
+
 Strategy = str
 Detector = str
 Boundary = str
@@ -48,13 +50,15 @@ DETECTOR = [
 BOUNDARY = [
     "abrupt",
     "gradual",
-    "slow",
+    # "slow",
 ]
-# ERROR_STREAM_SEEDS = [0, 1, 2]
-ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
-# EVALUATION_SEEDS = [5, 6, 7]
-EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 
+if DEBUG_MODE:
+    ERROR_STREAM_SEEDS = [0, 1]
+    EVALUATION_SEEDS = [5, 6]
+else:
+    ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
+    EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 
 ORACLE_DETECTOR = "oracle"
 BEST_DETECTOR = "BEST"
@@ -81,15 +85,17 @@ class Unit:
     def identifier(self) -> str:
         return f"{self.strategy}.{self.detector}.{self.boundary}.{self.trial_str}"
 
-    @property
-    def configs(self) -> list[Path]:
+    def configs(self, hp: str | None = None) -> list[Path]:
         r = Path("config")
-        return [
+        configs = [
             r / "base.yml",
             r / "strategy" / f"{self.strategy}.yml",
             r / "detector" / f"{self.detector}.yml",
             r / "boundary" / f"{self.boundary}.yml",
         ]
+        if hp is not None:
+            configs.append(r / "hp" / f"{hp}.yml")
+        return configs
 
     def logdir(self, label: str) -> Path:
         return (
@@ -130,15 +136,16 @@ class Unit:
         return self.logdir(dd_run.__name__) / "dd_metrics.pkl"
 
     def task_tune_strategy(self) -> dict:
+        configs = self.configs("strategy")
         return {
             "name": self.identifier,
-            "actions": [(tune_strategy, (self.configs, self.identifier))],
-            "file_dep": self.configs,
+            "actions": [(tune_strategy, (configs, self.identifier))],
+            "file_dep": configs,
             "targets": [self.tune_strategy_hp],
         }
 
     def task_error_stream(self, seed: int):
-        configs = self.configs + [self.tune_strategy_hp]
+        configs = self.configs() + [self.tune_strategy_hp]
         return {
             "name": self.identifier,
             "actions": [(error_stream, (configs, seed, self.trial, self.identifier))],
@@ -147,7 +154,7 @@ class Unit:
         }
 
     def task_tune_hp_detector(self, error_streams: list[Path]):
-        configs = self.configs
+        configs = self.configs("detector")
         return {
             "name": self.identifier,
             "actions": [(tune_detector, (configs, error_streams, self.identifier))],
@@ -156,7 +163,7 @@ class Unit:
         }
 
     def task_select_best_detector(self, trial_files: list[Path]):
-        configs = self.configs
+        configs = self.configs()
         return {
             "name": self.identifier,
             "actions": [(select_best_detector, (trial_files, self.tune_detector_hp))],
@@ -165,7 +172,7 @@ class Unit:
         }
 
     def task_evaluate(self, seed: int, configs: list[Path]):
-        configs = self.configs + configs
+        configs = self.configs() + configs
         return {
             "name": self.identifier,
             "actions": [
@@ -183,7 +190,7 @@ class Unit:
         oracle_error_stream: Path,
         detector_configs: list[Path],
     ):
-        configs = self.configs + detector_configs
+        configs = self.configs() + detector_configs
         return {
             "name": self.identifier,
             "actions": [

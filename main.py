@@ -12,6 +12,20 @@ from src.hpsearch import HPSearch
 from cattrs import transform_error, BaseValidationError
 from loguru import logger
 from omegaconf import OmegaConf
+import sys
+
+file = Path(__file__).resolve()
+
+
+def _log_format(record):
+    path = Path(record["file"].path).relative_to(file.parent)
+    record["path_no"] = f"{path}:{record['line']}"
+    return "<cyan>{path_no: >30}</cyan> <level>{message}</level>\n"
+
+
+logger.remove()
+logger.add(sys.stderr, format=_log_format)
+logger.info("Starting experiment with config files:")
 
 
 def dotlist_dict_to_nested(dotlist_dict: Dict[str, Any]) -> dict:
