@@ -50,10 +50,10 @@ class ResNet_32x32Args(ModelArgs):
 @dataclass
 class ConvNeXtArgs(ModelArgs):
     type_: ClassVar[str] = "ConvNextV2"
-    pretrained: bool = False
+    pretrained: bool = True
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
-        from .convnext import ConvNextV2
+        from .models.convnext import ConvNextV2
 
         manual_seed(seed)
         return ConvNextV2(
@@ -64,12 +64,7 @@ class ConvNeXtArgs(ModelArgs):
 @dataclass
 class AirbenchCNNArgs(ModelArgs):
     type_: ClassVar[str] = "AirbenchCNN"
-
-    block1_width: int = 64
-    block2_width: int = 128
-    block3_width: int = 128
-    groupnorm_groups: int = 8
-    scaling_factor: float = 1 / 9
+    channels_per_group: int = 16
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         from .models.airbench import AirbenchCNN
@@ -77,14 +72,25 @@ class AirbenchCNNArgs(ModelArgs):
         manual_seed(seed)
         return AirbenchCNN(
             num_classes=schema.get_num_classes(),
-            widths={
-                "block1": self.block1_width,
-                "block2": self.block2_width,
-                "block3": self.block3_width,
-            },
-            groupnorm_groups=self.groupnorm_groups,
-            scaling_factor=self.scaling_factor,
+            channels_per_group=self.channels_per_group,
         )
 
 
-AnyModel = PerceptronArgs | ResNet_32x32Args | ConvNeXtArgs | AirbenchCNNArgs
+@dataclass
+class DeepLightweightMLPArgs(ModelArgs):
+    type_: ClassVar[str] = "DeepLightweightMLP"
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.deep_lightweight_mlp import DeepLightweightMLP
+
+        manual_seed(seed)
+        return DeepLightweightMLP()
+
+
+AnyModel = (
+    PerceptronArgs
+    | ResNet_32x32Args
+    | ConvNeXtArgs
+    | AirbenchCNNArgs
+    | DeepLightweightMLPArgs
+)

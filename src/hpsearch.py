@@ -4,6 +4,7 @@ from typing import Callable
 from src.experiment import Experiment
 from loguru import logger
 from src.util import obj_dot_notation_set
+from copy import deepcopy
 
 
 def optimize_with_max_trials(
@@ -65,18 +66,20 @@ class HPSearch:
             self.study,
             self._objective,
             n_trials=self.hpsearch.n_trials,
+            n_jobs=self.hpsearch.n_jobs,
         )
 
     def _objective(self, trial: optuna.Trial) -> float:
         # Apply suggestions to config.
+        config = deepcopy(self.config)
         suggestions = self.hpsearch.suggest(trial)
         for key, value in suggestions.items():
-            obj_dot_notation_set(key, self.config, value)
+            obj_dot_notation_set(key, config, value)
 
         logger.info(f"Trial {trial.number} with suggestions:")
-        self.config.trial = trial.number
-        self.config.seed = trial.number
-        experiment = Experiment(self.config)
+        config.trial = trial.number
+        config.seed = trial.number
+        experiment = Experiment(config)
         metrics = experiment.run()
 
         trial.set_user_attr("accuracy_seen_avg", float(metrics["accuracy_seen_avg"]))

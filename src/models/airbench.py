@@ -10,24 +10,8 @@ Notes:
 
 """
 
-from collections.abc import Mapping
-
 import torch
 from torch import Tensor, nn
-
-
-class Flatten(nn.Module):
-    def forward(self, x: Tensor) -> Tensor:
-        return x.view(x.size(0), -1)
-
-
-class Mul(nn.Module):
-    def __init__(self, scale: float):
-        super().__init__()
-        self.scale = scale
-
-    def forward(self, x: Tensor) -> Tensor:
-        return x * self.scale
 
 
 class Conv(nn.Conv2d):
@@ -60,14 +44,16 @@ class ConvGroup(nn.Module):
         self,
         channels_in: int,
         channels_out: int,
-        groupnorm_groups: int,
+        channels_per_group: int,
     ):
         super().__init__()
+        num_groups = channels_out // channels_per_group
+
         self.conv1 = Conv(channels_in, channels_out)
         self.pool = nn.MaxPool2d(2)
-        self.norm1 = nn.GroupNorm(groupnorm_groups, channels_out, affine=False)
+        self.norm1 = nn.GroupNorm(num_groups, channels_out, affine=False)
         self.conv2 = Conv(channels_out, channels_out)
-        self.norm2 = nn.GroupNorm(groupnorm_groups, channels_out, affine=False)
+        self.norm2 = nn.GroupNorm(num_groups, channels_out, affine=False)
         self.activ = nn.GELU()
 
     def forward(self, x: Tensor) -> Tensor:
@@ -85,28 +71,22 @@ class AirbenchCNN(nn.Module):
     def __init__(
         self,
         num_classes: int,
-        widths: Mapping[str, int] | None = None,
-        groupnorm_groups: int = 8,
-        scaling_factor: float = 1 / 9,
+        channels_per_group: int = 8,
     ):
         super().__init__()
-        if widths is None:
-            widths = {
-                "block1": 64,
-                "block2": 128,
-                "block3": 128,
-            }
+        width_block1 = 64
+        width_block2 = 128
+        width_block3 = 128
 
         self.features = nn.Sequential(
-            ConvGroup(3, widths["block1"], groupnorm_groups),
-            ConvGroup(widths["block1"], widths["block2"], groupnorm_groups),
-            ConvGroup(widths["block2"], widths["block3"], groupnorm_groups),
-            nn.MaxPool2d(3),
-            Flatten(),
+            ConvGroup(3, width_block1, channels_per_group),
+            ConvGroup(width_block1, width_block2, channels_per_group),
+            ConvGroup(width_block2, width_block3, channels_per_group),
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
         )
         self.classifier = nn.Sequential(
-            nn.Linear(widths["block3"], num_classes, bias=False),
-            Mul(scaling_factor),
+            nn.Linear(width_block3, num_classes, bias=True),
         )
 
     def forward(self, x: Tensor) -> Tensor:

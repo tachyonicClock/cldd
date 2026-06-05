@@ -53,6 +53,7 @@ class HPSearchConfig:
     args: Optional[Dict[str, SuggestAny]] = None
 
     n_trials: int = 1
+    n_jobs: int = 1
     study_prefix: str = "bocl"
     metric: str = "accuracy_forgetful"
     storage: str = "logs/optuna.journal.log"

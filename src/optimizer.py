@@ -35,4 +35,16 @@ class AdamWArgs(OptimizerArgs):
         return AdamW(params, lr=self.lr, weight_decay=self.weight_decay)
 
 
-AnyOptimizer = AdamWArgs | AdamArgs
+@dataclass
+class SGDArgs(OptimizerArgs):
+    type_: ClassVar[str] = "SGD"
+
+    momentum: float = 0.0
+
+    def build_optimizer(self, params: Params) -> torch.optim.Optimizer:
+        return torch.optim.SGD(
+            params, lr=self.lr, weight_decay=self.weight_decay, momentum=self.momentum
+        )
+
+
+AnyOptimizer = AdamWArgs | AdamArgs | SGDArgs

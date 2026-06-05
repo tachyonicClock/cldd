@@ -25,6 +25,8 @@ from torch.nn.functional import cross_entropy
 import torch
 import enum
 
+LOG_EVERY = 10
+
 
 class ErrorStreamType(enum.Enum):
     CE = "CE"
@@ -75,13 +77,14 @@ class OCLDD(Handler):
         return self
 
     def log_scalar(self, tag: str, scalar_value: float, global_step: int):
-        self.upstream.notify(
-            LogScalar(
-                tag=tag,
-                scalar_value=scalar_value,
-                global_step=global_step,
+        if global_step % LOG_EVERY == 0:
+            self.upstream.notify(
+                LogScalar(
+                    tag=tag,
+                    scalar_value=scalar_value,
+                    global_step=global_step,
+                )
             )
-        )
 
     @torch.no_grad()
     def on_train_batch_predict(self, event: TrainBatchPredict):

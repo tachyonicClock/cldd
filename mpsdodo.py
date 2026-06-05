@@ -73,18 +73,13 @@ def main(gpu: Sequence[int], n_subprocesses: int, run: Sequence[str]):
         )
     finally:
         logger.warning("Cleaning up nvidia-mps...")
-        # Clean up nvidia-mps
-        client = sp.Popen(["nvidia-cuda-mps-control"], stdin=sp.PIPE, env=client_env)
+        server.terminate()
         try:
-            client.communicate(input=b"quit\n", timeout=TIMEOUT)
-            client.wait(TIMEOUT)
-            server.wait(TIMEOUT)
-        except sp.TimeoutExpired:
-            logger.error(
-                "Timeout expired while waiting for nvidia-mps processes to exit. Forcing termination."
-            )
-            client.kill()
-            server.kill()
+            server.wait(timeout=TIMEOUT)
+        finally:
+            if server.poll() is None:
+                logger.error("MPS server did not terminate gracefully, killing...")
+                server.kill()
 
 
 if __name__ == "__main__":

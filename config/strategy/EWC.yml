@@ -1,10 +1,11 @@
 learner:
   type_: EWC
+  lambda_: 1.0
 
 hpsearch:
   args:
     "learner.lambda_":
       type_: float
-      low: 0.1
-      high: 100.0
+      low: 1
+      high: 1000
       log: true

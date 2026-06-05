@@ -1,4 +1,4 @@
-from transformers import AutoImageProcessor, ConvNextV2ForImageClassification
+from transformers import ConvNextV2ForImageClassification
 from transformers.models.convnextv2.configuration_convnextv2 import ConvNextV2Config
 from torch import nn, Tensor
 
@@ -18,9 +18,6 @@ class ConvNextV2(nn.Module):
 
     def __init__(self, num_classes: int, pretrained=True):
         super(ConvNextV2, self).__init__()
-        self.preprocessor = AutoImageProcessor.from_pretrained(
-            "facebook/convnextv2-atto-1k-224"
-        )
         if pretrained:
             self.model = ConvNextV2ForImageClassification.from_pretrained(
                 "facebook/convnextv2-atto-1k-224"
@@ -35,9 +32,7 @@ class ConvNextV2(nn.Module):
         )
 
     def features(self, x: Tensor) -> Tensor:
-        args = self.preprocessor(x, return_tensors="pt")
-        return self.model.convnextv2(**args).pooler_output
+        return self.model.convnextv2(x).pooler_output
 
     def forward(self, x: Tensor) -> Tensor:
-        args = self.preprocessor(x, return_tensors="pt")
-        return self.model(**args).logits
+        return self.model(x).logits

@@ -1,24 +1,25 @@
 scenario:
-  name: DomainCIFAR100
-  normalize_features: true
+  name: DomainCIFAR100ViT
+  epochs: 1
 
 model:
-  type_: AirbenchCNN
+  type_: DeepLightweightMLP
+  # pretrained: true
 
 optimizer:
   type_: AdamW
-  lr: 0.0 # OVERRIDEN BY SCHEDULER
+  lr: 0.001
   weight_decay: 0.0 
   
-scheduler:
+scheduler: null
   # https://docs.pytorch.org/docs/2.12/generated/torch.optim.lr_scheduler.OneCycleLR.html#onecyclelr
   # type_: OneCycleLR
-  max_lr: 0.0015
-  pct_start: 0.32
-  div_factor: 19         # initial_lr = max_lr/div_factor
-  final_div_factor: 3400 
-  anneal_strategy: cos
-  three_phase: false
+  # max_lr: 0.0015
+  # pct_start: 0.32
+  # div_factor: 19         # initial_lr = max_lr/div_factor
+  # final_div_factor: 3400 
+  # anneal_strategy: cos
+  # three_phase: false
 
-mb_train: 32
+mb_train: 16
 mb_test: 128

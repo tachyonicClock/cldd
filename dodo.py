@@ -34,22 +34,22 @@ STRATEGY = [
     "FT",
     "EWC",
     "SI",
-    "iCaRL",
-    "ER",
-    "LWF",
+    # "iCaRL",
+    # "ER",
+    # "LWF",
 ]
 DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [
-    "ADWIN",
-    "CUSUM",
-    "DDM",
-    "SEED",
-    "STEPD",
-    "PH",
+    # "ADWIN",
+    # "CUSUM",
+    # "DDM",
+    # "SEED",
+    # "STEPD",
+    # "PH",
 ]
 BOUNDARY = [
     "abrupt",
-    "gradual",
+    # "gradual",
     # "slow",
 ]
 
@@ -248,6 +248,8 @@ def task_select_best_detector():
         trial_files = []
         for detector in DETECTOR:
             trial_files.append(Unit(strategy, detector, boundary).tune_detector_metrics)
+        if len(trial_files) == 0:
+            continue
         yield Unit(strategy, BEST_DETECTOR, boundary).task_select_best_detector(
             trial_files
         )
@@ -263,7 +265,7 @@ def iter_evaluate_specs():
         detector_hp = Unit(strategy, BEST_DETECTOR, boundary).tune_detector_hp
 
         yield Unit(strategy, ORACLE_DETECTOR, boundary, trial), seed, [strategy_hp]
-        if strategy not in DETECTOR_AGNOSTIC:
+        if strategy not in DETECTOR_AGNOSTIC and len(DETECTOR) > 0:
             yield (
                 Unit(strategy, BEST_DETECTOR, boundary, trial),
                 seed,

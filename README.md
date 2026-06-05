@@ -8,13 +8,29 @@ uv run ...
 # Full Run
 
 ```
-nohup notirun.sh ./mpsdodo.py -g 0 -n 8 &
+nohup notirun.sh ./mpsdodo.py -g 2 -n 8 &
+```
+
+```
+nohup notirun.sh ./mpsdodo.py -g 2 -n 8 \
+    -r tune_strategy:EWC.oracle.abrupt.000 \
+    -r tune_strategy:SI.oracle.abrupt.000 &
+
+    -r tune_strategy:FT.oracle.abrupt.000 \
+
 ```
 
 # Run Tests
 ```
 uv run -m pytest
 ```
+
+# Render LaTeX Tables to PNG
+```
+python render_tables.py --table-dir table --output-dir table --dpi 300 --border-pt 18
+```
+
+This reads `table/*.tex` and writes matching PNG files next to them.
 
 
 ```

@@ -92,6 +92,7 @@ class Experiment:
             progress_bar=not self.config.disable_progress_bar,
             dispatcher=self.dispatcher,
             attach_learner=False,
+            epochs=self.config.scenario.epochs,
         )
 
         logger.info(f"Saving results to {self.logdir}")

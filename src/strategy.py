@@ -4,6 +4,7 @@ from typing import ClassVar, Literal, cast, override
 from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
+from capymoa.ocl.datasets import DomainCIFAR100
 from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet, ICaRL
 from torch.optim import Optimizer
 from abc import ABC, abstractmethod
@@ -20,8 +21,8 @@ SUBSTEPS = 1
 
 
 class _AutoAugmentCIFAR10(nn.Module):
-    mean = [0.507, 0.487, 0.441]
-    std = [0.267, 0.256, 0.276]
+    mean = DomainCIFAR100.mean
+    std = DomainCIFAR100.std
 
     def __init__(self):
         super().__init__()
@@ -152,7 +153,7 @@ class SIArgs(LearnerArgs):
 
     lambda_: float = 1.0
     """Weight of the SI regularisation term."""
-    eps: float = 1e-7
+    damping: float = 0.1
     """Damping value used during SI importance consolidation."""
 
     @override
@@ -169,7 +170,7 @@ class SIArgs(LearnerArgs):
             model=model,
             optimiser=optimizer,
             lambda_=self.lambda_,
-            eps=self.eps,
+            damping=self.damping,
             device=torch.device(device),
         )
 
