@@ -34,23 +34,23 @@ STRATEGY = [
     "FT",
     "EWC",
     "SI",
-    # "iCaRL",
-    # "ER",
+    "iCaRL",
+    "ER",
     "LWF",
 ]
 DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [
     "ADWIN",
-    # "CUSUM",
-    # "DDM",
-    # "SEED",
-    # "STEPD",
-    # "PH",
+    "CUSUM",
+    "DDM",
+    "SEED",
+    "STEPD",
+    "PH",
 ]
 BOUNDARY = [
     "abrupt",
-    # "gradual",
-    # "slow",
+    "gradual",
+    "slow",
 ]
 
 if DEBUG_MODE:
