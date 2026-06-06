@@ -211,3 +211,4 @@ logs
 .doit.db.db
 .doit.**
 nohup.out
+data/rotated_fashion_mnist_data.pt

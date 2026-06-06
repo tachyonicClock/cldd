@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from torch.utils.data import Dataset, Subset
 from torchvision.transforms import Compose, Normalize, ToTensor
 import numpy as np
+import torch
 from loguru import logger
 from os import environ
 from pathlib import Path
@@ -62,6 +63,7 @@ class ScenarioArgs:
         "DomainCIFAR100",
         "RotatedMNIST",
         "RotatedFashionMNIST",
+        "RotatedFashionMNISTPT",
         "RotatedTinyMNIST",
         "CLEAR10",
     ]
@@ -100,6 +102,35 @@ class ScenarioArgs:
             schema=stream.get_schema(),
         )
 
+    def _get_rotated_fashion_mnist_pt(self) -> Scenario:
+        data_path = (
+            Path(__file__).resolve().parent.parent
+            / "data"
+            / "rotated_fashion_mnist_data.pt"
+        )
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"Dataset file not found at {data_path}. Expected data/rotated_fashion_mnist_data.pt"
+            )
+
+        dataset = torch.load(data_path, map_location="cpu")
+
+        train_tasks = [_RotatedFashionMNISTTask(x, y) for x, y in dataset["train"]]
+        test_tasks = [_RotatedFashionMNISTTask(x, y) for x, y in dataset["test"]]
+
+        schema = Schema.from_custom(
+            features=[str(i) for i in range(28 * 28)] + ["class"],
+            target="class",
+            categories={"class": [str(i) for i in range(10)]},
+        )
+        schema.shape = (1, 28, 28)
+
+        return Scenario(
+            train_tasks=train_tasks,
+            test_tasks=test_tasks,
+            schema=schema,
+        )
+
     def _get_dataset(self, seed: int):
         kwargs = dict(
             seed=seed,
@@ -116,6 +147,8 @@ class ScenarioArgs:
                 return datasets.RotatedMNIST(**kwargs, preload_test=False)
             case "RotatedFashionMNIST":
                 return datasets.RotatedFashionMNIST(**kwargs, preload_test=False)
+            case "RotatedFashionMNISTPT":
+                return self._get_rotated_fashion_mnist_pt()
             case "RotatedTinyMNIST":
                 return datasets.RotatedTinyMNIST(**kwargs, preload_test=False)
             case "CLEAR10":
@@ -145,3 +178,20 @@ class ScenarioArgs:
             test_tasks=test_tasks,  # type: ignore
             schema=scenario.schema,
         )
+
+
+class _RotatedFashionMNISTTask(Dataset):
+    def __init__(self, x: torch.Tensor, y: torch.Tensor):
+        self.x = x
+        self.y = y
+
+    def __len__(self) -> int:
+        return len(self.y)
+
+    def __getitem__(self, index: int):
+        x = self.x[index]
+        if x.dtype == torch.uint8:
+            x = x.float() / 255.0
+        else:
+            x = x.float()
+        return x, self.y[index]

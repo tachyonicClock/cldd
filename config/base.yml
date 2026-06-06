@@ -1,10 +1,7 @@
 scenario:
-  name: DomainCIFAR100ViT
-  epochs: 1
-
+  name: RotatedFashionMNISTPT
 model:
-  type_: DeepLightweightMLP
-  # pretrained: true
+  type_: FashionCNN
 
 optimizer:
   type_: AdamW
@@ -21,5 +18,5 @@ scheduler: null
   # anneal_strategy: cos
   # three_phase: false
 
-mb_train: 16
+mb_train: 64
 mb_test: 128

@@ -87,10 +87,22 @@ class DeepLightweightMLPArgs(ModelArgs):
         return DeepLightweightMLP()
 
 
+@dataclass
+class FashionCNNArgs(ModelArgs):
+    type_: ClassVar[str] = "FashionCNN"
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.fashion_cnn import FashionCNN
+
+        manual_seed(seed)
+        return FashionCNN(num_classes=schema.get_num_classes())
+
+
 AnyModel = (
     PerceptronArgs
     | ResNet_32x32Args
     | ConvNeXtArgs
     | AirbenchCNNArgs
     | DeepLightweightMLPArgs
+    | FashionCNNArgs
 )

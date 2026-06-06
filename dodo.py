@@ -36,11 +36,11 @@ STRATEGY = [
     "SI",
     # "iCaRL",
     # "ER",
-    # "LWF",
+    "LWF",
 ]
 DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [
-    # "ADWIN",
+    "ADWIN",
     # "CUSUM",
     # "DDM",
     # "SEED",
