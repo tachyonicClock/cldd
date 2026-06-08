@@ -1,0 +1,12 @@
+drift_detector:
+  type_: ADWIN
+  label: "ADWIN_JOINT"
+  error_stream_type: ERROR
+
+hpsearch:
+  args:
+    "drift_detector.delta":
+      type_: float
+      low: 0.001
+      high: 1.0
+      log: true

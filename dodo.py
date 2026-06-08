@@ -18,13 +18,12 @@ from actions import (
     error_stream,
     tune_detector,
     dd_run,
-    select_best_detector,
     evaluate,
     collect_evaluate_records,
     collect_dd_run_records,
 )
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 Strategy = str
 Detector = str
@@ -53,15 +52,20 @@ BOUNDARY = [
     "slow",
 ]
 
+JOINT_HP_DETECTOR = "ADWIN_JOINT"
+"""The detector used for joint tuning of strategy and detector HP."""
+
+ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
+EVALUATION_SEEDS = [5, 6, 7, 8, 9]
+
 if DEBUG_MODE:
     ERROR_STREAM_SEEDS = [0, 1]
     EVALUATION_SEEDS = [5, 6]
-else:
-    ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
-    EVALUATION_SEEDS = [5, 6, 7, 8, 9]
+    STRATEGY = ["FT", "EWC"]
+    DETECTOR = ["ADWIN", "CUSUM"]
+    BOUNDARY = ["abrupt"]
 
 ORACLE_DETECTOR = "oracle"
-BEST_DETECTOR = "BEST"
 
 
 @dataclass
@@ -83,7 +87,8 @@ class Unit:
 
     @property
     def identifier(self) -> str:
-        return f"{self.strategy}.{self.detector}.{self.boundary}.{self.trial_str}"
+        _id_path = [self.strategy, self.detector, self.boundary, self.trial_str]
+        return ".".join(_id_path)
 
     def configs(self, hp: str | None = None) -> list[Path]:
         r = Path("config")
@@ -162,15 +167,6 @@ class Unit:
             "targets": [self.tune_detector_hp, self.tune_detector_metrics],
         }
 
-    def task_select_best_detector(self, trial_files: list[Path]):
-        configs = self.configs()
-        return {
-            "name": self.identifier,
-            "actions": [(select_best_detector, (trial_files, self.tune_detector_hp))],
-            "file_dep": configs + trial_files,
-            "targets": [self.tune_detector_hp],
-        }
-
     def task_evaluate(self, seed: int, configs: list[Path]):
         configs = self.configs() + configs
         return {
@@ -217,6 +213,13 @@ def task_tune_strategy():
         yield Unit(strategy, ORACLE_DETECTOR, boundary).task_tune_strategy()
 
 
+def task_tune_detector_strategy():
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        if strategy in DETECTOR_AGNOSTIC:
+            continue
+        yield Unit(strategy, JOINT_HP_DETECTOR, boundary).task_tune_strategy()
+
+
 def task_error_stream():
     """Phase 1 output: create per-seed error streams using tuned strategy HP."""
 
@@ -241,20 +244,6 @@ def task_tune_hp_detector():
         yield Unit(strategy, detector, boundary).task_tune_hp_detector(error_streams)
 
 
-def task_select_best_detector():
-    """Phase 2 selection: choose the best detector from detector trial summaries."""
-
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
-        trial_files = []
-        for detector in DETECTOR:
-            trial_files.append(Unit(strategy, detector, boundary).tune_detector_metrics)
-        if len(trial_files) == 0:
-            continue
-        yield Unit(strategy, BEST_DETECTOR, boundary).task_select_best_detector(
-            trial_files
-        )
-
-
 def iter_evaluate_specs():
     """Yield evaluate unit, seed, and extra config dependencies."""
 
@@ -262,14 +251,24 @@ def iter_evaluate_specs():
         STRATEGY, BOUNDARY, enumerate(EVALUATION_SEEDS)
     ):
         strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
-        detector_hp = Unit(strategy, BEST_DETECTOR, boundary).tune_detector_hp
 
         yield Unit(strategy, ORACLE_DETECTOR, boundary, trial), seed, [strategy_hp]
-        if strategy not in DETECTOR_AGNOSTIC and len(DETECTOR) > 0:
+        if strategy not in DETECTOR_AGNOSTIC:
+            for detector in DETECTOR:
+                detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
+                yield (
+                    Unit(strategy, detector, boundary, trial),
+                    seed,
+                    [strategy_hp, detector_hp],
+                )
+
+            joint_detector_hp = Unit(
+                strategy, JOINT_HP_DETECTOR, boundary
+            ).tune_strategy_hp
             yield (
-                Unit(strategy, BEST_DETECTOR, boundary, trial),
+                Unit(strategy, JOINT_HP_DETECTOR, boundary, trial),
                 seed,
-                [strategy_hp, detector_hp],
+                [joint_detector_hp],
             )
 
 

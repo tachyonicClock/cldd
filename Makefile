@@ -31,5 +31,10 @@ clean-logs:
 rsync-cuda9: clean-logs
 	rsync -aP cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/
 
+
+archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z
+
 archive:
-	7z a $(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z logs/
+	7z a $(archive_filename)  logs/
+	rsync -P $(archive_filename) lagerfield.ecs.vuw.ac.nz:/local/scratch/antonlee/archive/bocl
+	rm $(archive_filename)

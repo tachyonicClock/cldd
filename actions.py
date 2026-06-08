@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Sequence, Dict, Any, List
 from loguru import logger
 from subprocess import check_call as _call, CalledProcessError, STDOUT
-from omegaconf import OmegaConf
 
 
 def call(
@@ -125,28 +124,6 @@ def dd_run(
         },
         identifier=f"{label}.{identifier}",
     )
-
-
-def select_best_detector(
-    trial_files: List[Path],
-    target: Path,
-):
-    target.parent.mkdir(parents=True, exist_ok=True)
-    trials = []
-    for trial_file in trial_files:
-        with open(trial_file) as f:
-            trial_dict = OmegaConf.load(f)
-            trials.append(trial_dict)
-    best_trial = max(trials, key=lambda t: t["value"])
-    selection = {
-        "drift_detector": {
-            "type_": best_trial["config"]["drift_detector"]["type_"],
-            **best_trial["params"]["drift_detector"],
-        }
-    }
-    with open(target, "w") as f:
-        f.write(f"# Selected best trial with score {best_trial['value']}\n")
-        f.write(OmegaConf.to_yaml(selection))
 
 
 def collect_evaluate_records(

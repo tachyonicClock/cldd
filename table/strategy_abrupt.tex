@@ -2,12 +2,16 @@
 \toprule
 Strategy & Detector & Acc. $\uparrow$ & FWT $\uparrow$ & BWT $\uparrow$ & F1 $\uparrow$ & WD $\downarrow$ & MDT $\downarrow$ \\
 \midrule
-EWC & ADWIN & 49.6\tiny{$\pm$1.2} & 25.5\tiny{$\pm$0.5} & -39.0\tiny{$\pm$2.7} & \textbf{24.3\tiny{$\pm$4.8}} & 9.1\tiny{$\pm$2.9} & 32\tiny{$\pm$0} \\
-EWC & oracle & 52.7\tiny{$\pm$0.8} & 26.5\tiny{$\pm$0.9} & -37.4\tiny{$\pm$1.4} & N/A & N/A & N/A \\
-LWF & ADWIN & 51.3\tiny{$\pm$1.2} & 26.4\tiny{$\pm$0.5} & -38.2\tiny{$\pm$0.8} & 4.6\tiny{$\pm$0.7} & 8.2\tiny{$\pm$1.5} & 32\tiny{$\pm$0} \\
-LWF & oracle & \textbf{57.1\tiny{$\pm$1.0}} & \textbf{28.0\tiny{$\pm$1.6}} & -12.9\tiny{$\pm$1.3} & N/A & N/A & N/A \\
-SI & ADWIN & 43.7\tiny{$\pm$0.9} & 22.8\tiny{$\pm$1.1} & -34.2\tiny{$\pm$2.1} & 1.7\tiny{$\pm$0.2} & \textbf{6.8\tiny{$\pm$1.0}} & \textbf{35\tiny{$\pm$4}} \\
-SI & oracle & 50.5\tiny{$\pm$1.2} & 26.4\tiny{$\pm$1.2} & \textbf{-12.8\tiny{$\pm$0.8}} & N/A & N/A & N/A \\
-FT & oracle & 52.4\tiny{$\pm$0.9} & 26.8\tiny{$\pm$1.1} & -41.0\tiny{$\pm$1.8} & N/A & N/A & N/A \\
+EWC & PH & 64.0\tiny{$\pm$3.7} & \textbf{15.5\tiny{$\pm$1.2}} & -36.4\tiny{$\pm$6.0} & 94.3\tiny{$\pm$7.8} & 4.0\tiny{$\pm$5.5} & 55\tiny{$\pm$17} \\
+EWC & oracle & 64.0\tiny{$\pm$2.5} & \textbf{15.5\tiny{$\pm$1.5}} & -36.5\tiny{$\pm$5.2} & N/A & N/A & N/A \\
+LWF & PH & 65.3\tiny{$\pm$0.8} & 15.3\tiny{$\pm$0.6} & -33.6\tiny{$\pm$1.1} & 66.7\tiny{$\pm$0.0} & 20.0\tiny{$\pm$0.0} & \textbf{63\tiny{$\pm$7}} \\
+LWF & oracle & 65.7\tiny{$\pm$0.9} & 15.2\tiny{$\pm$0.9} & -36.0\tiny{$\pm$2.1} & N/A & N/A & N/A \\
+SI & PH & 66.0\tiny{$\pm$1.4} & 13.7\tiny{$\pm$0.7} & -28.7\tiny{$\pm$2.4} & \textbf{100.0\tiny{$\pm$0.0}} & \textbf{0.0\tiny{$\pm$0.0}} & 48\tiny{$\pm$9} \\
+SI & oracle & 65.9\tiny{$\pm$1.3} & 13.8\tiny{$\pm$0.6} & -29.2\tiny{$\pm$2.6} & N/A & N/A & N/A \\
+iCaRL & PH & 62.7\tiny{$\pm$0.7} & 13.8\tiny{$\pm$1.3} & -14.4\tiny{$\pm$2.0} & \textbf{100.0\tiny{$\pm$0.0}} & \textbf{0.0\tiny{$\pm$0.0}} & 36\tiny{$\pm$3} \\
+iCaRL & oracle & 62.5\tiny{$\pm$1.4} & 13.7\tiny{$\pm$1.4} & -16.2\tiny{$\pm$1.3} & N/A & N/A & N/A \\
+\midrule
+ER & oracle & \textbf{83.3\tiny{$\pm$0.2}} & 14.1\tiny{$\pm$1.2} & \textbf{-8.6\tiny{$\pm$0.4}} & N/A & N/A & N/A \\
+FT & oracle & 55.3\tiny{$\pm$0.5} & 14.5\tiny{$\pm$0.3} & -40.6\tiny{$\pm$1.0} & N/A & N/A & N/A \\
 \bottomrule
 \end{tabular}

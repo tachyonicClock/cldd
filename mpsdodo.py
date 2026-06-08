@@ -6,6 +6,7 @@ from loguru import logger
 from pathlib import Path
 import click
 import time
+import sys
 
 N_SUBPROCESSES = 2
 TIMEOUT = 10
@@ -63,13 +64,15 @@ def main(gpu: Sequence[int], n_subprocesses: int, run: Sequence[str]):
 
     try:
         # Run the main script
-        cmd = ["uv", "run", "doit", "-n", str(n_subprocesses)]
+        cmd = ["uv", "run", "python", "-u", "-m", "doit", "-n", str(n_subprocesses)]
         if run:
             cmd.extend(run)
         sp.run(
             cmd,
             check=True,
             env=client_env,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
         )
     finally:
         logger.warning("Cleaning up nvidia-mps...")

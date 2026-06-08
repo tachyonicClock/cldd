@@ -1,14 +1,10 @@
 drift_detector:
   type_: CUSUM
   error_stream_type: ERROR
+  min_n_instances: 100
 
 hpsearch:
   args:
-    "drift_detector.min_n_instances":
-      type_: int
-      low: 10
-      high: 1000
-      log: true
     "drift_detector.delta":
       type_: float
       low: 0.0001

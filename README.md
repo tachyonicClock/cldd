@@ -20,6 +20,13 @@ nohup notirun.sh ./mpsdodo.py -g 2 -n 8 \
 
 ```
 
+## Mark Task as Stale
+
+```
+uv run doit forget tune_hp_detector
+```
+
+
 # Run Tests
 ```
 uv run -m pytest

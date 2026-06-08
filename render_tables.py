@@ -15,15 +15,39 @@ import sys
 import tempfile
 from pathlib import Path
 
-TEX_TEMPLATE = r"""\documentclass[border=%dpt]{standalone}
+TEX_TEMPLATE = r"""\documentclass[varwidth,border=%dpt]{standalone}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{amsmath}
 \begin{document}
 \small
+\begin{center}
+\large\textbf{%s}
+\end{center}
+\vspace{0.5em}
 \input{%s}
 \end{document}
 """
+
+
+def escape_latex(text: str) -> str:
+    replacements = {
+        "\\": r"\textbackslash{}",
+        "&": r"\&",
+        "%": r"\%",
+        "$": r"\$",
+        "#": r"\#",
+        "_": r"\_",
+        "{": r"\{",
+        "}": r"\}",
+        "~": r"\textasciitilde{}",
+        "^": r"\textasciicircum{}",
+    }
+    return "".join(replacements.get(char, char) for char in text)
+
+
+def format_title(tex_file: Path) -> str:
+    return escape_latex(tex_file.stem.replace("_", " ").title())
 
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
@@ -99,7 +123,7 @@ def render_table(
 
         local_tex.write_text(tex_file.read_text(encoding="utf-8"), encoding="utf-8")
         wrapper_tex.write_text(
-            TEX_TEMPLATE % (border_pt, tex_file.name),
+            TEX_TEMPLATE % (border_pt, format_title(tex_file), tex_file.name),
             encoding="utf-8",
         )
 
@@ -156,13 +180,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dpi",
         type=int,
-        default=300,
+        default=150,
         help="PNG resolution in DPI (default: 300)",
     )
     parser.add_argument(
         "--border-pt",
         type=int,
-        default=18,
+        default=20,
         help="Padding around table in output PDF, in points (default: 18)",
     )
     parser.add_argument(
