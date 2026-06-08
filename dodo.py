@@ -23,7 +23,7 @@ from actions import (
     collect_dd_run_records,
 )
 
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 Strategy = str
 Detector = str
