@@ -2,7 +2,7 @@ from capymoa.ocl import datasets
 from capymoa.stream import Schema
 from capymoa.stream.torch import TorchStream
 from capymoa.ocl.datasets.fuzzy import fuzzy_sigmoid_transitions
-from typing import Literal, Sequence
+from typing import Literal, Optional, Sequence
 from dataclasses import dataclass
 from torch.utils.data import Dataset, Subset
 from torchvision.transforms import Compose, Normalize, ToTensor
@@ -70,10 +70,10 @@ class ScenarioArgs:
     normalize_features: bool = True
     gradual: float = 0.0
     label: str = "unnamed-scenario"
-
     epochs: int = 1
-
     validation: bool = False
+    debug_truncate: Optional[int] = None
+    """If set, truncates each task to this many samples for faster debugging."""
 
     def _get_clear10(self, seed: int) -> Scenario:
         root = environ["DATASETS"]
@@ -160,6 +160,21 @@ class ScenarioArgs:
         scenario = self._get_dataset(seed)
         train_tasks = scenario.train_tasks
         test_tasks = scenario.test_tasks
+        
+        if self.debug_truncate is not None:
+            logger.warning(
+                "`scenario.debug_truncate` is set. Truncating each task to {} samples.",
+                self.debug_truncate,
+            )
+            train_tasks = [
+                Subset(task, list(range(min(len(task), self.debug_truncate))))  # type: ignore
+                for task in train_tasks
+            ]
+            test_tasks = [
+                Subset(task, list(range(min(len(task), self.debug_truncate))))  # type: ignore
+                for task in test_tasks
+            ]
+
 
         if self.validation:
             logger.info(

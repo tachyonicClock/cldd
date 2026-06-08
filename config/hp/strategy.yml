@@ -1,5 +1,5 @@
 hpsearch:
-  n_trials: 1
+  n_trials: 30
   metric: accuracy_seen_avg
   maximize: true
   mode: w # Overwrite study if it already exists

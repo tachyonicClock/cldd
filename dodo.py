@@ -22,8 +22,12 @@ from actions import (
     collect_evaluate_records,
     collect_dd_run_records,
 )
+import os
+from loguru import logger
 
-DEBUG_MODE = False
+DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", False))
+if DEBUG_MODE:
+    logger.warning("Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds.")
 
 Strategy = str
 Detector = str
@@ -100,6 +104,8 @@ class Unit:
         ]
         if hp is not None:
             configs.append(r / "hp" / f"{hp}.yml")
+        if DEBUG_MODE:
+            configs.append(r / "debug.yml")
         return configs
 
     def logdir(self, label: str) -> Path:
