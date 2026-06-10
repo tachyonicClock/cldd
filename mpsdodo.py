@@ -1,6 +1,5 @@
 #!/home/antonlee/.local/bin/uv run
 import os
-from signal import signal
 import subprocess as sp
 from typing import Sequence
 from loguru import logger
@@ -14,6 +13,7 @@ N_SUBPROCESSES = 2
 TIMEOUT = 10
 
 logs = Path("logs") / "console"
+
 
 def get_free_GPUs() -> Sequence[str]:
     return sp.check_output(

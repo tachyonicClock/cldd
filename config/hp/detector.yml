@@ -1,5 +1,5 @@
 hpsearch:
   n_trials: 30
-  metric: wasserstein_distance
+  metric: drift_wasserstein_distance
   maximize: false
   mode: w # Overwrite study if it already exists

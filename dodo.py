@@ -46,7 +46,6 @@ STRATEGY = [
 DETECTOR_AGNOSTIC = {"FT", "ER"}
 DETECTOR = [
     "ADWIN",
-    "CUSUM",
     "DDM",
     "SEED",
     "STEPD",

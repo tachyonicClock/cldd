@@ -19,10 +19,13 @@ dependencies = [
     "transformers>=5.10.1",
     "pyarrow>=24.0.0",
     "setproctitle>=1.3.7",
+    "pot[backend-torch]>=0.9.6.post1",
+    "ipykernel>=7.2.0",
 ]
 
 [tool.uv.sources]
 capymoa = { path = "../CapyMOA", editable = true }
+pot = { git = "https://github.com/PythonOT/POT.git" }
 
 [dependency-groups]
 dev = [

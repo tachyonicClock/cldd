@@ -7,7 +7,6 @@ Manipulated Variables:
  * drift detector:
     * ADWIN   (Adaptive Windowing)
     * DDM     (Drift Detection Method)
-    * CUSUM   (Page-Hinkley)
     * oracle  (Task boundary oracle)
  * strategy:
     * use boundaries:
@@ -73,7 +72,7 @@ Budget:
 # Drift Detector Tuning: This phase is performed using recorded error rates from the
 # strategy tuning phase. Consequently, this phase is efficient despite the large number
 # of trials.
->>> n_drift_detectors = 3 # All detectors except ORACLE
+>>> n_drift_detectors = 2 # All detectors except ORACLE
 >>> (n_strategies_a + n_strategies_b) * n_boundaries * n_hp_trials * n_drift_detectors
 2160
 

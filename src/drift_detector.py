@@ -11,7 +11,6 @@ from capymoa.drift.base_detector import BaseDriftDetector
 from capymoa.drift.detectors import (
     ABCD,
     ADWIN,
-    CUSUM,
     DDM,
     PageHinkley,
     SEED,
@@ -241,24 +240,6 @@ class ADWINArgs(DriftDetectorArgs):
 
 
 @dataclass
-class CUSUMArgs(DriftDetectorArgs):
-    type_: ClassVar[str] = "CUSUM"
-    min_n_instances: int = 30
-    """The minimum number of instances before permitting detecting change."""
-    delta: float = 0.005
-    """Sensitivity to shift magnitude. Becomes less sensitive as it increases."""
-    lambda_: float = 50
-    """Decision threshold. Becomes less sensitive as it increases."""
-
-    def build_dd(self) -> BaseDriftDetector:
-        return CUSUM(
-            min_n_instances=self.min_n_instances,
-            delta=self.delta,
-            lambda_=self.lambda_,
-        )
-
-
-@dataclass
 class DDMArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "DDM"
     min_n_instances: int = 30
@@ -366,12 +347,5 @@ class OracleArgs(DriftDetectorArgs):
 
 
 AnyDriftDetector = (
-    ADWINArgs
-    | CUSUMArgs
-    | DDMArgs
-    | PHArgs
-    | SEEDArgs
-    | STEPDArgs
-    | ABCDArgs
-    | OracleArgs
+    ADWINArgs | DDMArgs | PHArgs | SEEDArgs | STEPDArgs | ABCDArgs | OracleArgs
 )
