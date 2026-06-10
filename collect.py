@@ -27,7 +27,7 @@ dd_metric_keys = [
     "precision",
     "recall",
     "f1",
-    "drift_wasserstein_distance",
+    "wasserstein_distance",
     "mdt",
     "far",
 ]

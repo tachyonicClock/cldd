@@ -101,6 +101,7 @@ dependencies = [
     { name = "pot", extra = ["backend-torch"] },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyarrow" },
+    { name = "scienceplots" },
     { name = "setproctitle" },
     { name = "tensorboard" },
     { name = "transformers" },
@@ -126,6 +127,7 @@ requires-dist = [
     { name = "pot", extras = ["backend-torch"], git = "https://github.com/PythonOT/POT.git" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
     { name = "pyarrow", specifier = ">=24.0.0" },
+    { name = "scienceplots", specifier = ">=2.2.1" },
     { name = "setproctitle", specifier = ">=1.3.7" },
     { name = "tensorboard", specifier = ">=2.20.0" },
     { name = "transformers", specifier = ">=5.10.1" },
@@ -2124,6 +2126,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/d8/0c8a7dc9b41dcac53c4cbf9df2b9c83e0e0097203de8b37a712b345c0be5/safetensors-0.7.0-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:b0f6d66c1c538d5a94a73aa9ddca8ccc4227e6c9ff555322ea40bdd142391dd4", size = 677368 },
     { url = "https://files.pythonhosted.org/packages/05/e5/cb4b713c8a93469e3c5be7c3f8d77d307e65fe89673e731f5c2bfd0a9237/safetensors-0.7.0-cp38-abi3-win32.whl", hash = "sha256:c74af94bf3ac15ac4d0f2a7c7b4663a15f8c2ab15ed0fc7531ca61d0835eccba", size = 326423 },
     { url = "https://files.pythonhosted.org/packages/5d/e6/ec8471c8072382cb91233ba7267fd931219753bb43814cbc71757bfd4dab/safetensors-0.7.0-cp38-abi3-win_amd64.whl", hash = "sha256:d1239932053f56f3456f32eb9625590cc7582e905021f94636202a864d470755", size = 341380 },
+]
+
+[[package]]
+name = "scienceplots"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ae/a5/5f858668ca1a513033a7f0d55cd12b0940a12e822f9f61f317ce344e07c6/scienceplots-2.2.1.tar.gz", hash = "sha256:51ad98c420e499d3284d07b6447a4b3aedd8ec122aca39ba91c58205226c408a", size = 17966 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/22/14e7b20f7d11f3e9ea9b5ae6acf9ea695c423eee785906cd5c5914a841dc/scienceplots-2.2.1-py3-none-any.whl", hash = "sha256:a1a9f670cbf5b59d92cdd3250be85b079ee4cf08bcaf2ace5ef57995be0b6c42", size = 30237 },
 ]
 
 [[package]]

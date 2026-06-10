@@ -85,7 +85,7 @@ def main(n_subprocesses: int, run: Sequence[str]):
         cmd = ["uv", "run", "python", "-u", "-m", "doit", "-n", str(n_subprocesses)]
         if run:
             cmd.extend(run)
-        sp.run(
+        sp.check_call(
             cmd,
             env=client_env,
             stdout=sys.stdout,
