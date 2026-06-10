@@ -2,4 +2,4 @@
 hpsearch:
   n_trials: 1
 scenario:
-  debug_truncate: 500
+  debug_truncate: 128

@@ -27,7 +27,9 @@ from loguru import logger
 
 DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", False))
 if DEBUG_MODE:
-    logger.warning("Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds.")
+    logger.warning(
+        "Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds."
+    )
 
 Strategy = str
 Detector = str
@@ -63,10 +65,10 @@ ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
 EVALUATION_SEEDS = [5, 6, 7, 8, 9]
 
 if DEBUG_MODE:
-    ERROR_STREAM_SEEDS = [0, 1]
-    EVALUATION_SEEDS = [5, 6]
+    ERROR_STREAM_SEEDS = [0]
+    EVALUATION_SEEDS = [5]
     STRATEGY = ["FT", "EWC"]
-    DETECTOR = ["ADWIN", "CUSUM"]
+    DETECTOR = ["ADWIN"]
     BOUNDARY = ["abrupt"]
 
 ORACLE_DETECTOR = "oracle"

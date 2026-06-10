@@ -166,6 +166,9 @@ class OCLDD(Handler):
         metrics["trues"] = self._dd_trues
         metrics["preds"] = self._dd_preds
         metrics["tot_n_instances"] = self._stream_index
+        metrics["max_delay"] = self._eval_dd.max_delay
+        metrics["max_early_detection"] = self._eval_dd.max_early_detection
+        metrics["rate_period"] = self._eval_dd.rate_period
 
         # Save the error streams as well for further analysis.
         metrics["error_stream"] = np.concatenate(self._error_stream).astype(np.bool_)
@@ -204,31 +207,24 @@ class OracleDriftDetector(BaseDriftDetector, Handler):
 class DriftDetectorArgs:
     type_: ClassVar[str]
 
-    max_delay: int = 500
-    rate_period: int = 1000
-    max_early_detection: int = 0
+    # max_delay: int = 500
+    # rate_period: int = 1000
+    # max_early_detection: int = 0
 
     reset_on_drift: bool = True
     error_stream_type: Literal["CE", "ERROR"] = "CE"
 
     label: str | None = None
 
-    def build_dd_evaluator(self) -> EvaluateDriftDetector:
-        return EvaluateDriftDetector(
-            max_delay=self.max_delay,
-            rate_period=self.rate_period,
-            max_early_detection=self.max_early_detection,
-        )
-
     def build_dd(self) -> BaseDriftDetector:
         raise NotImplementedError(
             "Must implement _build method for drift detector config"
         )
 
-    def build(self, seed: int, learner: Any) -> "OCLDD":
+    def build(self, learner: Any, evaluator: EvaluateDriftDetector) -> "OCLDD":
         return OCLDD(
             drift_detector=self.build_dd(),
-            eval_dd=self.build_dd_evaluator(),
+            eval_dd=evaluator,
             learner=learner,
             reset_on_drift=self.reset_on_drift,
             error_stream_type=ErrorStreamType(self.error_stream_type),

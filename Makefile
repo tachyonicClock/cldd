@@ -35,6 +35,22 @@ rsync-cuda9: clean-logs
 archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z
 
 archive:
-	7z a $(archive_filename)  logs/
-	rsync -P $(archive_filename) lagerfield.ecs.vuw.ac.nz:/local/scratch/antonlee/archive/bocl
-	rm $(archive_filename)
+	7z a /local/scratch/antonlee/archive/bocl/$(archive_filename)  logs/
+
+DOWNLOAD_ARCHIVE:=2026-06-08T20-46-35Z_4fc8395.7z
+download_archive:
+	rsync -P lagerfield.ecs.vuw.ac.nz:/local/scratch/antonlee/archive/bocl/$(DOWNLOAD_ARCHIVE) logs/.
+# 	Extract
+	7z x logs/$(DOWNLOAD_ARCHIVE) logs
+
+
+.PHONY: run
+run:
+	nohup notirun.sh ./mpsdodo.py -n 8 > logs/nohup.log 2>&1 &
+
+.PHONY: test
+test: clean-logs
+	DEBUG_BOCL=True uv run doit run
+
+stop:
+	pkill -f -SIGINT antonlee-mpsdodo-server

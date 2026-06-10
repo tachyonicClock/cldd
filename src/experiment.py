@@ -3,6 +3,7 @@ from dataclasses import asdict
 from src.tblogger import TensorboardLogger
 from src import config
 from capymoa.base.events import Dispatcher
+from capymoa.drift.eval_detector import EvaluateDriftDetector
 from capymoa.ocl.evaluation import ocl_train_eval_loop
 from typing import Dict, Sequence
 from torch.utils.data import DataLoader
@@ -11,6 +12,7 @@ from pathlib import Path
 from loguru import logger
 import pickle
 from shutil import rmtree
+import numpy as np
 
 
 class Experiment:
@@ -42,18 +44,28 @@ class Experiment:
 
         logger.info("Build learner (strategy).")
         self.learner = config.learner.build(
-            config.seed,
-            self.schema,
-            self.device,
-            self.model,
-            self.optimizer,
+            config.seed, self.schema, self.device, self.model, self.optimizer
         )
 
         logger.info("Build drift detector.")
-        self.drift_detector = config.drift_detector.build(config.seed, self.learner)
+        self._init_drift_detector(config)
 
         self.logdir = self.new_logdir()
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
+
+    def _init_drift_detector(self, config):
+        task_lengths = np.array([len(task) for task in self.scenario.train_tasks])  # type: ignore
+        mean_length = task_lengths.mean()
+        pad = self.config.mb_train * 10
+        drift_width = int(mean_length * self.config.scenario.gradual + pad)
+        self.drift_detector = config.drift_detector.build(
+            self.learner,
+            EvaluateDriftDetector(
+                max_delay=drift_width,
+                max_early_detection=drift_width,
+                rate_period=int(mean_length),
+            ),
+        )
 
     def new_logdir(self) -> Path:
         logdir = self.config.logdir

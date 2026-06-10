@@ -90,7 +90,7 @@ class Config:
 
 # Setup cattrs converter for auto-disambiguation of union types.
 converter = cattrs.Converter()
-converter.forbid_extra_keys = True
+# converter.forbid_extra_keys = True
 
 
 def type_tagged_union(type_):

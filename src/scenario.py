@@ -160,7 +160,7 @@ class ScenarioArgs:
         scenario = self._get_dataset(seed)
         train_tasks = scenario.train_tasks
         test_tasks = scenario.test_tasks
-        
+
         if self.debug_truncate is not None:
             logger.warning(
                 "`scenario.debug_truncate` is set. Truncating each task to {} samples.",
@@ -174,7 +174,6 @@ class ScenarioArgs:
                 Subset(task, list(range(min(len(task), self.debug_truncate))))  # type: ignore
                 for task in test_tasks
             ]
-
 
         if self.validation:
             logger.info(

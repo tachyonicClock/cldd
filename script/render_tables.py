@@ -15,15 +15,14 @@ import sys
 import tempfile
 from pathlib import Path
 
-TEX_TEMPLATE = r"""\documentclass[varwidth,border=%dpt]{standalone}
+TEX_TEMPLATE = r"""\documentclass[varwidth=2000pt,border=%dpt]{standalone}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{amsmath}
 \begin{document}
 \small
-\begin{center}
-\large\textbf{%s}
-\end{center}
+\centering
+{\large\textbf{%s}\\}
 \vspace{0.5em}
 \input{%s}
 \end{document}

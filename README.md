@@ -8,7 +8,7 @@ uv run ...
 # Full Run
 
 ```
-nohup notirun.sh ./mpsdodo.py -g 2 -n 8 &
+nohup notirun.sh ./mpsdodo.py -g 2 -n 8 > logs/nohup.log 2>&1 &
 ```
 
 ```
