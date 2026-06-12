@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, Sequence
 from capymoa.base.events import Dispatcher, Handler, LogScalar
 from capymoa.ocl.evaluation.events import (
     TrainBatchPredict,
@@ -23,8 +23,39 @@ import numpy as np
 from torch.nn.functional import cross_entropy
 import torch
 import enum
+from scipy.stats import wasserstein_distance
 
 LOG_EVERY = 10
+
+
+def drift_wd(
+    trues: Sequence[float] | np.ndarray,
+    preds: Sequence[float] | np.ndarray,
+    fp_penalty: float = 0,
+    fn_penalty: float = 0,
+) -> float:
+    assert fp_penalty >= 0, "False positive penalty must be non-negative."
+    assert fn_penalty >= 0, "False negative penalty must be non-negative."
+    assert len(trues)
+
+    # Relative penalties.
+    fp_penalty = float(fp_penalty) / len(trues)
+    fn_penalty = float(fn_penalty) / len(trues)
+
+    trues_ = np.asarray(trues)
+    preds_ = np.asarray(preds)
+
+    if len(preds_) == 0:
+        return float(fn_penalty * len(trues_))
+
+    assert 0 <= trues_.min() <= trues_.max() <= 1, "Trues must be in [0, 1]."
+    assert 0 <= preds_.min() <= preds_.max() <= 1, "Preds must be in [0, 1]."
+
+    shape_loss = wasserstein_distance(trues_, preds_)
+
+    fp_loss = (fp_penalty) * max(0, len(preds_) - len(trues_))
+    fn_loss = (fn_penalty) * max(0, len(trues_) - len(preds_))
+    return float(shape_loss + fp_loss + fn_loss)
 
 
 class ErrorStreamType(enum.Enum):
@@ -162,8 +193,11 @@ class OCLDD(Handler):
                 self._dd_trues, self._dd_preds, self._stream_index
             )
         )
+        trues_rel = np.array(self._dd_trues) / self._stream_index
+        preds_rel = np.array(self._dd_preds) / self._stream_index
         metrics["trues"] = self._dd_trues
         metrics["preds"] = self._dd_preds
+        metrics["wasserstein_distance"] = drift_wd(trues_rel, preds_rel)
         metrics["tot_n_instances"] = self._stream_index
         metrics["max_delay"] = self._eval_dd.max_delay
         metrics["max_early_detection"] = self._eval_dd.max_early_detection

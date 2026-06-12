@@ -5,7 +5,7 @@ from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
-from capymoa.ocl.strategy import EWC, ExperienceReplay, LWF, DER, SI, PackNet, ICaRL
+from capymoa.ocl.strategy import EWC, LWF, DER, SI, PackNet
 from torch.optim import Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
@@ -236,36 +236,6 @@ class PNArgs(LearnerArgs):
 
 
 @dataclass
-class ERArgs(LearnerArgs):
-    """Experience Replay"""
-
-    type_: ClassVar[str] = "ER"
-    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
-    """Capacity of the experience replay buffer."""
-
-    @override
-    def build(
-        self,
-        seed: int,
-        schema: Schema,
-        device: str,
-        model: nn.Module,
-        optimizer: Optimizer,
-    ) -> BatchClassifier:
-        return ExperienceReplay(
-            learner=Finetune(
-                schema,
-                model,
-                optimizer=optimizer,
-                device=device,
-                random_seed=seed,
-            ),
-            buffer_capacity=self.buffer_capacity,
-            repeat=SUBSTEPS,
-        )
-
-
-@dataclass
 class DERArgs(LearnerArgs):
     """Dark Experience Replay"""
 
@@ -301,41 +271,4 @@ class DERArgs(LearnerArgs):
         )
 
 
-@dataclass
-class ICaRLArgs(LearnerArgs):
-    """Incremental Classifier and Representation Learning"""
-
-    type_: ClassVar[str] = "iCaRL"
-    capacity: int = DEFAULT_BUFFER_CAPACITY
-    """Total exemplar memory capacity across all classes."""
-    distillation_weight: float = 1.0
-    """Weight of the distillation term in the iCaRL loss."""
-
-    @override
-    def build(
-        self,
-        seed: int,
-        schema: Schema,
-        device: str,
-        model: nn.Module,
-        optimizer: Optimizer,
-    ) -> BatchClassifier:
-        feature_extractor = getattr(model, "features", None)
-        if feature_extractor is None:
-            raise ValueError(
-                "Model must have a 'features' method to be used with iCaRL."
-            )
-
-        return ICaRL(
-            schema=schema,
-            model=model,
-            optimiser=optimizer,
-            feature_extractor=feature_extractor,
-            capacity=self.capacity,
-            batch_size=AUX_BATCH_SIZE,
-            distillation_weight=self.distillation_weight,
-            device=torch.device(device),
-        )
-
-
-AnyLearner = FTArgs | EWCArgs | ERArgs | LWFArgs | DERArgs | SIArgs | PNArgs | ICaRLArgs
+AnyLearner = FTArgs | EWCArgs | LWFArgs | DERArgs | SIArgs | PNArgs

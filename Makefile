@@ -29,7 +29,7 @@ clean-logs:
 	ln -s /local/scratch/antonlee/log/blurry-ocl logs
 
 rsync-cuda9: clean-logs
-	rsync -aP cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/
+	rsync -a --info=Progress2 cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/
 
 
 archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z

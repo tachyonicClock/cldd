@@ -1,7 +1,8 @@
 from dataclasses import asdict
 from typing import Any
 from capymoa.drift.eval_detector import EvaluateDriftDetector
-from src.drift_detector import DriftDetectorArgs, ErrorStreamType
+from src.drift_detector import DriftDetectorArgs, ErrorStreamType, drift_wd
+import numpy as np
 
 
 def evaluate_dd_stream(
@@ -36,6 +37,9 @@ def evaluate_dd_stream(
             dd_metrics["trues"], preds, dd_metrics["tot_n_instances"]
         )
     )
+    trues_rel = np.array(dd_metrics["trues"]) / dd_metrics["tot_n_instances"]
+    preds_rel = np.array(preds) / dd_metrics["tot_n_instances"]
+    metrics["wasserstein_distance"] = drift_wd(trues_rel, preds_rel)
     metrics["trues"] = dd_metrics["trues"]
     metrics["preds"] = preds
     metrics["tot_n_instances"] = dd_metrics["tot_n_instances"]

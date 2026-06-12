@@ -22,6 +22,8 @@ dependencies = [
     "pot[backend-torch]>=0.9.6.post1",
     "ipykernel>=7.2.0",
     "scienceplots>=2.2.1",
+    "hypothesis>=6.155.2",
+    "fg-data-profiling>=4.19.1",
 ]
 
 [tool.uv.sources]

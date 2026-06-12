@@ -39,11 +39,9 @@ STRATEGY = [
     "FT",
     "EWC",
     "SI",
-    "iCaRL",
-    "ER",
     "LWF",
 ]
-DETECTOR_AGNOSTIC = {"FT", "ER"}
+DETECTOR_AGNOSTIC = {"FT"}
 DETECTOR = [
     "ADWIN",
     "DDM",
@@ -71,6 +69,8 @@ if DEBUG_MODE:
     BOUNDARY = ["abrupt"]
 
 ORACLE_DETECTOR = "oracle"
+
+LOG_ROOT = Path("logs")
 
 
 @dataclass
@@ -111,7 +111,7 @@ class Unit:
 
     def logdir(self, label: str) -> Path:
         return (
-            Path("logs")
+            LOG_ROOT
             / label
             / self.boundary
             / self.strategy
@@ -321,11 +321,15 @@ def task_collect_evaluate():
         evaluate_dirs.append(unit.logdir(evaluate.__name__))
         file_deps.append(unit.ocl_metrics)
 
-    target = Path("logs") / evaluate.__name__ / "data_frame.csv"
+    target = LOG_ROOT / evaluate.__name__ / "data_frame.csv"
+    output_html = LOG_ROOT / "profile" / "evaluate.html"
     return {
-        "actions": [(collect_evaluate_records, (evaluate_dirs, target))],
-        "file_dep": file_deps + ["collect.py"],
-        "targets": [target],
+        "actions": [
+            (collect_evaluate_records, (evaluate_dirs, target)),
+            f"uv run script/profile.py 'Evaluation Report' {target} {output_html}",
+        ],
+        "file_dep": file_deps + ["collect.py", "script/profile.py"],
+        "targets": [target, output_html],
     }
 
 
@@ -342,9 +346,13 @@ def task_dd_collect():
         dd_run_dirs.append(unit.logdir(dd_run.__name__))
         file_deps.append(unit.dd_run_metrics)
 
-    target = Path("logs") / dd_run.__name__ / "data_frame.csv"
+    target = LOG_ROOT / dd_run.__name__ / "data_frame.csv"
+    output_html = LOG_ROOT / "profile" / "dd.html"
     return {
-        "actions": [(collect_dd_run_records, (dd_run_dirs, target))],
-        "file_dep": file_deps + ["collect.py"],
-        "targets": [target],
+        "actions": [
+            (collect_dd_run_records, (dd_run_dirs, target)),
+            f"uv run script/profile.py 'Drift Detection Report' {target} {output_html}",
+        ],
+        "file_dep": file_deps + ["collect.py", "script/profile.py"],
+        "targets": [target, output_html],
     }

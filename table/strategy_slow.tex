@@ -1,20 +1,17 @@
 \begin{tabular}{llllllll}
 \toprule
-Strategy & Detector & Acc. $\uparrow$ & FWT $\uparrow$ & BWT $\uparrow$ & F1 $\uparrow$ & WD $\downarrow$ & MDT $\downarrow$ \\
+Strategy & Detector & Acc. $\uparrow$ & Acc$_{ttt}$ $\uparrow$ & FWT $\uparrow$ & BWT $\uparrow$ & F1 $\uparrow$ & MDT $\downarrow$ \\
 \midrule
-EWC & Best & 58.6\tiny{$\pm$1.5} & 30.3\tiny{$\pm$8.4} & -36.8\tiny{$\pm$13.2} & 89.7\tiny{$\pm$11.1} & 308.1\tiny{$\pm$324.8} & -5219\tiny{$\pm$2759} \\
-EWC & Oracle & 59.2\tiny{$\pm$2.4} & 37.7\tiny{$\pm$0.3} & -46.2\tiny{$\pm$3.4} & N/A & N/A & N/A \\
-LWF & ADWIN* & 72.9\tiny{$\pm$1.2} & 28.4\tiny{$\pm$1.6} & -22.2\tiny{$\pm$4.0} & \textbf{100.0\tiny{$\pm$0.0}} & 160.4\tiny{$\pm$28.5} & -5715\tiny{$\pm$497} \\
-LWF & Best & 52.6\tiny{$\pm$1.4} & \textbf{39.5\tiny{$\pm$0.2}} & -61.8\tiny{$\pm$1.5} & 0.0\tiny{$\pm$0.0} & 100.0\tiny{$\pm$0.0} & N/A \\
-LWF & Oracle & 72.1\tiny{$\pm$1.9} & 22.3\tiny{$\pm$0.6} & -10.6\tiny{$\pm$0.6} & N/A & N/A & N/A \\
-SI & ADWIN* & 67.1\tiny{$\pm$2.4} & 22.3\tiny{$\pm$2.2} & -10.8\tiny{$\pm$9.7} & 98.0\tiny{$\pm$2.7} & 180.4\tiny{$\pm$20.8} & -5456\tiny{$\pm$454} \\
-SI & Best & 52.6\tiny{$\pm$1.1} & 39.4\tiny{$\pm$0.4} & -62.2\tiny{$\pm$1.7} & 0.0\tiny{$\pm$0.0} & 100.0\tiny{$\pm$0.0} & N/A \\
-SI & Oracle & 61.3\tiny{$\pm$1.7} & 22.0\tiny{$\pm$4.6} & -14.9\tiny{$\pm$11.7} & N/A & N/A & N/A \\
-iCaRL & ADWIN* & 69.0\tiny{$\pm$2.2} & 23.4\tiny{$\pm$0.9} & -9.4\tiny{$\pm$2.8} & \textbf{100.0\tiny{$\pm$0.0}} & 65.8\tiny{$\pm$22.3} & -4899\tiny{$\pm$413} \\
-iCaRL & Best & 60.9\tiny{$\pm$6.8} & 34.7\tiny{$\pm$3.5} & -34.1\tiny{$\pm$18.3} & 61.5\tiny{$\pm$20.7} & \textbf{52.9\tiny{$\pm$22.5}} & \textbf{3529\tiny{$\pm$2864}} \\
-iCaRL & Oracle & 70.1\tiny{$\pm$2.2} & 25.5\tiny{$\pm$0.9} & -11.2\tiny{$\pm$3.4} & N/A & N/A & N/A \\
+EWC & ADWIN* & 59.3\tiny{$\pm$1.5} & 62.0\tiny{$\pm$1.3} & 22.4\tiny{$\pm$1.4} & -24.5\tiny{$\pm$2.8} & 79.4\tiny{$\pm$3.5} & -7721\tiny{$\pm$864} \\
+EWC & Best & 58.2\tiny{$\pm$1.3} & 81.0\tiny{$\pm$0.7} & \textbf{38.0\tiny{$\pm$0.7}} & -49.1\tiny{$\pm$2.1} & \textbf{100.0\tiny{$\pm$0.0}} & -3283\tiny{$\pm$595} \\
+EWC & Oracle & 59.2\tiny{$\pm$2.4} & 81.3\tiny{$\pm$0.8} & 37.7\tiny{$\pm$0.3} & -46.2\tiny{$\pm$3.4} & N/A & N/A \\
+LWF & ADWIN* & 72.9\tiny{$\pm$1.2} & 72.9\tiny{$\pm$1.8} & 28.4\tiny{$\pm$1.6} & -22.2\tiny{$\pm$4.0} & \textbf{100.0\tiny{$\pm$0.0}} & -5715\tiny{$\pm$497} \\
+LWF & Best & 71.0\tiny{$\pm$1.9} & 78.7\tiny{$\pm$1.1} & 32.4\tiny{$\pm$1.6} & -28.7\tiny{$\pm$2.8} & 98.9\tiny{$\pm$2.4} & -6236\tiny{$\pm$222} \\
+LWF & Oracle & 72.1\tiny{$\pm$1.9} & 66.3\tiny{$\pm$2.0} & 22.3\tiny{$\pm$0.6} & -10.6\tiny{$\pm$0.6} & N/A & N/A \\
+SI & ADWIN* & 67.1\tiny{$\pm$2.4} & 55.4\tiny{$\pm$3.8} & 22.3\tiny{$\pm$2.2} & -10.8\tiny{$\pm$9.7} & 98.0\tiny{$\pm$2.7} & -5456\tiny{$\pm$454} \\
+SI & Best & 62.3\tiny{$\pm$1.4} & 46.0\tiny{$\pm$5.7} & 18.5\tiny{$\pm$1.4} & -9.1\tiny{$\pm$9.0} & 95.5\tiny{$\pm$3.2} & -5428\tiny{$\pm$322} \\
+SI & Oracle & 61.3\tiny{$\pm$1.7} & 49.3\tiny{$\pm$8.4} & 22.0\tiny{$\pm$4.6} & -14.9\tiny{$\pm$11.7} & N/A & N/A \\
 \midrule
-ER & Oracle & \textbf{82.2\tiny{$\pm$0.2}} & 38.0\tiny{$\pm$0.7} & \textbf{-7.9\tiny{$\pm$0.5}} & N/A & N/A & N/A \\
-FT & Oracle & 54.0\tiny{$\pm$0.5} & 26.6\tiny{$\pm$0.9} & -43.9\tiny{$\pm$0.9} & N/A & N/A & N/A \\
+FT & Oracle & 54.0\tiny{$\pm$0.5} & 71.4\tiny{$\pm$0.7} & 26.6\tiny{$\pm$0.9} & -43.9\tiny{$\pm$0.9} & N/A & N/A \\
 \bottomrule
 \end{tabular}
