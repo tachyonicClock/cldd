@@ -1,0 +1,15 @@
+learner:
+  type_: MAS
+  lambda_: 1.0
+
+hpsearch:
+  args:
+    "learner.lambda_":
+      type_: float
+      low: 0.1
+      high: 10000
+      log: true
+    "learner.alpha":
+      type_: float
+      low: 0.1
+      high: 1.0

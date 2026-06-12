@@ -5,7 +5,7 @@ from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
-from capymoa.ocl.strategy import EWC, LWF, DER, SI, PackNet
+from capymoa.ocl.strategy import EWC, LWF, DER, SI, RWalk, MAS
 from torch.optim import Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
@@ -206,36 +206,6 @@ class LWFArgs(LearnerArgs):
 
 
 @dataclass
-class PNArgs(LearnerArgs):
-    """PackNet"""
-
-    type_: ClassVar[str] = "PN"
-
-    prune_fraction: float = 0.5
-    """Fraction of trainable parameters pruned at each task boundary."""
-
-    @override
-    def build(
-        self,
-        seed: int,
-        schema: Schema,
-        device: str,
-        model: nn.Module,
-        optimizer: Optimizer,
-    ) -> BatchClassifier:
-        return PackNet(
-            schema=schema,
-            model=model,
-            optimiser=optimizer,
-            prune_fraction=self.prune_fraction,
-            ensemble_output=True,
-            mask_test=False,
-            mask_train=False,
-            device=torch.device(device),
-        )
-
-
-@dataclass
 class DERArgs(LearnerArgs):
     """Dark Experience Replay"""
 
@@ -271,4 +241,71 @@ class DERArgs(LearnerArgs):
         )
 
 
-AnyLearner = FTArgs | EWCArgs | LWFArgs | DERArgs | SIArgs | PNArgs
+@dataclass
+class RWalkArgs(LearnerArgs):
+    """Riemannian Walk"""
+
+    type_: ClassVar[str] = "RWalk"
+
+    lambda_: float = 1.0
+    """Weight of the RWalk regularisation term."""
+    alpha: float = 0.9
+    """Exponential moving average factor for importance scores."""
+    delta_t: int = 10
+    """Number of steps between importance score updates."""
+
+    @override
+    def build(
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
+    ) -> BatchClassifier:
+        return RWalk(
+            schema=schema,
+            model=model,
+            optimiser=optimizer,
+            lambda_=self.lambda_,
+            alpha=self.alpha,
+            delta_t=self.delta_t,
+            device=torch.device(device),
+        )
+
+
+@dataclass
+class MASArgs(LearnerArgs):
+    """Memory Aware Synapses"""
+
+    type_: ClassVar[str] = "MAS"
+
+    lambda_: float = 1.0
+    """Weight of the MAS regularisation term."""
+    alpha: float = 0.5
+    """Exponential moving average factor for importance scores."""
+    buffer_capacity: int = DEFAULT_BUFFER_CAPACITY
+    """Capacity of the buffer used to estimate importance scores."""
+
+    @override
+    def build(
+        self,
+        seed: int,
+        schema: Schema,
+        device: str,
+        model: nn.Module,
+        optimizer: Optimizer,
+    ) -> BatchClassifier:
+        return MAS(
+            schema=schema,
+            model=model,
+            optimiser=optimizer,
+            lambda_=self.lambda_,
+            alpha=self.alpha,
+            buffer_capacity=self.buffer_capacity,
+            importance_batch_size=AUX_BATCH_SIZE,
+            device=torch.device(device),
+        )
+
+
+AnyLearner = FTArgs | EWCArgs | LWFArgs | DERArgs | SIArgs | RWalkArgs | MASArgs

@@ -1,0 +1,19 @@
+learner:
+  type_: RWalk
+  lambda_: 1.0
+
+hpsearch:
+  args:
+    "learner.lambda_":
+      type_: float
+      low: 0.1
+      high: 10000
+      log: true
+    "learner.alpha":
+      type_: float
+      low: 0.5
+      high: 1.0
+    "learner.delta_t":
+      type_: int
+      low: 1
+      high: 50
