@@ -40,6 +40,8 @@ STRATEGY = [
     "EWC",
     "SI",
     "LWF",
+    "MAS",
+    "RWalk",
 ]
 DETECTOR_AGNOSTIC = {"FT"}
 DETECTOR = [
