@@ -15,6 +15,7 @@ from capymoa.drift.detectors import (
     PageHinkley,
     SEED,
     STEPD,
+    CUSUM
 )
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from dataclasses import dataclass, asdict
@@ -287,6 +288,19 @@ class DDMArgs(DriftDetectorArgs):
             out_control_level=self.out_control_level,
         )
 
+@dataclass
+class CUSUMArgs(DriftDetectorArgs):
+    type_: ClassVar[str] = "CUSUM"
+    delta: float = 0.005
+    lambda_: float = 50.0
+    min_n_instances: int = 30
+
+    def build_dd(self) -> BaseDriftDetector:
+        return CUSUM(
+            min_n_instances=self.min_n_instances,
+            delta=self.delta,
+            lambda_=self.lambda_,
+        )
 
 @dataclass
 class PHArgs(DriftDetectorArgs):
@@ -381,5 +395,5 @@ class OracleArgs(DriftDetectorArgs):
 
 
 AnyDriftDetector = (
-    ADWINArgs | DDMArgs | PHArgs | SEEDArgs | STEPDArgs | ABCDArgs | OracleArgs
+    ADWINArgs | DDMArgs | PHArgs | SEEDArgs | STEPDArgs | ABCDArgs | OracleArgs | CUSUMArgs
 )

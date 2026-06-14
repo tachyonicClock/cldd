@@ -24,6 +24,7 @@ from actions import (
 )
 import os
 from loguru import logger
+import random
 
 DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", False))
 if DEBUG_MODE:
@@ -60,8 +61,11 @@ BOUNDARY = [
 JOINT_HP_DETECTOR = "ADWIN_JOINT"
 """The detector used for joint tuning of strategy and detector HP."""
 
-ERROR_STREAM_SEEDS = [0, 1, 2, 3, 4]
-EVALUATION_SEEDS = [5, 6, 7, 8, 9]
+N_TRIALS = 10
+rng = random.Random(0)
+rng2 = random.Random(1)
+ERROR_STREAM_SEEDS = [rng.randint(0, 10000) for _ in range(N_TRIALS)]
+EVALUATION_SEEDS = [rng2.randint(0, 10000) for _ in range(N_TRIALS)]
 
 if DEBUG_MODE:
     ERROR_STREAM_SEEDS = [0]

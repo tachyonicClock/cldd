@@ -13,14 +13,12 @@ hpsearch:
       type_: float
       low: 0.0025
       high: 0.01
-      step: 0.0025
     "drift_detector.block_size":
       type_: int
       low: 32
       high: 256
-      log: true
+      log: false
     "drift_detector.alpha":
       type_: float
       low: 0.2
       high: 0.8
-      step: 0.1
