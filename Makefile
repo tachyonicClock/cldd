@@ -37,11 +37,9 @@ archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse -
 archive:
 	7z a ${ECS_SCRATCH}/archive/bocl/$(archive_filename)  logs/
 
-DOWNLOAD_ARCHIVE:=2026-06-09T22-28-34Z_5e3a07f.7z
-download_archive:
-# 	Extract
-	7z x ${ECS_SCRATCH}/archive/bocl/$(DOWNLOAD_ARCHIVE) logs
-
+extract-archive: clean-logs
+	7z x /local/scratch/antonlee/archive/bocl/2026-06-15T22-19-30Z_e0f51b8.7z logs
+	uv run doit reset-dep
 
 .PHONY: run
 run:

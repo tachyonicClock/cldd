@@ -22,6 +22,7 @@ from actions import (
     collect_evaluate_records,
     collect_dd_run_records,
 )
+from collect import collect_dataset
 import os
 from loguru import logger
 import random
@@ -64,7 +65,7 @@ JOINT_HP_DETECTOR = "ADWIN_JOINT"
 N_TRIALS = 10
 rng = random.Random(0)
 rng2 = random.Random(1)
-ERROR_STREAM_SEEDS = [rng.randint(0, 10000) for _ in range(N_TRIALS)]
+ERROR_STREAM_SEEDS = [rng.randint(0, 10000) for _ in range(5)]
 EVALUATION_SEEDS = [rng2.randint(0, 10000) for _ in range(N_TRIALS)]
 
 if DEBUG_MODE:
@@ -336,6 +337,55 @@ def task_collect_evaluate():
         ],
         "file_dep": file_deps + ["collect.py", "script/profile.py"],
         "targets": [target, output_html],
+    }
+
+
+def task_CLDD_A():
+    """Generate continual learners as a drift detection dataset.
+
+    CLDD-A contains the `oracle` drift detector which perflectly predicts drifts controling
+    a continual learning algorithm.
+    """
+    directories: list[Path] = []
+    dependencies: list[Path] = []
+
+    for unit, _, _ in iter_evaluate_specs():
+        if unit.detector != ORACLE_DETECTOR:
+            continue
+
+        directories.append(unit.logdir(evaluate.__name__))
+        dependencies.append(unit.ocl_metrics)
+
+    target = LOG_ROOT / "CLDD_A.parquet"
+    return {
+        "actions": [
+            (collect_dataset, (directories, target)),
+        ],
+        "file_dep": dependencies + ["collect.py"],
+        "targets": [target],
+    }
+
+
+def task_CLDD_B():
+    """Generate continual learners as a drift detection dataset.
+
+    CLDD-B contains non-oracle drift detectors that imperfectly controlling a
+    continual learning algorithm."""
+    directories: list[Path] = []
+    dependencies: list[Path] = []
+
+    for unit, _, _ in iter_evaluate_specs():
+        if unit.detector == ORACLE_DETECTOR or unit.detector == JOINT_HP_DETECTOR:
+            continue
+
+        directories.append(unit.logdir(evaluate.__name__))
+        dependencies.append(unit.ocl_metrics)
+
+    target = LOG_ROOT / "CLDD_B.parquet"
+    return {
+        "actions": [(collect_dataset, (directories, target))],
+        "file_dep": dependencies + ["collect.py"],
+        "targets": [target],
     }
 
 

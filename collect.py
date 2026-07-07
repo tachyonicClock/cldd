@@ -9,6 +9,7 @@ from dataclasses import asdict
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
+import tqdm
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
@@ -108,15 +109,13 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
     ce_stream = []
     trues = []
     preds = []
-    for dirname in dirs:
+    for dirname in tqdm.tqdm(dirs):
         record, dd_metrics = load_dd_run_record(dirname)
         error_stream.append(dd_metrics["error_stream"])
         ce_stream.append(dd_metrics["ce_stream"])
         trues.append(dd_metrics["trues"])
         preds.append(dd_metrics["preds"])
         metadata.append(record)
-
-        print(dirname, len(dd_metrics["error_stream"]), len(dd_metrics["ce_stream"]))
 
     df = pd.DataFrame(metadata)
 
@@ -152,6 +151,10 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             "preds",
         ],
     )
+
+    # Count number of each strategy
+    strategy_counts = df["strategy"].value_counts()
+    print(strategy_counts) 
 
     # Save to a parquet file
     pq.write_table(table, output_file)
