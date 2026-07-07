@@ -126,23 +126,49 @@ The online continual learning strategy that generates the error stream.
 
 *  `EWC`
 
-    **Elastic Weight Consolidation**; a weight regularisation strategy that penalises changes to important parameters.
+    **Elastic Weight Consolidation**
+
+    Kirkpatrick, J., Pascanu, R., Rabinowitz, N., Veness, J., Desjardins, G., Rusu, A.
+    A., Milan, K., Quan, J., Ramalho, T., Grabska-Barwinska, A., Hassabis, D., Clopath,
+    C., Kumaran, D., & Hadsell, R. (2017). Overcoming catastrophic forgetting in neural
+    networks. Proceedings of the National Academy of Sciences, 114(13), 3521–3526.
+    https://doi.org/10.1073/pnas.1611835114
+
 
 *  `SI`
 
-    **Synaptic Intelligence**; a weight regularisation strategy that uses importance-weighted constraints on weight changes, similar to EWC.
+    **Synaptic Intelligence**
+
+    Zenke, F., Poole, B., & Ganguli, S. (2017). Continual Learning Through Synaptic
+    Intelligence. International Conference on Machine Learning, 3987–3995.
+
 
 *  `LWF`
 
-    **Learning Without Forgetting**; a functional regularisation strategy that regularises the model to behave like a checkpoint to avoid forgetting.
+    **Learning Without Forgetting**
+
+    Li, Z., & Hoiem, D. (2016). Learning without forgetting. CoRR, abs/1606.09282.
+    http://arxiv.org/abs/1606.09282
 
 *  `MAS`
 
-    **Memory Aware Synapses**; a weight regularisation strategy that measures per-parameter importance as sensitivity of model outputs to parameter change.
+    **Memory Aware Synapses**
+
+    Aljundi, R., Babiloni, F., Elhoseiny, M., Rohrbach, M., & Tuytelaars, T. (2017).
+    Memory aware synapses: Learning what (not) to forget. CoRR, abs/1711.09601.
+    http://arxiv.org/abs/1711.09601
+    
 
 *  `RWalk`
 
-    **Riemannian Walk**; a generalisation of EWC++ and Synaptic Intelligence based on KL-divergence.
+    **Riemannian Walk**
+
+    Chaudhry, A., Dokania, P. K., Ajanthan, T., & Torr, P. H. S. (2018). Riemannian Walk
+    for Incremental Learning: Understanding Forgetting and Intransigence. In V. Ferrari,
+    M. Hebert, C. Sminchisescu, & Y. Weiss (Eds.), Proceedings of the European
+    Conference on Computer Vision (ECCV) (Vol. 11215, pp. 556–572). Springer
+    International Publishing. https://doi.org/10.1007/978-3-030-01252-6_33
+
 
 ### Types of `detector`
 
@@ -155,23 +181,36 @@ The drift detector informing the continual learning strategy of task boundaries.
 *  `ADWIN`
 
     **Adaptive Windowing**.
-    
+
+    Bifet, Albert, and Ricard Gavalda. "Learning from time-changing data with adaptive
+    windowing." Proceedings of the 2007 SIAM international conference on data mining.
+    Society for Industrial and Applied Mathematics, 2007.
 
 *  `DDM`
 
     **Drift Detection Method**.
 
+    Gama, Joao, et al. "Learning with drift detection." Advances in Artificial
+    Intelligence–SBIA 2004: 17th Brazilian Symposium on Artificial Intelligence, Sao
+    Luis, Maranhao, Brazil, September 29-Ocotber 1, 2004.
+
 *  `PH`
 
     **Page-Hinkley test**.
+
+    Page. 1954. Continuous Inspection Schemes. Biometrika 41, 1/2 (1954), 100-115.
 
 *  `SEED`
 
     **Streaming Ensemble Entropy-based Drift detection**.
 
+    Huang, David Tse Jung, et al. "Detecting volatility shift in data streams." 2014
+    IEEE International Conference on Data Mining. IEEE, 2014.
+
 *  `STEPD`
 
     **Statistical Test of Equal Proportions Detector**.
 
-
-
+    Nishida, Kyosuke, and Koichiro Yamauchi. "Detecting concept drift using
+    statistical testing." International conference on discovery science. Berlin,
+    Heidelberg: Springer Berlin Heidelberg, 2007.
