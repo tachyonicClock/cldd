@@ -4,7 +4,7 @@ CLDD (Continual Learners as a Drift Detection dataset) is a collection of error 
 from online continual learning algorithms used to benchmark and develop future drift
 detection algorithms.
 
-Source code to reproduce this dataset is made available at https://github.com/tachyonicClock/cldd.
+Source code to reproduce this dataset is made available at https://github.com/tachyonicClock/cldd and the dataset itself is available at https://doi.org/10.5281/zenodo.21232615.
 
 ## Variants
 

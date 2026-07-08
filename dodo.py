@@ -38,20 +38,20 @@ Detector = str
 Boundary = str
 
 STRATEGY = [
-    "FT",
     "EWC",
-    "SI",
+    "FT",
     "LWF",
     "MAS",
     "RWalk",
+    "SI",
 ]
 DETECTOR_AGNOSTIC = {"FT"}
 DETECTOR = [
     "ADWIN",
     "DDM",
+    "PH",
     "SEED",
     "STEPD",
-    "PH",
 ]
 BOUNDARY = [
     "abrupt",

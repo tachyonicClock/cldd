@@ -28,8 +28,9 @@ clean-logs:
 	mkdir -p /local/scratch/antonlee/log/blurry-ocl
 	ln -s /local/scratch/antonlee/log/blurry-ocl logs
 
-rsync-cuda9: clean-logs
-	rsync -a --info=Progress2 cuda9:/local/scratch/antonlee/log/blurry-ocl/ logs/
+rsync-cuda11: clean-logs
+	rsync -a --info=Progress2 cuda11:/local/scratch/antonlee/log/blurry-ocl/ logs/
+	uv run doit reset-dep
 
 
 archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z
