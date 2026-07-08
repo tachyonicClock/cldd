@@ -8,15 +8,7 @@ from capymoa.ocl.evaluation.events import (
     TestEnd,
 )
 from capymoa.drift.base_detector import BaseDriftDetector
-from capymoa.drift.detectors import (
-    ABCD,
-    ADWIN,
-    DDM,
-    PageHinkley,
-    SEED,
-    STEPD,
-    CUSUM
-)
+from capymoa.drift.detectors import ABCD, ADWIN, DDM, PageHinkley, SEED, STEPD, CUSUM
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from dataclasses import dataclass, asdict
 from loguru import logger
@@ -24,39 +16,38 @@ import numpy as np
 from torch.nn.functional import cross_entropy
 import torch
 import enum
-from scipy.stats import wasserstein_distance
+
+from src.metrics import drift_confusion
 
 LOG_EVERY = 10
 
 
-def drift_wd(
-    trues: Sequence[float] | np.ndarray,
-    preds: Sequence[float] | np.ndarray,
-    fp_penalty: float = 0,
-    fn_penalty: float = 0,
-) -> float:
-    assert fp_penalty >= 0, "False positive penalty must be non-negative."
-    assert fn_penalty >= 0, "False negative penalty must be non-negative."
-    assert len(trues)
-
-    # Relative penalties.
-    fp_penalty = float(fp_penalty) / len(trues)
-    fn_penalty = float(fn_penalty) / len(trues)
-
-    trues_ = np.asarray(trues)
-    preds_ = np.asarray(preds)
-
-    if len(preds_) == 0:
-        return float(fn_penalty * len(trues_))
-
-    assert 0 <= trues_.min() <= trues_.max() <= 1, "Trues must be in [0, 1]."
-    assert 0 <= preds_.min() <= preds_.max() <= 1, "Preds must be in [0, 1]."
-
-    shape_loss = wasserstein_distance(trues_, preds_)
-
-    fp_loss = (fp_penalty) * max(0, len(preds_) - len(trues_))
-    fn_loss = (fn_penalty) * max(0, len(trues_) - len(preds_))
-    return float(shape_loss + fp_loss + fn_loss)
+def build_dd_metrics(
+    evaluator: EvaluateDriftDetector,
+    trues: Sequence[int] | np.ndarray,
+    preds: Sequence[int] | np.ndarray,
+    tot_n_instances: int,
+) -> dict[str, Any]:
+    metrics = asdict(evaluator.calc_performance(trues, preds, tot_n_instances))
+    metrics["trues"] = trues
+    metrics["preds"] = preds
+    metrics["tot_n_instances"] = tot_n_instances
+    metrics["max_delay"] = evaluator.max_delay
+    metrics["max_early_detection"] = evaluator.max_early_detection
+    metrics["rate_period"] = evaluator.rate_period
+    drift_cm = drift_confusion(
+        metrics["trues"],
+        metrics["preds"],
+        metrics["max_early_detection"],
+        metrics["max_delay"],
+    )
+    metrics["my_tp"] = drift_cm.tp
+    metrics["my_fp"] = drift_cm.fp
+    metrics["my_fn"] = drift_cm.fn
+    metrics["my_precision"] = drift_cm.fn
+    metrics["my_recall"] = drift_cm.recall
+    metrics["my_f1"] = drift_cm.f1_score
+    return metrics
 
 
 class ErrorStreamType(enum.Enum):
@@ -189,20 +180,12 @@ class OCLDD(Handler):
         self._downstream.notify(event)
 
     def metrics(self) -> dict:
-        metrics = asdict(
-            self._eval_dd.calc_performance(
-                self._dd_trues, self._dd_preds, self._stream_index
-            )
+        metrics = build_dd_metrics(
+            evaluator=self._eval_dd,
+            trues=self._dd_trues,
+            preds=self._dd_preds,
+            tot_n_instances=self._stream_index,
         )
-        trues_rel = np.array(self._dd_trues) / self._stream_index
-        preds_rel = np.array(self._dd_preds) / self._stream_index
-        metrics["trues"] = self._dd_trues
-        metrics["preds"] = self._dd_preds
-        metrics["wasserstein_distance"] = drift_wd(trues_rel, preds_rel)
-        metrics["tot_n_instances"] = self._stream_index
-        metrics["max_delay"] = self._eval_dd.max_delay
-        metrics["max_early_detection"] = self._eval_dd.max_early_detection
-        metrics["rate_period"] = self._eval_dd.rate_period
 
         # Save the error streams as well for further analysis.
         metrics["error_stream"] = np.concatenate(self._error_stream).astype(np.bool_)
@@ -288,6 +271,7 @@ class DDMArgs(DriftDetectorArgs):
             out_control_level=self.out_control_level,
         )
 
+
 @dataclass
 class CUSUMArgs(DriftDetectorArgs):
     type_: ClassVar[str] = "CUSUM"
@@ -301,6 +285,7 @@ class CUSUMArgs(DriftDetectorArgs):
             delta=self.delta,
             lambda_=self.lambda_,
         )
+
 
 @dataclass
 class PHArgs(DriftDetectorArgs):
@@ -395,5 +380,12 @@ class OracleArgs(DriftDetectorArgs):
 
 
 AnyDriftDetector = (
-    ADWINArgs | DDMArgs | PHArgs | SEEDArgs | STEPDArgs | ABCDArgs | OracleArgs | CUSUMArgs
+    ADWINArgs
+    | DDMArgs
+    | PHArgs
+    | SEEDArgs
+    | STEPDArgs
+    | ABCDArgs
+    | OracleArgs
+    | CUSUMArgs
 )

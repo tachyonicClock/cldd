@@ -1,5 +1,5 @@
 hpsearch:
   n_trials: 30
-  metric: f1
+  metric: my_f1
   maximize: true
   mode: w # Overwrite study if it already exists

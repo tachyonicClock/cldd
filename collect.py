@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
+from src.metrics import drift_confusion
 from src.config import converter, Config
 import pickle
 import yaml
@@ -14,7 +15,6 @@ import tqdm
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
     "accuracy_final",
-    "accuracy_all_avg",
     "accuracy_seen_avg",
     "forward_transfer",
     "backward_transfer",
@@ -22,15 +22,15 @@ ocl_metric_keys = [
 
 # See: https://capymoa.org/api/modules/capymoa.drift.eval_detector.DriftDetectionMetrics.html
 dd_metric_keys = [
-    "fp",
-    "tp",
-    "fn",
     "precision",
     "recall",
     "f1",
-    "wasserstein_distance",
     "mdt",
     "far",
+    "my_f1",
+    "my_fp",
+    "my_tp",
+    "my_fn",
 ]
 
 ttt_metric_keys = ["accuracy"]
@@ -154,7 +154,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
 
     # Count number of each strategy
     strategy_counts = df["strategy"].value_counts()
-    print(strategy_counts) 
+    print(strategy_counts)
 
     # Save to a parquet file
     pq.write_table(table, output_file)

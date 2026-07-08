@@ -5,19 +5,19 @@ from typing import List, Sequence
 from hypothesis import given, strategies as st
 import pytest
 
+
 def reference_drift_confusion(
     trues: np.ndarray | Sequence[int],
     preds: np.ndarray | Sequence[int],
     max_early: int,
     max_delay: int,
 ) -> DriftConfusion:
-    evaluator = EvaluateDriftDetector(max_delay=max_delay, max_early_detection=max_early)
-    metrics = evaluator.calc_performance(trues, preds, tot_n_instances=1)
-    return DriftConfusion(
-        metrics.tp,
-        metrics.fp,
-        metrics.fn
+    evaluator = EvaluateDriftDetector(
+        max_delay=max_delay, max_early_detection=max_early
     )
+    metrics = evaluator.calc_performance(trues, preds, tot_n_instances=1)
+    return DriftConfusion(metrics.tp, metrics.fp, metrics.fn)
+
 
 @given(
     trues=st.lists(st.integers(min_value=0, max_value=100), unique=True),
@@ -33,7 +33,7 @@ def test_drift_confusion_match_reference(
     result = drift_confusion(trues, preds, max_early, max_delay)
     assert result.tp + result.fp == len(preds), "tp + fp != len(preds)"
     assert result.tp + result.fn == len(trues), "tp + fn != len(trues)"
-    
+
 
 @pytest.mark.parametrize(
     "trues,preds,max_early,max_delay,expected",
@@ -64,9 +64,7 @@ def test_drift_confusion_match_reference(
         "midpoint_partition_edge_case",
     ],
 )
-def test_drift_confusion_examples(
-    trues, preds, max_early, max_delay, expected
-):
+def test_drift_confusion_examples(trues, preds, max_early, max_delay, expected):
     result = drift_confusion(
         trues,
         preds,

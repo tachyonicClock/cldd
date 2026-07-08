@@ -2,6 +2,7 @@ import numpy as np
 from typing import Sequence
 from dataclasses import dataclass
 
+
 @dataclass
 class DriftConfusion:
     tp: int
@@ -19,7 +20,7 @@ class DriftConfusion:
         if self.tp + self.fn == 0:
             return 0.0
         return self.tp / (self.tp + self.fn)
-    
+
     @property
     def f1_score(self) -> float:
         if self.precision + self.recall == 0:
