@@ -2,7 +2,6 @@
 
 from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
-from src.metrics import drift_confusion
 from src.config import converter, Config
 import pickle
 import yaml
@@ -11,6 +10,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import tqdm
+from loguru import logger
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
@@ -49,6 +49,8 @@ def copy_keys(
 
 def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
     """Load the results from a directory."""
+    logger.info(f"Loading record from {dirname}")
+
     dirname = Path(dirname)
     with open(dirname / "config.yaml") as f:
         config = converter.structure(yaml.safe_load(f), Config)

@@ -19,6 +19,7 @@ TEX_TEMPLATE = r"""\documentclass[varwidth=2000pt,border=%dpt]{standalone}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{amsmath}
+\usepackage{multirow}
 \begin{document}
 \small
 \centering

@@ -55,7 +55,7 @@ class HPSearchConfig:
     n_trials: int = 1
     n_jobs: int = 1
     study_prefix: str = "bocl"
-    metric: str = "accuracy_forgetful"
+    metric: str = "accuracy_final"
     storage: str = "logs/optuna.journal.log"
     maximize: bool = True
 
