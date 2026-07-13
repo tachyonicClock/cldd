@@ -52,3 +52,7 @@ test: clean-logs
 
 stop:
 	pkill -f -SIGINT antonlee-mpsdodo-server
+
+plots:
+	uv run notebook/plot_error_stream.py
+	uv run notebook/plots.py

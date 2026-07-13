@@ -14,3 +14,14 @@ atab10 = ListedColormap(
         "#0229b0",
     ]
 )
+
+rename_methods = {"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"}
+
+
+width = 390
+scale = 1 / 72
+
+FIGSIZE_43 = (width * scale, width * scale / (4 / 3))
+
+# SILVER RATIO
+FIGSIZE_SR = (width * scale, width * scale / (1 + 2**0.5))
