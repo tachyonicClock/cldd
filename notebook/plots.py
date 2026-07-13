@@ -27,6 +27,15 @@ DETECTOR_PALETTE = {
     "Best": atab10(9),
 }
 
+STRATEGY_PALETTE = {
+    "FT": atab10(0),
+    "EWC": atab10(1),
+    "SI": atab10(2),
+    "RWalk": atab10(3),
+    "MAS": atab10(4),
+    "LWF": atab10(5),
+}
+
 
 # --- Helpers ---
 
@@ -91,14 +100,12 @@ def barplot_f1_detector_strategy(
         1, 2, figsize=FIGSIZE_SR, sharey=True, constrained_layout=True
     )
 
-    order = df_true.groupby("detector_label")[F1_METRIC].median().sort_values().index
-
     plot_kwargs = {
         "hue": "strategy",
         "y": F1_METRIC,
         "x": "detector_label",
-        "palette": atab10.colors,
-        "order": order,
+        "palette": STRATEGY_PALETTE,
+        "hue_order": list(STRATEGY_PALETTE.keys()), 
         "edgecolor": "dimgrey",
     }
 
@@ -111,7 +118,7 @@ def barplot_f1_detector_strategy(
     for ax in (ax_true, ax_sim):
         ax.tick_params(axis="x", rotation=45)
 
-    sns.move_legend(ax_sim, "upper left", title="", frameon=True, framealpha=1.0)
+    sns.move_legend(ax_sim, "upper right", title="", frameon=True, framealpha=1.0)
 
     return fig
 
