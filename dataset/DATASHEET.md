@@ -83,7 +83,7 @@ cldd_a
     The seed identifier. Multiple seeds exist for each combination of boundary,
     strategy, and detector.
 
-*   `ce_stream` (list, float32)
+*   `ce_stream` (list, float16)
 
     Test-then-train per-instance cross entropy. Roughly 300,000 values.
 
@@ -99,6 +99,13 @@ cldd_a
 
     The detector's predicted drifts.
 
+* `max_delay` (int32)
+
+  The maximum acceptable detection delay based on the gradualness of the boundary.
+
+* `max_early` (int32)
+
+  The maximum acceptable early detection lead time based on the gradualness of the boundary.
 
 ### Types of `boundary`
 

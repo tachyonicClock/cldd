@@ -2,9 +2,11 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import scienceplots as _  # noqa: F401
+from scipy import stats
 
 from common import FIGSIZE_SR, atab10, rename_methods
 
@@ -50,6 +52,8 @@ def compute_nmdt(df: pd.DataFrame) -> pd.DataFrame:
     """Compute normalized mean detection time (nmdt) based on boundary type."""
     df = df.copy()
     df["nmdt"] = df["dd.mdt"] / df["boundary"].map(BOUNDARY_DIVISORS)
+    # If NAN replace with 1
+    df["nmdt"] = df["nmdt"].fillna(1.0)
     return df
 
 
@@ -83,6 +87,44 @@ def prepare_best_detector_data(
     df_ev["detector_label"] = df_ev["detector_label"].replace({"ADWIN_JOINT": "ADWIN*"})
 
     return df_ev.reset_index(drop=True)
+
+
+def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> float:
+    """
+    Fits a linear regression to the data, plots the line on the provided axes,
+    and returns the R-squared value.
+    """
+# 1. Filter outliers using the IQR method (for both columns)
+    def is_outlier(series):
+        Q1 = series.quantile(0.25)
+        Q3 = series.quantile(0.75)
+        IQR = Q3 - Q1
+        return ~((series >= (Q1 - 1.5 * IQR)) & (series <= (Q3 + 1.5 * IQR)))
+
+    mask = ~is_outlier(df[x_col]) & ~is_outlier(df[y_col])
+    data = df.loc[mask, [x_col, y_col]].dropna()
+    
+    x = data[x_col]
+    y = data[y_col]
+    
+    # 2. Perform linear regression on cleaned data
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    
+    # 3. Plot line across the original X-range to show the fit context
+    x_range = np.array([df[x_col].min(), df[x_col].max()])
+    line = slope * x_range + intercept
+    
+    ax.plot(x_range, line, color='black', label='Robust Fit')
+    
+    # 4. Add R-squared to plot
+    r_squared = r_value ** 2
+    ax.text(0.05, 0.95, f'$R^2 = {r_squared:.3f}$', 
+            transform=ax.transAxes, verticalalignment='top', fontsize=10,
+            bbox=dict(facecolor='white', alpha=0.5))
+    
+    print(p_value)
+
+    return r_squared
 
 
 # --- Plotting Functions ---
@@ -149,7 +191,7 @@ def boxplot_detector(df: pd.DataFrame, metric: str, metric_label: str) -> plt.Fi
     return fig
 
 
-def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> plt.Figure:
+def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> tuple[plt.Figure, float]:
     """Creates a scatterplot comparing Accuracy vs. F1 score."""
     df_filtered = df_true.copy()
     df_filtered["detector_label"] = df_filtered["detector_label"].replace(
@@ -171,7 +213,8 @@ def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> plt.Figure:
         x=F1_METRIC,
         y=ACC_METRIC,
         style="boundary",
-        palette=atab10.colors,
+        palette=STRATEGY_PALETTE,
+        hue_order=list(STRATEGY_PALETTE.keys()),
         markers=["o", "s", "X"],
         s=15,
         ax=ax,
@@ -196,7 +239,60 @@ def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> plt.Figure:
         ncol=2,
     )
 
-    return fig
+    r_value = add_linear_fit_and_r_value(ax, df_filtered, F1_METRIC, ACC_METRIC)
+    return fig, r_value
+
+
+def scatterplot_acc_nmdt_strategy_boundary(df_true: pd.DataFrame) -> tuple[plt.Figure, float]:
+    """Creates a scatterplot comparing Accuracy vs. normalized mean detection time."""
+    df_filtered = compute_nmdt(df_true)
+    df_filtered["detector_label"] = df_filtered["detector_label"].replace(
+        {"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"}
+    )
+
+    mask = (
+        (df_filtered["dd.my_tp"] + df_filtered["dd.my_fp"] > 0)
+        & (~df_filtered["detector_label"].isin(["Oracle", "ADWIN*"]))
+        & (df_filtered["strategy"] != "FT")
+    )
+    df_filtered = df_filtered[mask]
+
+    fig, ax = plt.subplots(figsize=FIGSIZE_SR, constrained_layout=True)
+
+    sns.scatterplot(
+        data=df_filtered,
+        hue="strategy",
+        x="nmdt",
+        y=ACC_METRIC,
+        style="boundary",
+        palette=STRATEGY_PALETTE,
+        hue_order=list(STRATEGY_PALETTE.keys()),
+        markers=["o", "s", "X"],
+        s=15,
+        ax=ax,
+    )
+
+    ax.set(
+        xlabel="NMDT",
+        ylabel="Acc.",
+        title="Acc. vs NMDT by Strategy and Boundary Type",
+    )
+
+    handles, labels = ax.get_legend_handles_labels()
+    label_map = {"strategy": "Strategy", "boundary": "Boundary"}
+    labels = [label_map.get(lbl, lbl) for lbl in labels]
+
+    ax.legend(
+        handles=handles,
+        labels=labels,
+        title="",
+        fontsize="small",
+        loc="lower right",
+        ncol=2,
+    )
+
+    r_value = add_linear_fit_and_r_value(ax, df_filtered, "nmdt", ACC_METRIC)
+    return fig, r_value
 
 
 def plot_faceted_strategy_boxplots(df: pd.DataFrame) -> plt.Figure:
@@ -250,8 +346,13 @@ if __name__ == "__main__":
     fig_bar = barplot_f1_detector_strategy(df_eval_raw, df_dd_raw)
     save_fig(fig_bar, "barplot_f1_detector_strategy.pdf")
 
-    fig_scatter = scatterplot_acc_f1_strategy_boundary(df_eval_raw)
+    fig_scatter, r2_f1 = scatterplot_acc_f1_strategy_boundary(df_eval_raw)
     save_fig(fig_scatter, "scatterplot_acc_f1_strategy_boundary.pdf")
+    print(f"scatterplot_acc_f1_strategy_boundary: R^2={r2_f1:.4f}")
+
+    fig_scatter_nmdt, r2_nmdt = scatterplot_acc_nmdt_strategy_boundary(df_eval_raw)
+    save_fig(fig_scatter_nmdt, "scatterplot_acc_nmdt_strategy_boundary.pdf")
+    print(f"scatterplot_acc_nmdt_strategy_boundary: R^2={r2_nmdt:.4f}")
 
     # 3. Generate individual detector boxplots
     df_box = df_eval_raw.replace(rename_methods).pipe(compute_nmdt)

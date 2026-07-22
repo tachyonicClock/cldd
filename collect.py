@@ -111,12 +111,16 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
     ce_stream = []
     trues = []
     preds = []
+    max_delay = []
+    max_early = []
     for dirname in tqdm.tqdm(dirs):
         record, dd_metrics = load_dd_run_record(dirname)
         error_stream.append(dd_metrics["error_stream"])
         ce_stream.append(dd_metrics["ce_stream"])
         trues.append(dd_metrics["trues"])
         preds.append(dd_metrics["preds"])
+        max_delay.append(dd_metrics["max_delay"])
+        max_early.append(dd_metrics["max_early_detection"])
         metadata.append(record)
 
     df = pd.DataFrame(metadata)
@@ -128,8 +132,10 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
     ce_stream_array = pa.array(ce_stream, pa.large_list(pa.float16()))
     error_stream_array = pa.array(error_stream, pa.large_list(pa.bool_()))
 
-    trues_array = pa.array(trues, pa.list_(pa.int32(), 4))
+    trues_array = pa.array(trues, pa.list_(pa.int32()))
     preds_array = pa.array(preds, pa.list_(pa.int32()))
+    max_delay_array = pa.array(max_delay, pa.int32())
+    max_early_array = pa.array(max_early, pa.int32())
 
     table = pa.Table.from_arrays(
         [
@@ -141,6 +147,8 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             error_stream_array,
             trues_array,
             preds_array,
+            max_delay_array,
+            max_early_array,
         ],
         names=[
             "boundary",
@@ -151,6 +159,8 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             "error_stream",
             "trues",
             "preds",
+            "max_delay",
+            "max_early",
         ],
     )
 

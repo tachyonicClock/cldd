@@ -85,10 +85,10 @@ def plot_drift_detection(root: Path, strategy: str = "EWC", detector: str = "ADW
     return fig
 
 good_fig = plot_drift_detection(Path("logs"), strategy="LWF", detector="ADWIN", seed="000")
-good_fig.savefig("fig/plot_error_stream_lwf_adwin.pdf")
+good_fig.savefig("fig/plot_error_stream_good.pdf")
 
 # %%
-bad_f1_fig = plot_drift_detection(Path("logs"), strategy="LWF", detector="STEPD", seed="000")
-bad_f1_fig.savefig("fig/plot_error_stream_stepd_lwf.pdf")
+bad_f1_fig = plot_drift_detection(Path("logs"), strategy="MAS", detector="STEPD", seed="000")
+bad_f1_fig.savefig("fig/plot_error_stream_bad.pdf")
 
 

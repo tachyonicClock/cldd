@@ -28,8 +28,8 @@ clean-logs:
 	mkdir -p /local/scratch/antonlee/log/blurry-ocl
 	ln -s /local/scratch/antonlee/log/blurry-ocl logs
 
-rsync-cuda11: clean-logs
-	rsync -a --info=Progress2 cuda11:/local/scratch/antonlee/log/blurry-ocl/ logs/
+rsync-cuda11:
+	rsync -a --info=Progress2 --delete cuda11:/local/scratch/antonlee/log/blurry-ocl/ logs/
 	uv run doit reset-dep
 
 
@@ -56,3 +56,9 @@ stop:
 plots:
 	uv run notebook/plot_error_stream.py
 	uv run notebook/plots.py
+
+
+fig-to-jpg:
+# 	Convert all .pdf figures in fig/ to .jpg
+	magick mogrify -format png -density 150 -quality 80 fig/*.pdf
+	

@@ -55,9 +55,6 @@ def main(n_subprocesses: int, run: Sequence[str]):
     pgid = os.getpgid(pid)
     logger.info(f"Stop me and my children with: `kill -TERM -- -{pgid}`")
 
-    server_env = {
-        "CUDA_VISIBLE_DEVICES": gpu,
-    }
     client_env = {
         "PATH": os.environ["PATH"],
         "CAPYMOA_DATASETS_DIR": os.environ.get("CAPYMOA_DATASETS_DIR", ""),
@@ -67,39 +64,40 @@ def main(n_subprocesses: int, run: Sequence[str]):
         "CUDA_VISIBLE_DEVICES": gpu,
     }
 
-    logger.info(f"SERVER ENV: {server_env}")
     logger.info(f"CLIENT ENV: {client_env}")
 
-    with open(logs / "mps_server.log", "w") as server_log:
-        server = sp.Popen(
-            ["nvidia-cuda-mps-control", "-f"],
-            stdin=sp.PIPE,
-            stdout=server_log,
-            stderr=sp.STDOUT,
-            env=server_env,
-        )
-        time.sleep(5)
+    # server_env = {
+    #     "CUDA_VISIBLE_DEVICES": gpu,
+    # }
+    # logger.info(f"SERVER ENV: {server_env}")
+    # with open(logs / "mps_server.log", "w") as server_log:
+    #     server = sp.Popen(
+    #         ["nvidia-cuda-mps-control", "-f"],
+    #         stdin=sp.PIPE,
+    #         stdout=server_log,
+    #         stderr=sp.STDOUT,
+    #         env=server_env,
+    #     )
+    #     time.sleep(5)
 
-    try:
-        # Run the main script
-        cmd = ["uv", "run", "python", "-u", "-m", "doit", "-n", str(n_subprocesses)]
-        if run:
-            cmd.extend(run)
-        sp.check_call(
-            cmd,
-            env=client_env,
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-        )
-    finally:
-        logger.warning("Cleaning up nvidia-mps...")
-        server.terminate()
-        try:
-            server.wait(timeout=TIMEOUT)
-        finally:
-            if server.poll() is None:
-                logger.error("MPS server did not terminate gracefully, killing...")
-                server.kill()
+    # Run the main script
+    cmd = ["uv", "run", "python", "-u", "-m", "doit", "-n", str(n_subprocesses)]
+    if run:
+        cmd.extend(run)
+    sp.check_call(
+        cmd,
+        env=client_env,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
+        # logger.warning("Cleaning up nvidia-mps...")
+        # server.terminate()
+        # try:
+        #     server.wait(timeout=TIMEOUT)
+        # finally:
+        #     if server.poll() is None:
+        #         logger.error("MPS server did not terminate gracefully, killing...")
+        #         server.kill()
 
 
 if __name__ == "__main__":
