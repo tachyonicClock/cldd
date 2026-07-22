@@ -65,7 +65,7 @@ JOINT_HP_DETECTOR = "ADWIN_JOINT"
 N_TRIALS = 10
 rng = random.Random(0)
 rng2 = random.Random(1)
-ERROR_STREAM_SEEDS = [rng.randint(0, 10000) for _ in range(5)]
+ERROR_STREAM_SEEDS = [rng.randint(0, 10000) for _ in range(N_TRIALS)]
 EVALUATION_SEEDS = [rng2.randint(0, 10000) for _ in range(N_TRIALS)]
 
 if DEBUG_MODE:
