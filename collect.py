@@ -40,7 +40,9 @@ def copy_keys(
     dst: dict, src: dict, prefix: str, keys: Sequence[Tuple[str, str] | str]
 ) -> dict:
     for key in keys:
-        if isinstance(key, str):
+        if key not in src:
+            continue
+        elif isinstance(key, str):
             dst[f"{prefix}.{key}"] = float(src[key])
         else:
             dst[f"{prefix}.{key[1]}"] = float(src[key[0]])
@@ -129,7 +131,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
     strategy_array = pa.array(df["strategy"], pa.string())
     detector_array = pa.array(df["detector"], pa.string())
     boundary_array = pa.array(df["boundary"], pa.string())
-    ce_stream_array = pa.array(ce_stream, pa.large_list(pa.float16()))
+    # ce_stream_array = pa.array(ce_stream, pa.large_list(pa.float16()))
     error_stream_array = pa.array(error_stream, pa.large_list(pa.bool_()))
 
     trues_array = pa.array(trues, pa.list_(pa.int32()))
@@ -143,7 +145,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             strategy_array,
             detector_array,
             seed_array,
-            ce_stream_array,
+            # ce_stream_array,
             error_stream_array,
             trues_array,
             preds_array,
@@ -155,7 +157,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             "strategy",
             "detector",
             "seed",
-            "ce_stream",
+            # "ce_stream",
             "error_stream",
             "trues",
             "preds",

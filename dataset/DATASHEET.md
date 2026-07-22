@@ -18,14 +18,14 @@ CLDD-A contains the `oracle` drift detector which perflectly predicts drifts con
 a continual learning algorithm.
 
 The standard evaluation scheme splits the dataset based on seeds into a training set
-(seeds 0–4) and a test set (seeds 5–9). Using five training error-streams, each detector
+(10 seeds) and a test set (10 seeds). Using five training error-streams, each detector
 is tuned for a specific strategy-boundary pair.
 
-CLDD-A is a full factorial of 3 boundaries × 6 strategies × 1 detector × 10 seeds = 180 configurations.
+CLDD-A is a full factorial of 3 boundaries × 6 strategies × 1 detector × 20 seeds = 360 configurations.
 
 | `boundary`            | `strategy`                      | `detector` | count each |
 |:----------------------|:--------------------------------|:-----------|:----------:|
-| abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     10     |
+| abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     20     |
 
 
 ### CLDD-B `CLDD_B.parquet`
@@ -82,10 +82,6 @@ cldd_a
 
     The seed identifier. Multiple seeds exist for each combination of boundary,
     strategy, and detector.
-
-*   `ce_stream` (list, float16)
-
-    Test-then-train per-instance cross entropy. Roughly 300,000 values.
 
 *   `error_stream` (list, boolean)
 

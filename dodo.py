@@ -356,6 +356,15 @@ def task_CLDD_A():
         directories.append(unit.logdir(evaluate.__name__))
         dependencies.append(unit.ocl_metrics)
 
+    # error_streams = []
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        # Collect error streams for all trials of this strategy and boundary, which will
+        # be used for tuning the detector.
+        for trial, _ in enumerate(ERROR_STREAM_SEEDS):
+            unit = Unit(strategy, ORACLE_DETECTOR, boundary, trial)
+            directories.append(unit.error_stream.parent)
+            dependencies.append(unit.error_stream)
+
     target = LOG_ROOT / "CLDD_A.parquet"
     return {
         "actions": [
