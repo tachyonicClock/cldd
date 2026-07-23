@@ -94,7 +94,8 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
     Fits a linear regression to the data, plots the line on the provided axes,
     and returns the R-squared value.
     """
-# 1. Filter outliers using the IQR method (for both columns)
+
+    # 1. Filter outliers using the IQR method (for both columns)
     def is_outlier(series):
         Q1 = series.quantile(0.25)
         Q3 = series.quantile(0.75)
@@ -103,25 +104,31 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
 
     mask = ~is_outlier(df[x_col]) & ~is_outlier(df[y_col])
     data = df.loc[mask, [x_col, y_col]].dropna()
-    
+
     x = data[x_col]
     y = data[y_col]
-    
+
     # 2. Perform linear regression on cleaned data
     slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-    
+
     # 3. Plot line across the original X-range to show the fit context
     x_range = np.array([df[x_col].min(), df[x_col].max()])
     line = slope * x_range + intercept
-    
-    ax.plot(x_range, line, color='black', label='Robust Fit')
-    
+
+    ax.plot(x_range, line, color="black", label="Robust Fit")
+
     # 4. Add R-squared to plot
-    r_squared = r_value ** 2
-    ax.text(0.05, 0.95, f'$R^2 = {r_squared:.3f}$', 
-            transform=ax.transAxes, verticalalignment='top', fontsize=10,
-            bbox=dict(facecolor='white', alpha=0.5))
-    
+    r_squared = r_value**2
+    ax.text(
+        0.05,
+        0.95,
+        f"$R^2 = {r_squared:.3f}$",
+        transform=ax.transAxes,
+        verticalalignment="top",
+        fontsize=10,
+        bbox=dict(facecolor="white", alpha=0.5),
+    )
+
     print(p_value)
 
     return r_squared
@@ -147,7 +154,7 @@ def barplot_f1_detector_strategy(
         "y": F1_METRIC,
         "x": "detector_label",
         "palette": STRATEGY_PALETTE,
-        "hue_order": list(STRATEGY_PALETTE.keys()), 
+        "hue_order": list(STRATEGY_PALETTE.keys()),
         "edgecolor": "dimgrey",
     }
 
@@ -191,7 +198,9 @@ def boxplot_detector(df: pd.DataFrame, metric: str, metric_label: str) -> plt.Fi
     return fig
 
 
-def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> tuple[plt.Figure, float]:
+def scatterplot_acc_f1_strategy_boundary(
+    df_true: pd.DataFrame,
+) -> tuple[plt.Figure, float]:
     """Creates a scatterplot comparing Accuracy vs. F1 score."""
     df_filtered = df_true.copy()
     df_filtered["detector_label"] = df_filtered["detector_label"].replace(
@@ -243,7 +252,9 @@ def scatterplot_acc_f1_strategy_boundary(df_true: pd.DataFrame) -> tuple[plt.Fig
     return fig, r_value
 
 
-def scatterplot_acc_nmdt_strategy_boundary(df_true: pd.DataFrame) -> tuple[plt.Figure, float]:
+def scatterplot_acc_nmdt_strategy_boundary(
+    df_true: pd.DataFrame,
+) -> tuple[plt.Figure, float]:
     """Creates a scatterplot comparing Accuracy vs. normalized mean detection time."""
     df_filtered = compute_nmdt(df_true)
     df_filtered["detector_label"] = df_filtered["detector_label"].replace(

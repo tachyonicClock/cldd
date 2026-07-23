@@ -5,7 +5,6 @@ from typing import Sequence
 from loguru import logger
 from pathlib import Path
 import click
-import time
 import sys
 import random
 
@@ -90,14 +89,14 @@ def main(n_subprocesses: int, run: Sequence[str]):
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
-        # logger.warning("Cleaning up nvidia-mps...")
-        # server.terminate()
-        # try:
-        #     server.wait(timeout=TIMEOUT)
-        # finally:
-        #     if server.poll() is None:
-        #         logger.error("MPS server did not terminate gracefully, killing...")
-        #         server.kill()
+    # logger.warning("Cleaning up nvidia-mps...")
+    # server.terminate()
+    # try:
+    #     server.wait(timeout=TIMEOUT)
+    # finally:
+    #     if server.poll() is None:
+    #         logger.error("MPS server did not terminate gracefully, killing...")
+    #         server.kill()
 
 
 if __name__ == "__main__":

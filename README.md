@@ -1,80 +1,54 @@
-# blurry-ocl
+# Continual Learners as a Drift Detection dataset
 
-# Run in Environment
+We investigate error-rate-based drift detection as a mechanism for identifying task
+boundaries in continual learning. In continual learning, drift occurs at the boundary
+between tasks. In domain incremental learning, new instances arise from a distinct
+feature distribution, whereas in class incremental learning, entirely new classes
+appear. It is often assumed that a learner has perfect knowledge of task boundaries. For
+many applications, task boundaries are unknown and gradual. Unfortunately, many
+continual learning algorithms rely on task boundaries to function correctly, for
+example, updating their memory, freezing parameters, or performing other actions at the
+boundary. In this chapter, we conduct a controlled case study to evaluate drift
+detection as a component of continual learners.
+
+The dataset is available on [Zenodo](https://zenodo.org/records/21232615).
+
+## Reproducing Results
+
+To get started install [uv](https://docs.astral.sh/uv/) an extremely fast python package
+manager. 
+
+Run a single experiment:
 ```
-uv run ...
-```
-
-# Full Run
-
-```
-nohup notirun.sh ./mpsdodo.py -g 2 -n 8 > logs/nohup.log 2>&1 &
-```
-
-```
-nohup notirun.sh ./mpsdodo.py -g 2 -n 8 \
-    -r tune_strategy:EWC.oracle.abrupt.000 \
-    -r tune_strategy:SI.oracle.abrupt.000 &
-
-    -r tune_strategy:FT.oracle.abrupt.000 \
-
-```
-
-## Mark Task as Stale
-
-```
-uv run doit forget tune_hp_detector
+uv run main.py -c config/base.yml -c config/strategy/EWC.yml -c config/detector/oracle.yml run
 ```
 
-
-# Run Tests
+Plot results with tensorboard:
 ```
-uv run -m pytest
-```
-
-# Render LaTeX Tables to PNG
-```
-python render_tables.py --table-dir table --output-dir table --dpi 300 --border-pt 18
+uv run tensorboard --logdir logs
 ```
 
-This reads `table/*.tex` and writes matching PNG files next to them.
-
-
+Run experiment workflow `dodo.py` to generate benchmark and dataset:
+```sh
+uv run doit
 ```
-uv run main.py 
+Will generate a `logs/evaluate/data_frame.csv` and `logs/dd_run/data_frame.csv`.
+
+Parts of the workflow can be run independently
 ```
-
-
-```mermaid
-flowchart LR
-    A["p1_hp_strategy<br/>Phase 1: strategy HP search"] --> B["p1_update_configs<br/>Phase 1b: write best params"]
-    B --> C["p1_eval<br/>Phase 1c: per-seed eval (seeds 0-4)"]
-    C --> D["p1_error_stream<br/>Phase 1d: combine dd streams"]
-    B --> E["p2_hp_detector<br/>Phase 2: detector HP search<br/>(non-oracle only)"]
-    D --> E
-    E --> F["p2_select_detector<br/>cache selected detector"]
-    F --> G["p3_final_evaluation<br/>Phase 3: final eval (seeds 10-14)<br/>always oracle + selected detector"]
-    G --> H["p4_aggregate_metrics<br/>Phase 4: aggregate metrics.csv"]
-
-    %% artifact flow hints
-    A -. produces .-> A1["best_params.yaml"]
-    A1 -. consumed by .-> B
-    C -. produces .-> C1["per-seed dd_metrics.pkl"]
-    C1 -. combined into .-> D1["combined dd_metrics.pkl"]
-    D1 -. consumed by .-> E
-    E -. feeds studies for .-> F
-    F -. writes .-> F1["selected_detector.json"]
-    F1 -. read by .-> G
-    G -. writes .-> G1["phase3_eval_done.json markers<br/>+ ocl_metrics.pkl/dd_metrics.pkl"]
-    G1 -. consumed by .-> H
-    H -. writes .-> H1["logs/final-eval/metrics.csv"]
+error_stream             Phase 1 output: create per-seed error streams using tuned strategy HP.
+tune_strategy            Phase 1: tune strategy HP using the oracle detector for each boundary.
+tune_hp_detector         Phase 2: tune detector HP from all error streams of a strategy/boundary.
+tune_detector_strategy   Tune detector and strategy HPs together for each boundary.
+evaluate                 Phase 3: evaluate tuned configurations on held-out evaluation seeds.
+dd_run                   Replay tuned detector configs on oracle evaluate error streams.
+collect_evaluate         Collect all evaluate outputs into one CSV for analysis.
+dd_collect               Collect all dd_run outputs into one CSV for analysis.
+CLDD_A                   Generate continual learners as a drift detection dataset.
+CLDD_B                   Generate continual learners as a drift detection dataset.
 ```
 
-## TODO
-
-- [ ] Strategies
-    - [ ] Add PN
-    - [ ] Add DER++
-    - [ ] How will I handle strategies that use substeps?
-- [ ] Increase number of hpsearch trials.
-- [ ] 
+Analysis with the scripts in `analysis/` can be run with:
+```sh
+uv run analysis/plot.py
+```

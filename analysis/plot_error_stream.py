@@ -6,10 +6,12 @@ import numpy as np
 from pathlib import Path
 from common import FIGSIZE_43
 import scienceplots as _  # noqa: F401
+
 plt.style.use(["science", "nature"])
 
 # %%
 METRIC_FONTSIZE = 8
+
 
 def plot_error_stream(metrics, ax: plt.Axes, accuracy_seen_avg: float | None = None):
 
@@ -52,27 +54,41 @@ def plot_error_stream(metrics, ax: plt.Axes, accuracy_seen_avg: float | None = N
     ax.text(
         0.83,
         0.95,
-        f"Acc: {accuracy_seen_avg*100:.1f}%\nF1: {f1*100:.1f}%\nTP/FP/FN: {tp}/{fp}/{fn}",
+        f"Acc: {accuracy_seen_avg * 100:.1f}%\nF1: {f1 * 100:.1f}%\nTP/FP/FN: {tp}/{fp}/{fn}",
         transform=ax.transAxes,
         fontsize=METRIC_FONTSIZE,
         verticalalignment="top",
-        bbox=dict(facecolor="white", edgecolor="dimgrey", boxstyle="round,pad=0.5,rounding_size=0.1"),
+        bbox=dict(
+            facecolor="white",
+            edgecolor="dimgrey",
+            boxstyle="round,pad=0.5,rounding_size=0.1",
+        ),
     )
+
 
 def load_and_plot_error_stream(metrics_path: Path | str, ax: plt.Axes):
     metrics_path = Path(metrics_path)
     dd_metrics = pickle.load(open(metrics_path / "dd_metrics.pkl", "rb"))
     ocl_metrics = pickle.load(open(metrics_path / "ocl_metrics.pkl", "rb"))
-    accuracy_seen_avg = ocl_metrics.accuracy_seen_avg 
+    accuracy_seen_avg = ocl_metrics.accuracy_seen_avg
     plot_error_stream(dd_metrics, ax, accuracy_seen_avg=accuracy_seen_avg)
 
 
-
-def plot_drift_detection(root: Path, strategy: str = "EWC", detector: str = "ADWIN", seed: str = "000") -> plt.Figure:
-    fig, axs = plt.subplots(figsize=FIGSIZE_43, constrained_layout=True, nrows=3, sharex=True, sharey=True)
-    load_and_plot_error_stream(root / f"evaluate/abrupt/{strategy}/{detector}/{seed}/", axs[0])
-    load_and_plot_error_stream(root / f"evaluate/gradual/{strategy}/{detector}/{seed}/", axs[1])
-    load_and_plot_error_stream(root / f"evaluate/slow/{strategy}/{detector}/{seed}/", axs[2])
+def plot_drift_detection(
+    root: Path, strategy: str = "EWC", detector: str = "ADWIN", seed: str = "000"
+) -> plt.Figure:
+    fig, axs = plt.subplots(
+        figsize=FIGSIZE_43, constrained_layout=True, nrows=3, sharex=True, sharey=True
+    )
+    load_and_plot_error_stream(
+        root / f"evaluate/abrupt/{strategy}/{detector}/{seed}/", axs[0]
+    )
+    load_and_plot_error_stream(
+        root / f"evaluate/gradual/{strategy}/{detector}/{seed}/", axs[1]
+    )
+    load_and_plot_error_stream(
+        root / f"evaluate/slow/{strategy}/{detector}/{seed}/", axs[2]
+    )
 
     fig.suptitle(f"Drift Detection with {detector} for {strategy}")
 
@@ -84,11 +100,14 @@ def plot_drift_detection(root: Path, strategy: str = "EWC", detector: str = "ADW
     axs[2].set_xlabel("Stream Index")
     return fig
 
-good_fig = plot_drift_detection(Path("logs"), strategy="LWF", detector="ADWIN", seed="000")
+
+good_fig = plot_drift_detection(
+    Path("logs"), strategy="LWF", detector="ADWIN", seed="000"
+)
 good_fig.savefig("fig/plot_error_stream_good.pdf")
 
 # %%
-bad_f1_fig = plot_drift_detection(Path("logs"), strategy="MAS", detector="STEPD", seed="000")
+bad_f1_fig = plot_drift_detection(
+    Path("logs"), strategy="MAS", detector="STEPD", seed="000"
+)
 bad_f1_fig.savefig("fig/plot_error_stream_bad.pdf")
-
-
