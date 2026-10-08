@@ -1,7 +1,7 @@
 from capymoa.ocl import datasets
 from capymoa.stream import Schema
 from capymoa.stream.torch import TorchStream
-from capymoa.ocl.datasets.fuzzy import fuzzy_sigmoid_transitions
+from capymoa.ocl.datasets.gradual import gradual_sigmoid_transitions
 from typing import Literal, Optional, Sequence
 from dataclasses import dataclass
 from torch.utils.data import Dataset, Subset
@@ -185,7 +185,7 @@ class ScenarioArgs:
             )
 
         if self.gradual > 0.0:
-            train_tasks = fuzzy_sigmoid_transitions(train_tasks, width=self.gradual)
+            train_tasks = gradual_sigmoid_transitions(train_tasks, width=self.gradual)
 
         return Scenario(
             train_tasks=train_tasks,  # type: ignore

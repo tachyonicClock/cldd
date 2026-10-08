@@ -1,5 +1,7 @@
 from typing import Any, ClassVar, Literal, Sequence
-from capymoa.base.events import Dispatcher, Handler, LogScalar
+from capymoa.ocl.events import Dispatcher, Handler
+
+from src.events import LogScalar
 from capymoa.ocl.evaluation.events import (
     TrainBatchPredict,
     TrainTaskBegin,

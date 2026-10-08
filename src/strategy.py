@@ -5,7 +5,7 @@ from capymoa.base import BatchClassifier
 from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
-from capymoa.ocl.strategy import EWC, LWF, DER, SI, RWalk, MAS
+from capymoa.ocl.strategy import EWC, LWF, SI, RWalk, MAS
 from torch.optim import Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
@@ -226,19 +226,7 @@ class DERArgs(LearnerArgs):
         model: nn.Module,
         optimizer: Optimizer,
     ) -> BatchClassifier:
-        model.to(device)
-
-        return DER(
-            schema=schema,
-            model=model,
-            optimiser=optimizer,
-            device=torch.device(device),
-            alpha=self.alpha,
-            buffer_capacity=self.capacity,
-            seed=seed,
-            augment=build_augment(self.augment),
-            substeps=SUBSTEPS,
-        )
+        raise NotImplementedError("DER is not in CapyMOA 0.15.1.")
 
 
 @dataclass

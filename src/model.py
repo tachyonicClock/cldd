@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import ClassVar, Literal
 from torch import nn
 from capymoa.stream import Schema
-from capymoa.ann import Perceptron, resnet20_32x32
+from capymoa.core.torch.ann import Perceptron, resnet20_32x32
 from torch import manual_seed
 import torch
 

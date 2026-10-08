@@ -2,7 +2,7 @@ from dataclasses import asdict
 
 from src.tblogger import TensorboardLogger
 from src import config
-from capymoa.base.events import Dispatcher
+from capymoa.ocl.events import Dispatcher
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from capymoa.ocl.evaluation import ocl_train_eval_loop
 from typing import Dict, Sequence

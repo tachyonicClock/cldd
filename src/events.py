@@ -1,4 +1,4 @@
-from capymoa.base.events import Event
+from capymoa.ocl.events import Event
 from dataclasses import dataclass
 
 

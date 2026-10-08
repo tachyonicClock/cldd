@@ -4,7 +4,9 @@ from typing import ClassVar, Literal, Union
 
 import torch
 from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
-from capymoa.base.events import Dispatcher, Handler, LogScalar
+from capymoa.ocl.events import Dispatcher, Handler
+
+from src.events import LogScalar
 from capymoa.ocl.evaluation.events import TrainBatchPredict
 
 LOG_EVERY = 32
