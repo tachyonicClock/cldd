@@ -11,7 +11,7 @@ example, updating their memory, freezing parameters, or performing other actions
 boundary. In this chapter, we conduct a controlled case study to evaluate drift
 detection as a component of continual learners.
 
-The dataset is available on [Zenodo](https://zenodo.org/records/21232615).
+The dataset is available [here](https://pub-69d9a50abcb04461bc0b8f04d7a47656.r2.dev/cldd_dataset.zip) for anonymous peer-review and Zenodo.
 
 ## Reproducing Results
 
