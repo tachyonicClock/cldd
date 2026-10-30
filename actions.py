@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Sequence, Dict, Any, List
 from loguru import logger
@@ -29,7 +30,7 @@ def call(
 
     log_file = None
     if identifier is not None:
-        log_file = Path("logs") / "console" / f"{identifier}.log"
+        log_file = Path(os.environ.get("LOGDIR", "logs")) / "console" / f"{identifier}.log"
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:

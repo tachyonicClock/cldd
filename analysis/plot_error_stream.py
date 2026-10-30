@@ -1,3 +1,4 @@
+import os
 # Run with `uv run notebook/plot_error_stream.py`
 import pickle
 from typing import Sequence
@@ -102,12 +103,12 @@ def plot_drift_detection(
 
 
 good_fig = plot_drift_detection(
-    Path("logs"), strategy="LWF", detector="ADWIN", seed="000"
+    Path(os.environ.get("LOGDIR", "logs")), strategy="LWF", detector="ADWIN", seed="000"
 )
 good_fig.savefig("fig/plot_error_stream_good.pdf")
 
 # %%
 bad_f1_fig = plot_drift_detection(
-    Path("logs"), strategy="MAS", detector="STEPD", seed="000"
+    Path(os.environ.get("LOGDIR", "logs")), strategy="MAS", detector="STEPD", seed="000"
 )
 bad_f1_fig.savefig("fig/plot_error_stream_bad.pdf")

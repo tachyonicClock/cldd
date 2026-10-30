@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Optional, Sequence
 from omegaconf import OmegaConf
@@ -50,7 +51,7 @@ class Config:
             trial_id = f"{self.trial:03d}"
 
         return (
-            Path("logs")
+            Path(os.environ.get("LOGDIR", "logs"))
             / self.label
             / self.scenario_label
             / self.learner.type_

@@ -1,3 +1,4 @@
+import os
 # Run with `uv run notebook/plots.py`
 from pathlib import Path
 
@@ -349,7 +350,7 @@ def plot_faceted_strategy_boxplots(df: pd.DataFrame) -> plt.Figure:
 
 if __name__ == "__main__":
     # 1. Load data
-    logs_path = Path("logs")
+    logs_path = Path(os.environ.get("LOGDIR", "logs"))
     df_eval_raw = pd.read_csv(logs_path / "evaluate/data_frame.csv")
     df_dd_raw = pd.read_csv(logs_path / "dd_run/data_frame.csv")
 

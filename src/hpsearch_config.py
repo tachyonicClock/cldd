@@ -1,4 +1,5 @@
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Dict, ClassVar, Literal, Optional, Sequence, Any
 import optuna
@@ -56,7 +57,9 @@ class HPSearchConfig:
     n_jobs: int = 1
     study_prefix: str = "bocl"
     metric: str = "accuracy_final"
-    storage: str = "logs/optuna.journal.log"
+    storage: str = field(
+        default_factory=lambda: os.environ.get("LOGDIR", "logs") + "/optuna.journal.log"
+    )
     maximize: bool = True
 
     mode: Literal["w", "a", "x"] = "x"

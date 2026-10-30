@@ -77,7 +77,7 @@ if DEBUG_MODE:
 
 ORACLE_DETECTOR = "oracle"
 
-LOG_ROOT = Path("logs")
+LOG_ROOT = Path(os.environ.get("LOGDIR", "logs"))
 
 
 @dataclass

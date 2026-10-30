@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import pandas as pd
 import pytest
 import numpy as np
@@ -34,13 +36,13 @@ DETECTORS_B = ["ADWIN", "DDM", "PH", "SEED", "STEPD"]
 @pytest.fixture(scope="module")
 def cldd_a():
     """Loads CLDD-A from parquet format[cite: 1]."""
-    return pd.read_parquet("logs/CLDD_A.parquet")
+    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "CLDD_A.parquet")
 
 
 @pytest.fixture(scope="module")
 def cldd_b():
     """Loads CLDD-B from parquet format[cite: 1]."""
-    return pd.read_parquet("logs/CLDD_B.parquet")
+    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "CLDD_B.parquet")
 
 
 # --- TESTS FOR CLDD-A ---

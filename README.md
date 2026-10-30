@@ -25,14 +25,14 @@ uv run main.py -c config/base.yml -c config/strategy/EWC.yml -c config/detector/
 
 Plot results with tensorboard:
 ```
-uv run tensorboard --logdir logs
+uv run tensorboard --logdir $LOGDIR
 ```
 
 Run experiment workflow `dodo.py` to generate benchmark and dataset:
 ```sh
 uv run doit
 ```
-Will generate a `logs/evaluate/data_frame.csv` and `logs/dd_run/data_frame.csv`.
+Will generate a `$LOGDIR/evaluate/data_frame.csv` and `$LOGDIR/dd_run/data_frame.csv`.
 
 Parts of the workflow can be run independently
 ```
