@@ -19,12 +19,12 @@ To get started install [uv](https://docs.astral.sh/uv/) an extremely fast python
 manager. 
 
 Run a single experiment:
-```
+```sh
 uv run main.py -c config/base.yml -c config/strategy/EWC.yml -c config/detector/oracle.yml run
 ```
 
 Plot results with tensorboard:
-```
+```sh
 uv run tensorboard --logdir $LOGDIR
 ```
 
@@ -50,5 +50,40 @@ CLDD_B                   Generate continual learners as a drift detection datase
 
 Analysis with the scripts in `analysis/` can be run with:
 ```sh
-uv run analysis/plot.py
+uv run analysis/plots.py
 ```
+
+## Result Files
+
+The workflow writes two CSV files to `$LOGDIR`. Copies are in `data/`. The scripts in
+`analysis/` read the ones in `$LOGDIR`. Each row is one run, and both files share these columns:
+
+| Column | Meaning |
+| --- | --- |
+| `strategy` | Continual learning strategy (EWC, FT, LWF, MAS, RWalk, SI). |
+| `detector` | Drift detector in the config (`oracle` knows the true boundaries). |
+| `detector_label` | Detector name used in plots. `ADWIN_JOINT` is ADWIN with strategy and detector HP tuned together. |
+| `boundary` | Drift type: `abrupt`, `gradual` or `slow`. |
+| `seed` | Random seed of the run. |
+| `dd.precision`, `dd.recall`, `dd.f1` | Detection scores from CapyMOA. |
+| `dd.mdt` | Mean detection time, in stream instances. |
+| `dd.far` | False alarm rate. |
+| `dd.my_tp`, `dd.my_fp`, `dd.my_fn` | Detection counts from `src/metrics.py`. Each true boundary has one window, from `max_early` before to `max_delay` after it. A detection inside a window is a hit, extra detections are false positives, and a window with none is a miss. |
+| `dd.my_f1` | F1 score of those counts. Used as F1 in the paper. |
+
+`evaluate/data_frame.csv` (1080 rows) holds the final runs of each strategy
+with a detector on held-out seeds. It has these extra columns:
+
+| Column | Meaning |
+| --- | --- |
+| `ocl.accuracy_final` | Accuracy on all tasks at the end of the stream (0 to 1). |
+| `ocl.accuracy_seen_avg` | Mean accuracy on the tasks seen so far (0 to 1). |
+| `ocl.forward_transfer`, `ocl.backward_transfer` | Forward and backward transfer. |
+| `ttt.accuracy` | Test-then-train accuracy over the stream (percent). |
+
+`dd_run/data_frame.csv` (900 rows) holds only the drift scores. Each tuned
+detector is replayed on the error stream of the oracle runs from `evaluate`,
+so the detector does not change the learner.
+
+NMDT in the tables is `dd.mdt` divided by a length set by `boundary`
+(see `compute_nmdt` in `analysis/plots.py`). It is 1.0 when nothing is detected.
