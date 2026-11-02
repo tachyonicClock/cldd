@@ -19,6 +19,7 @@ from torch.nn.functional import cross_entropy
 import torch
 import enum
 
+from src import one_sided_detectors
 from src.metrics import drift_confusion
 
 LOG_EVERY = 10
@@ -314,8 +315,19 @@ class SEEDArgs(DriftDetectorArgs):
     epsilon_prime: float = 0.01
     alpha: float = 0.8
     compress_term: int = 75
+    one_sided: bool = False
+    """Only flag a rise in the error. MOA's SEED also flags a fall. Uses the Python port."""
 
     def build_dd(self) -> BaseDriftDetector:
+        if self.one_sided:
+            return one_sided_detectors.SEED(
+                delta=self.delta,
+                block_size=self.block_size,
+                epsilon_prime=self.epsilon_prime,
+                alpha=self.alpha,
+                compress_term=self.compress_term,
+                one_sided=True,
+            )
         return SEED(
             delta=self.delta,
             block_size=self.block_size,
@@ -331,8 +343,17 @@ class STEPDArgs(DriftDetectorArgs):
     window_size: int = 30
     alpha_drift: float = 0.003
     alpha_warning: float = 0.05
+    one_sided: bool = False
+    """Only flag a rise in the error. MOA's STEPD also flags a fall. Uses the Python port."""
 
     def build_dd(self) -> BaseDriftDetector:
+        if self.one_sided:
+            return one_sided_detectors.STEPD(
+                window_size=self.window_size,
+                alpha_drift=self.alpha_drift,
+                alpha_warning=self.alpha_warning,
+                one_sided=True,
+            )
         return STEPD(
             window_size=self.window_size,
             alpha_drift=self.alpha_drift,
