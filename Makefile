@@ -23,28 +23,22 @@ rfmnist-data:
 
 clean-logs:
 	rm nohup.out || true
-	rm -r logs/* || true
-	rm -r logs || true
-	mkdir -p /local/scratch/antonlee/log/blurry-ocl
-	ln -s /local/scratch/antonlee/log/blurry-ocl logs
+	rm -r ${LOGDIR}/cldd || true
+	mkdir -p ${LOGDIR}/cldd
 
 rsync-cuda11:
-	rsync -a --info=Progress2 --delete cuda11:/local/scratch/antonlee/log/blurry-ocl/ logs/
+	rsync -a --info=Progress2 --delete cuda11:${LOGDIR}/cldd/ ${LOGDIR}/cldd/
 	uv run doit reset-dep
 
 
 archive_filename:=$(shell date -u +"%Y-%m-%dT%H-%M-%SZ")_$(shell git rev-parse --short HEAD).7z
 
 archive:
-	7z a ${ECS_SCRATCH}/archive/bocl/$(archive_filename)  logs/
-
-extract-archive: clean-logs
-	7z x /local/scratch/antonlee/archive/bocl/2026-06-15T22-19-30Z_e0f51b8.7z logs
-	uv run doit reset-dep
+	7z a ${ECS_SCRATCH}/archive/cldd/$(archive_filename)  ${LOGDIR}/cldd
 
 .PHONY: run
 run:
-	nohup notirun.sh ./mpsdodo.py -n 8 > logs/nohup.log 2>&1 &
+	nohup notirun.sh ./mpsdodo.py -n 8 > ${LOGDIR}/cldd/nohup.log 2>&1 &
 
 .PHONY: test
 test: clean-logs
@@ -54,8 +48,8 @@ stop:
 	pkill -f -SIGINT antonlee-mpsdodo-server
 
 plots:
-	uv run notebook/plot_error_stream.py
-	uv run notebook/plots.py
+	uv run analysis/plots.py
+	uv run analysis/plot_error_stream.py
 
 
 fig-to-jpg:

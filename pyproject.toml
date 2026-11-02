@@ -24,6 +24,7 @@ dependencies = [
     "hypothesis>=6.155.2",
     "fg-data-profiling>=4.19.1",
     "pingouin>=0.6.1",
+    "cmcrameri>=1.10",
 ]
 
 [tool.uv.sources]

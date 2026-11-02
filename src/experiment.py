@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from src.tblogger import TensorboardLogger
 from src import config
@@ -98,12 +98,11 @@ class Experiment:
             self.scheduler.attach_with(self.dispatcher)
 
         ocl_metrics = ocl_train_eval_loop(
-            learner=self.learner,
+            learner=self.drift_detector.learner,
             train_streams=self.train_streams(),
             test_streams=self.test_streams(),
             progress_bar=not self.config.disable_progress_bar,
             dispatcher=self.dispatcher,
-            attach_learner=False,
             epochs=self.config.scenario.epochs,
         )
 
@@ -121,7 +120,7 @@ class Experiment:
         # Save Continual Learning Metrics
         ocl_pickle = self.logdir / "ocl_metrics.pkl"
         with open(ocl_pickle, "wb") as f:
-            ocl_metrics.ttt = None  # type: ignore
+            ocl_metrics = replace(ocl_metrics, ttt=None)
             pickle.dump(ocl_metrics, f)
 
         # Save Drift Detection Metrics

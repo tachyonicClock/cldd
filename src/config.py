@@ -52,6 +52,7 @@ class Config:
 
         return (
             Path(os.environ.get("LOGDIR", "logs"))
+            / "cldd"
             / self.label
             / self.scenario_label
             / self.learner.type_

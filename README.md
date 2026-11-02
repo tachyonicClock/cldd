@@ -25,14 +25,14 @@ uv run main.py -c config/base.yml -c config/strategy/EWC.yml -c config/detector/
 
 Plot results with tensorboard:
 ```sh
-uv run tensorboard --logdir $LOGDIR
+uv run tensorboard --logdir $LOGDIR/cldd
 ```
 
 Run experiment workflow `dodo.py` to generate benchmark and dataset:
 ```sh
 uv run doit
 ```
-Will generate a `$LOGDIR/evaluate/data_frame.csv` and `$LOGDIR/dd_run/data_frame.csv`.
+Will generate a `$LOGDIR/cldd/evaluate/data_frame.csv` and `$LOGDIR/cldd/dd_run/data_frame.csv`.
 
 Parts of the workflow can be run independently
 ```
@@ -55,8 +55,8 @@ uv run analysis/plots.py
 
 ## Result Files
 
-The workflow writes two CSV files to `$LOGDIR`. Copies are in `data/`. The scripts in
-`analysis/` read the ones in `$LOGDIR`. Each row is one run, and both files share these columns:
+The workflow writes two CSV files to `$LOGDIR/cldd`. Copies are in `data/`. The scripts in
+`analysis/` read the ones in `$LOGDIR/cldd`. Each row is one run, and both files share these columns:
 
 | Column | Meaning |
 | --- | --- |

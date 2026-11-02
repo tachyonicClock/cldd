@@ -17,11 +17,65 @@ atab10 = ListedColormap(
 
 rename_methods = {"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"}
 
+# SEED and STEPD runs use the one-sided variants. Show them under the plain names.
+ONE_SIDED_LABELS = {"SEED_ONE_SIDED": "SEED", "STEPD_ONE_SIDED": "STEPD"}
 
-width = 390
+
+# One column of the paper is 252 pt (3.5 in) wide. Plot at this size so text is not
+# scaled down when the figure is included with width=\linewidth.
+width = 252
 scale = 1 / 72
 
 FIGSIZE_43 = (width * scale, width * scale / (4 / 3))
 
-# SILVER RATIO
-FIGSIZE_SR = (width * scale, width * scale / (1 + 2**0.5))
+# Wide plots with 1 to 3 panels (golden ratio)
+FIGSIZE_SR = (width * scale, width * scale / 1.618)
+
+# Tall plots with stacked panels
+FIGSIZE_TALL = (width * scale, width * scale * 1.1)
+
+
+# --- Colours (Okabe-Ito, safe for colour-blind readers) ---
+# Every figure takes its colours from here so one meaning has one colour.
+STRATEGY_PALETTE = {
+    "FT": "#999999",
+    "EWC": "#0072B2",
+    "SI": "#56B4E9",
+    "RWalk": "#009E73",
+    "MAS": "#E69F00",
+    "LWF": "#D55E00",
+}
+
+# Drift speed, from fast to slow (dark to light)
+BOUNDARY_PALETTE = {
+    "abrupt": "#7A3B63",
+    "gradual": "#CC79A7",
+    "slow": "#EBC3D8",
+}
+
+DETECTOR_PALETTE = {
+    "oracle": "#000000",
+    "ADWIN*": "#F0E442",
+    "Best": "#999999",
+}
+
+# Error stream plots
+TRUE_DRIFT_COLOR = "#009E73"
+PRED_DRIFT_COLOR = "#D55E00"
+DRIFT_WINDOW_COLOR = "#DDDDDD"
+
+# No frame or ticks on the top and right
+NO_TOP_RIGHT = {
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "xtick.top": False,
+    "ytick.right": False,
+}
+
+# Text sizes in pt (the figure is 1:1 on paper, the caption is 8 pt), from large to small
+FONT_TITLE, FONT_SUBTITLE, FONT_LABEL, FONT_TICK = 9, 8, 7, 6
+
+# --- Labels (sentence case) ---
+LABEL_F1 = "F1 score"
+LABEL_ACC = "Accuracy"
+LABEL_NMDT = "NMDT"

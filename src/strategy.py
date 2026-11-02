@@ -6,6 +6,8 @@ from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
 from capymoa.ocl.strategy import EWC, LWF, SI, RWalk, MAS
+from capymoa.ocl.evaluation.events import TrainTaskBegin
+from capymoa.ocl.util._optim import reset_optimizer_state
 from torch.optim import Optimizer
 from abc import ABC, abstractmethod
 import torchvision.transforms as T
@@ -110,6 +112,18 @@ class FTArgs(LearnerArgs):
         )
 
 
+class _EWC(EWC):
+    """EWC that resets the optimizer state on each new task.
+
+    CapyMOA 0.15.1 dropped this reset from EWC, but the other strategies and the
+    version used for earlier runs still do it.
+    """
+
+    def on_train_task(self, event: TrainTaskBegin) -> None:
+        reset_optimizer_state(self._optimiser)
+        super().on_train_task(event)
+
+
 @dataclass
 class EWCArgs(LearnerArgs):
     """Elastic Weight Consolidation"""
@@ -133,12 +147,12 @@ class EWCArgs(LearnerArgs):
         model: nn.Module,
         optimizer: Optimizer,
     ) -> BatchClassifier:
-        return EWC(
+        return _EWC(
             schema=schema,
             model=model,
             optimiser=optimizer,
             lambda_=self.lambda_,
-            buffer_capacity=self.buffer_capacity,
+            fim_buffer=self.buffer_capacity,
             fim_batch_size=AUX_BATCH_SIZE,
             device=torch.device(device),
             gamma=self.gamma,

@@ -1,4 +1,5 @@
-from typing import Any, ClassVar, Literal, Sequence
+from typing import Any, Callable, ClassVar, Literal, Sequence
+from capymoa.base import BatchClassifier
 from capymoa.ocl.events import Dispatcher, Handler
 
 from src.events import LogScalar
@@ -62,6 +63,39 @@ class ErrorStreamType(enum.Enum):
     was incorrect."""
 
 
+class UnattachedLearner(BatchClassifier):
+    """Wrap a learner so ``ocl_train_eval_loop`` can not attach it to its dispatcher.
+
+    The loop attaches any learner that is a ``Handler``, which would send it the true
+    task boundaries. Only :class:`OCLDD` should tell the learner about drifts.
+
+    It also keeps the class probabilities of the last prediction, since
+    ``TrainBatchPredict`` only holds the predicted labels. ``after_train`` runs after
+    each training batch.
+    """
+
+    def __init__(self, learner: BatchClassifier):
+        super().__init__(schema=learner.schema, random_seed=learner.random_seed)
+        self.learner = learner
+        self.x_dtype = learner.x_dtype
+        self.y_dtype = learner.y_dtype
+        self.device = learner.device
+        self.last_proba: torch.Tensor | None = None
+        self.after_train: Callable[[], None] | None = None
+
+    def batch_train(self, x: torch.Tensor, y: torch.Tensor) -> None:
+        self.learner.batch_train(x, y)
+        if self.after_train is not None:
+            self.after_train()
+
+    def batch_predict_proba(self, x: torch.Tensor) -> torch.Tensor:
+        self.last_proba = self.learner.batch_predict_proba(x)
+        return self.last_proba
+
+    def __str__(self) -> str:
+        return str(self.learner)
+
+
 class OCLDD(Handler):
     def __init__(
         self,
@@ -73,6 +107,10 @@ class OCLDD(Handler):
     ):
         self._downstream = Dispatcher()
         """Dispatcher used to notify the learners of detected drifts."""
+        self.learner = UnattachedLearner(learner)
+        """Pass this to ``ocl_train_eval_loop`` instead of the learner."""
+        self.learner.after_train = self._after_train
+        self._pending: tuple[TrainBatchPredict, torch.Tensor] | None = None
         if isinstance(learner, Handler):
             logger.info("Drift detector will notify the learner of detected drifts.")
             learner.attach_with(self._downstream)
@@ -111,16 +149,32 @@ class OCLDD(Handler):
                 )
             )
 
-    @torch.no_grad()
     def on_train_batch_predict(self, event: TrainBatchPredict):
+        # CapyMOA 0.15.1 sends this event before it trains on the batch. The old loop
+        # sent it after, so wait for the training step to match it.
+        proba = self.learner.last_proba
+        assert proba is not None and len(proba) == len(event.y)
+        assert self._pending is None
+        self._pending = (event, proba)
+
+    def _after_train(self):
+        if self._pending is not None:
+            event, proba = self._pending
+            self._pending = None
+            self._on_trained_batch(event, proba)
+
+    @torch.no_grad()
+    def _on_trained_batch(self, event: TrainBatchPredict, proba: torch.Tensor):
         batch_size = len(event.y)
         # Compute the cross-entropy loss and error for each instance in the batch, and
         # add them to the respective streams to save for later.
+        # The old loop passed probabilities as "logits", so this matches the CE stream
+        # of earlier runs (softmax is applied twice).
         ce_losses = (
-            cross_entropy(event.y_logits, event.y, reduction="none").cpu().numpy()
+            cross_entropy(proba.cpu().float(), event.y.cpu(), reduction="none").numpy()
         )
         ce_loss = ce_losses.mean()
-        errors = (event.y != event.y_pred).bool().cpu().numpy()
+        errors = (event.y.cpu() != event.y_hat.cpu()).bool().numpy()
         error_rate = errors.mean()
         self._error_stream.append(errors)
         self._ce_stream.append(ce_losses)
@@ -145,30 +199,33 @@ class OCLDD(Handler):
 
     def _poll_drift(self, event: TrainBatchPredict):
         if self.drift_detector.detected_change():
-            logger.info(f"Predicted drift at instance {self._stream_index}")
-            self._dd_preds.append(self._stream_index)
-
-            self._downstream.notify(
-                TrainTaskEnd(
-                    train_task=self._n_drifts,
-                    global_step=event.global_step,
-                    train_step=event.train_step,
-                )
-            )
-            self._n_drifts += 1
-            self._downstream.notify(
-                TrainTaskBegin(
-                    train_task=self._n_drifts,
-                    global_step=event.global_step,
-                    train_step=event.train_step,
-                )
-            )
-
-            if self.reset_on_drift:
-                self.drift_detector.reset()
+            # The learner may need gradients to act on a drift (e.g. EWC Fisher).
+            with torch.enable_grad():
+                self._notify_drift(event)
 
         if self.drift_detector.detected_warning():
             logger.warning(f"Predicted warning at instance {self._stream_index}")
+
+    def _notify_drift(self, event: TrainBatchPredict):
+        logger.info(f"Predicted drift at instance {self._stream_index}")
+        self._dd_preds.append(self._stream_index)
+
+        self._downstream.notify(
+            TrainTaskEnd(
+                train_task=self._n_drifts,
+                global_step=event.global_step,
+            )
+        )
+        self._n_drifts += 1
+        self._downstream.notify(
+            TrainTaskBegin(
+                train_task=self._n_drifts,
+                global_step=event.global_step,
+            )
+        )
+
+        if self.reset_on_drift:
+            self.drift_detector.reset()
 
     def on_train_task_begin(self, event: TrainTaskBegin):
         # The start does not count as a drift.

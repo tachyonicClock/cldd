@@ -58,7 +58,7 @@ class HPSearchConfig:
     study_prefix: str = "bocl"
     metric: str = "accuracy_final"
     storage: str = field(
-        default_factory=lambda: os.environ.get("LOGDIR", "logs") + "/optuna.journal.log"
+        default_factory=lambda: os.environ.get("LOGDIR", "logs") + "/cldd/optuna.journal.log"
     )
     maximize: bool = True
 

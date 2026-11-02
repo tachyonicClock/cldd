@@ -50,8 +50,8 @@ DETECTOR = [
     "ADWIN",
     "DDM",
     "PH",
-    "SEED",
-    "STEPD",
+    "SEED_ONE_SIDED",
+    "STEPD_ONE_SIDED",
 ]
 BOUNDARY = [
     "abrupt",
@@ -77,7 +77,7 @@ if DEBUG_MODE:
 
 ORACLE_DETECTOR = "oracle"
 
-LOG_ROOT = Path(os.environ.get("LOGDIR", "logs"))
+LOG_ROOT = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
 
 
 @dataclass

@@ -17,6 +17,8 @@ class FashionCNN(nn.Module):
         self.fc2 = nn.Linear(in_features=64, out_features=num_classes)
 
     def features(self, x):
+        # CapyMOA passes flat rows, so restore the image shape.
+        x = x.view(-1, 1, 28, 28)
         x = self.pool1(self.relu1(self.conv1(x)))
         x = self.pool2(self.relu2(self.conv2(x)))
         x = x.flatten(1)

@@ -1,0 +1,18 @@
+drift_detector:
+  type_: STEPD
+  label: "STEPD_ONE_SIDED"
+  one_sided: true
+  error_stream_type: ERROR # ONLY SUPPORTS BIT STREAM
+
+hpsearch:
+  args:
+    "drift_detector.window_size":
+      type_: int
+      low: 30
+      high: 1000
+      log: true
+    "drift_detector.alpha_drift":
+      type_: float
+      low: 0.001
+      high: 0.1
+      log: true

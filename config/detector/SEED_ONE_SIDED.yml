@@ -1,0 +1,26 @@
+drift_detector:
+  type_: SEED
+  label: "SEED_ONE_SIDED"
+  one_sided: true
+  error_stream_type: ERROR
+
+hpsearch:
+  args:
+    "drift_detector.delta":
+      type_: float
+      low: 0.0001
+      high: 0.1
+      log: true
+    "drift_detector.epsilon_prime":
+      type_: float
+      low: 0.0025
+      high: 0.01
+    "drift_detector.block_size":
+      type_: int
+      low: 32
+      high: 256
+      log: false
+    "drift_detector.alpha":
+      type_: float
+      low: 0.2
+      high: 0.8
