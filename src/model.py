@@ -21,10 +21,11 @@ class ModelArgs:
 @dataclass
 class PerceptronArgs(ModelArgs):
     type_: ClassVar[str] = "MLP"
+    hidden_size: int = 50
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         manual_seed(seed)
-        return Perceptron(schema)
+        return Perceptron(schema, hidden_size=self.hidden_size)
 
 
 @dataclass

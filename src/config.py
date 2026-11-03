@@ -33,6 +33,9 @@ class Config:
     seed: int = 0
     label: str = "noname"
     """Optional top level name for the experiment."""
+    dataset_label: Optional[str] = None
+    """Adds a dataset level to log paths and study names. None keeps the
+    RotatedFashionMNIST layout."""
     trial: Optional[int] = None
     hpsearch: Optional[HPSearchConfig] = None
 
@@ -50,9 +53,11 @@ class Config:
         else:
             trial_id = f"{self.trial:03d}"
 
+        root = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
+        if self.dataset_label is not None:
+            root = root / self.dataset_label
         return (
-            Path(os.environ.get("LOGDIR", "logs"))
-            / "cldd"
+            root
             / self.label
             / self.scenario_label
             / self.learner.type_
@@ -67,6 +72,7 @@ class Config:
         return "/".join(
             [
                 self.hpsearch.study_prefix,
+                *([self.dataset_label] if self.dataset_label else []),
                 self.label,
                 self.scenario_label,
                 self.learner.type_,

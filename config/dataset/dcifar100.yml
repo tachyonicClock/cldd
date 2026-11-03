@@ -1,0 +1,8 @@
+# DomainCIFAR100 on frozen ViT features. Overrides the RotatedFashionMNIST defaults
+# in base.yml.
+dataset_label: dcifar100
+scenario:
+  name: DomainCIFAR100ViT
+model:
+  type_: MLP
+  hidden_size: 256

@@ -14,6 +14,8 @@ from pathlib import Path
 from src.dataset.clear10 import load_clear10
 
 VALID_FRACTION = 0.1
+DOMAIN_SPLIT_SEED = 0
+"""Seed that picks which fine classes form each DomainCIFAR100 domain."""
 
 
 def split_train_valid(train_tasks: Sequence[Dataset], valid_fraction: float, seed: int):
@@ -102,6 +104,18 @@ class ScenarioArgs:
             schema=stream.get_schema(),
         )
 
+    def _get_domain_cifar100_vit(self, seed: int) -> Scenario:
+        # Fix the fine classes in each domain, so every seed sees the same
+        # distributions in the same order (as in RotatedFashionMNISTPT). The run
+        # seed only shuffles instances within each domain. ViT features are
+        # already normalized.
+        dataset = datasets.DomainCIFAR100ViT(seed=DOMAIN_SPLIT_SEED)
+        return Scenario(
+            train_tasks=shuffle_task_contents(dataset.train_tasks, seed),
+            test_tasks=dataset.test_tasks,
+            schema=dataset.schema,
+        )
+
     def _get_rotated_fashion_mnist_pt(self) -> Scenario:
         data_path = (
             Path(__file__).resolve().parent.parent
@@ -138,9 +152,7 @@ class ScenarioArgs:
         )
         match self.name:
             case "DomainCIFAR100ViT":
-                # ViT features are already normalized
-                kwargs.pop("normalize_features")
-                return datasets.DomainCIFAR100ViT(**kwargs)
+                return self._get_domain_cifar100_vit(seed)
             case "DomainCIFAR100":
                 return datasets.DomainCIFAR100(**kwargs)
             case "RotatedMNIST":
