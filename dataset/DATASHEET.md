@@ -15,17 +15,20 @@ concatenated together if desired.
 ### CLDD-A `CLDD_A.parquet`
 
 CLDD-A contains the `oracle` drift detector which perflectly predicts drifts controling
-a continual learning algorithm.
+a continual learning algorithm. It holds two datasets, told apart by the `dataset`
+column: RotatedFashionMNIST (`rfmnist`, the main study) and DomainCIFAR100
+(`dcifar100`, a smaller check).
 
 The standard evaluation scheme splits the dataset based on seeds into a training set
 (10 seeds) and a test set (10 seeds). Using five training error-streams, each detector
 is tuned for a specific strategy-boundary pair.
 
-CLDD-A is a full factorial of 3 boundaries × 6 strategies × 1 detector × 20 seeds = 360 configurations.
+CLDD-A is a full factorial of 2 datasets × 3 boundaries × 6 strategies × 1 detector ×
+20 seeds = 720 configurations.
 
-| `boundary`            | `strategy`                      | `detector` | count each |
-|:----------------------|:--------------------------------|:-----------|:----------:|
-| abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     20     |
+| `dataset`          | `boundary`            | `strategy`                      | `detector` | count each |
+|:-------------------|:----------------------|:--------------------------------|:-----------|:----------:|
+| rfmnist, dcifar100 | abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     20     |
 
 
 ### CLDD-B `CLDD_B.parquet`
@@ -64,6 +67,13 @@ cldd_a
 
 ## Columns
 
+*   `dataset` (String)
+
+    The dataset the learner was trained on. `rfmnist` is RotatedFashionMNIST (5
+    distributions of 60,000 images, so streams of about 300,000 values). `dcifar100` is
+    DomainCIFAR100 on frozen ViT features (5 distributions of 10,000 samples, so streams
+    of about 50,000 values). CLDD-B holds only `rfmnist`.
+
 *   `boundary` (String)
 
     Controls how gradual the transition between tasks.
@@ -85,7 +95,7 @@ cldd_a
 
 *   `error_stream` (list, boolean)
 
-    Test-then-train per-instance errors. Roughly 300,000 values.
+    Test-then-train per-instance errors. Roughly 300,000 values for `rfmnist` and 50,000 for `dcifar100`.
 
 *   `trues` (list, int32)
 
