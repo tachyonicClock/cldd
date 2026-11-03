@@ -1,4 +1,48 @@
+from cycler import cycler
 from matplotlib.colors import ListedColormap
+
+# The "science" then "nature" styles of SciencePlots, copied here to drop the package.
+# Text is set with LaTeX, so it needs a TeX install.
+PAPER_STYLE = {
+    "axes.prop_cycle": cycler(
+        color=["#0C5DA5", "#00B945", "#FF9500", "#FF2C00", "#845B97", "#474747", "#9e9e9e"]
+    ),
+    "figure.figsize": (3.3, 2.5),
+    "xtick.direction": "in",
+    "xtick.major.size": 3,
+    "xtick.major.width": 0.5,
+    "xtick.minor.size": 1.5,
+    "xtick.minor.width": 0.5,
+    "xtick.minor.visible": True,
+    "xtick.top": True,
+    "ytick.direction": "in",
+    "ytick.major.size": 3,
+    "ytick.major.width": 0.5,
+    "ytick.minor.size": 1.5,
+    "ytick.minor.width": 0.5,
+    "ytick.minor.visible": True,
+    "ytick.right": True,
+    "axes.linewidth": 0.5,
+    "grid.linewidth": 0.5,
+    "lines.linewidth": 1.0,
+    "lines.markersize": 3,
+    "legend.frameon": False,
+    "savefig.bbox": "tight",
+    "savefig.pad_inches": 0.05,
+    "axes.labelsize": 7,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
+    "font.size": 7,
+    "font.family": "sans-serif",
+    "font.sans-serif": [
+        "DejaVu Sans", "Arial", "Helvetica", "Lucida Grande", "Verdana", "Geneva",
+        "Lucid", "Avant Garde", "sans-serif",
+    ],
+    "mathtext.fontset": "dejavusans",
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{amsmath} \usepackage{amssymb} \usepackage{sfmath}",
+}
 
 atab10 = ListedColormap(
     [
@@ -74,6 +118,9 @@ NO_TOP_RIGHT = {
 
 # Text sizes in pt (the figure is 1:1 on paper, the caption is 8 pt), from large to small
 FONT_TITLE, FONT_SUBTITLE, FONT_LABEL, FONT_TICK = 9, 8, 7, 6
+
+# Colour of the red panel labels, such as (a), that the captions refer to
+PANEL_LABEL_COLOR = "#D00000"
 
 # --- Labels (sentence case) ---
 LABEL_F1 = "F1 score"

@@ -13,10 +13,11 @@ import numpy as np
 import pandas as pd
 from cmcrameri import cm
 import seaborn as sns
-import scienceplots as _  # noqa: F401
 from scipy import stats
 
 from common import (
+    PANEL_LABEL_COLOR,
+    PAPER_STYLE,
     BOUNDARY_PALETTE,
     DETECTOR_PALETTE,
     DRIFT_WINDOW_COLOR,
@@ -35,7 +36,7 @@ from common import (
 )
 
 # --- Configuration & Setup ---
-plt.style.use(["science", "nature"])
+plt.style.use(PAPER_STYLE)
 plt.rcParams.update(NO_TOP_RIGHT)
 
 # Directory Setup
@@ -654,9 +655,9 @@ def lineplot_acc_loss_strategy_boundary(
 
 # Letters that the caption refers to: (letter, NMDT, F1) in each panel
 CONTOUR_LETTERS = {
-    "abrupt": ("a", -0.55, 0.5),
-    "gradual": ("b", 0.3, 0.62),
-    "slow": ("c", -0.55, 0.9),
+    "abrupt": ("(a)", -0.55, 0.5),
+    "gradual": ("(b)", 0.3, 0.62),
+    "slow": ("(c)", -0.55, 0.9),
 }
 
 
@@ -706,9 +707,9 @@ def contour_acc_nmdt_f1_boundary(
         ax.scatter(*runs[boundary], s=2.5, color="black", linewidth=0, zorder=3)
         letter, lx, ly = CONTOUR_LETTERS[boundary]
         ax.text(
-            lx, ly, rf"\textbf{{{letter}}}", color="#8B0000", fontsize=FONT_SUBTITLE,
+            lx, ly, rf"\textbf{{{letter}}}", color=PANEL_LABEL_COLOR, fontsize=FONT_LABEL,
             ha="center", va="center", zorder=4,
-            path_effects=[withStroke(linewidth=2.2, foreground="white")],
+            path_effects=[withStroke(linewidth=1.5, foreground="white")],
         )
         ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
         ax.minorticks_off()
