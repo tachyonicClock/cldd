@@ -30,7 +30,12 @@ def call(
 
     log_file = None
     if identifier is not None:
-        log_file = Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "console" / f"{identifier}.log"
+        log_file = (
+            Path(os.environ.get("LOGDIR", "logs"))
+            / "cldd"
+            / "console"
+            / f"{identifier}.log"
+        )
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -147,3 +152,15 @@ def collect_dd_run_records(
     target.parent.mkdir(parents=True, exist_ok=True)
     df = load_dd_run_records(dd_run_dirs)
     df.to_csv(target, index=False, float_format="%.4f")
+
+
+def select_best(
+    best_trials: Dict[str, Path],
+    detector_configs: Dict[str, Path],
+    order: List[str],
+    label: str,
+    target: Path,
+):
+    from src.select_best import write_best_detector
+
+    write_best_detector(best_trials, detector_configs, order, label, target)

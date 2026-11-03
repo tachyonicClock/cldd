@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
-from src.config import converter, Config
+from src.config import converter, Config, DEFAULT_DATASET_LABEL
 import pickle
 import yaml
 from dataclasses import asdict
@@ -65,6 +65,7 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
 
     record = {}
     # Index
+    record["dataset"] = config.dataset_name
     record["strategy"] = config.learner.type_
     record["detector"] = config.drift_detector.type_
     record["detector_label"] = config.drift_detector.label
@@ -84,7 +85,10 @@ def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, A
     with open(dirname / "dd_metrics.pkl", "rb") as f:
         dd_metrics = pickle.load(f)
 
-    # Expected layout: logs/??/<boundary>/<strategy>/<detector>/<trial>
+    # Expected layout: cldd/[<dataset>/]<label>/<boundary>/<strategy>/<detector>/<trial>
+    dataset = dirname.parents[4].name
+    if dataset == "cldd":
+        dataset = DEFAULT_DATASET_LABEL
     detector = dirname.parent.name
     strategy = dirname.parent.parent.name
     boundary = dirname.parent.parent.parent.name
@@ -97,6 +101,7 @@ def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, A
             seed = config.seed
 
     record: Dict[str, int | str | float | bool] = {
+        "dataset": dataset,
         "strategy": strategy,
         "detector": detector,
         "detector_label": detector,
@@ -127,6 +132,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
 
     df = pd.DataFrame(metadata)
 
+    dataset_array = pa.array(df["dataset"], pa.string())
     seed_array = pa.array(df["seed"], pa.int32())
     strategy_array = pa.array(df["strategy"], pa.string())
     detector_array = pa.array(df["detector"], pa.string())
@@ -141,6 +147,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
 
     table = pa.Table.from_arrays(
         [
+            dataset_array,
             boundary_array,
             strategy_array,
             detector_array,
@@ -153,6 +160,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             max_early_array,
         ],
         names=[
+            "dataset",
             "boundary",
             "strategy",
             "detector",

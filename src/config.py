@@ -16,6 +16,10 @@ import torch
 import time
 
 
+DEFAULT_DATASET_LABEL = "rfmnist"
+"""Dataset name used in results when `Config.dataset_label` is None."""
+
+
 @dataclass
 class Config:
     scenario: ScenarioArgs
@@ -41,6 +45,10 @@ class Config:
 
     include: Sequence[Path] | None = None
     """List of config files to include. NOT RECURSIVE."""
+
+    @property
+    def dataset_name(self) -> str:
+        return self.dataset_label or DEFAULT_DATASET_LABEL
 
     @property
     def scenario_label(self) -> str:
