@@ -31,6 +31,7 @@ dd_metric_keys = [
     "my_fp",
     "my_tp",
     "my_fn",
+    "max_delay",
 ]
 
 ttt_metric_keys = ["accuracy"]

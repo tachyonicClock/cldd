@@ -28,6 +28,7 @@ from common import (
     LABEL_ACC,
     LABEL_F1,
     LABEL_NMDT,
+    load_best_detectors,
     FIGSIZE_SR,
     NO_TOP_RIGHT,
     STRATEGY_PALETTE,
@@ -50,8 +51,6 @@ ACC_METRIC = "ocl.accuracy_seen_avg"
 MIN_RUN_F1 = 0.5
 # Alternative: only keep detectors in the top quartile of mean F1
 DETECTOR_F1_QUANTILE = 0.75
-# Detection window (max_delay) of each boundary in instances, as stored in the runs
-BOUNDARY_DIVISORS = {"abrupt": 640, "gradual": 6_638, "slow": 12_637}
 
 STRATEGY_ORDER = ["FT", "EWC", "SI", "RWalk", "MAS", "LWF"]
 
@@ -101,26 +100,28 @@ def save_fig(fig: plt.Figure, filename: str) -> None:
 
 
 def compute_nmdt(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute normalized mean detection time (nmdt) based on boundary type."""
+    """Compute normalized mean detection time (nmdt): mdt over the run's detection
+    window (max_delay), so it is comparable across boundaries and datasets."""
     df = df.copy()
-    df["nmdt"] = df["dd.mdt"] / df["boundary"].map(BOUNDARY_DIVISORS)
+    df["nmdt"] = df["dd.mdt"] / df["dd.max_delay"]
     # If NAN replace with 1
     df["nmdt"] = df["nmdt"].fillna(1.0)
     return df
 
 
 def prepare_best_detector_data(
-    df_dd: pd.DataFrame, df_ev: pd.DataFrame
+    df_best: pd.DataFrame, df_ev: pd.DataFrame
 ) -> pd.DataFrame:
-    """Filters data and identifies the best detectors across strategies for faceted boxplots."""
+    """Keep Oracle, ADWIN* and the best detector of each strategy and boundary.
+
+    :param df_best: Output of `common.load_best_detectors`. The best detector is
+        picked on the tuning seeds (phase 2), not on these evaluation runs.
+    """
     df_ev = df_ev.copy()
 
-    # 1. Identify best methods dynamically
-    best_methods_idx = (
-        df_dd.groupby(["boundary", "strategy", "detector"])[F1_METRIC]
-        .mean()
-        .groupby(["boundary", "strategy"])
-        .idxmax()
+    # 1. Best detector per boundary and strategy
+    best_methods_idx = pd.MultiIndex.from_frame(
+        df_best[["boundary", "strategy", "best"]]
     )
 
     # 2. Match the best methods against df_ev using MultiIndex
@@ -919,6 +920,6 @@ if __name__ == "__main__":
     save_fig(fig_nmdt, "boxplot_detector_nmdt.pdf")
 
     # 4. Generate faceted strategy performance boxplots
-    df_faceted = prepare_best_detector_data(df_dd_raw, df_eval_raw)
+    df_faceted = prepare_best_detector_data(load_best_detectors(logs_path), df_eval_raw)
     fig_faceted = plot_faceted_strategy_boxplots(df_faceted)
     save_fig(fig_faceted, "boxplot_accuracy_strategy_detector.pdf")

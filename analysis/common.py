@@ -126,3 +126,30 @@ PANEL_LABEL_COLOR = "#D00000"
 LABEL_F1 = "F1 score"
 LABEL_ACC = "Accuracy"
 LABEL_NMDT = "NMDT"
+
+
+def load_best_detectors(dataset_root) -> "pd.DataFrame":
+    """Load the detector picked by `task_select_best` per boundary and strategy.
+
+    :param dataset_root: `$LOGDIR/cldd` for the main dataset, or
+        `$LOGDIR/cldd/<dataset>` for a check dataset.
+    :return: Columns `boundary`, `strategy` and `best`.
+    """
+    from pathlib import Path
+
+    import pandas as pd
+    from omegaconf import OmegaConf
+
+    rows = []
+    # Layout: select_best/<boundary>/<strategy>/<label>/best_detector.yml
+    for path in sorted(Path(dataset_root).glob("select_best/*/*/*/best_detector.yml")):
+        rows.append(
+            {
+                "boundary": path.parents[2].name,
+                "strategy": path.parents[1].name,
+                "best": OmegaConf.load(path).selection.best,
+            }
+        )
+    if not rows:
+        raise FileNotFoundError(f"No select_best outputs under {dataset_root}")
+    return pd.DataFrame(rows)
