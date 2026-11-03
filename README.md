@@ -48,6 +48,14 @@ CLDD_A                   Generate continual learners as a drift detection datase
 CLDD_B                   Generate continual learners as a drift detection dataset.
 ```
 
+### Dataset check (DomainCIFAR100)
+
+A smaller check repeats the pipeline on DomainCIFAR100 (frozen ViT features). Its
+config is `config/dataset/dcifar100.yml` and its outputs go to `$LOGDIR/cldd/dcifar100`.
+Phase 3 runs only the oracle, ADWIN (picked on RotatedFashionMNIST) and `BEST`, the
+detector picked by `select_best` from phase 2 (see `src/select_best.py`). Write the
+comparison tables with `uv run analysis/results_check.py`.
+
 Analysis with the scripts in `analysis/` can be run with:
 ```sh
 uv run analysis/plots.py
