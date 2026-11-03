@@ -1,0 +1,10 @@
+# CORe50, each of its 11 sessions as a domain, raw 32x32 pixels, CNN trained end to end.
+dataset_label: core50
+scenario:
+  name: CORe50
+model:
+  type_: AirbenchCNN
+# One pass over the stream, but 4 training steps per mini-batch (3 on AutoAugment
+# copies), so the CNN levels off within each session. Picked in a pilot from {1, 2, 4}.
+train_repeats: 4
+augment_repeats: true

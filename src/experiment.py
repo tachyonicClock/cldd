@@ -49,6 +49,7 @@ class Experiment:
 
         logger.info("Build drift detector.")
         self._init_drift_detector(config)
+        self._init_repeats(config)
 
         self.logdir = self.new_logdir()
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
@@ -66,6 +67,18 @@ class Experiment:
                 rate_period=int(mean_length),
             ),
         )
+
+    def _init_repeats(self, config):
+        learner = self.drift_detector.learner
+        learner.repeats = config.train_repeats
+        if config.augment_repeats and config.train_repeats > 1:
+            if self.scenario.mean is None or self.scenario.std is None:
+                raise ValueError("augment_repeats needs the scenario mean and std.")
+            from src.augment import FlatAutoAugment
+
+            learner.augment = FlatAutoAugment(
+                tuple(self.schema.shape), self.scenario.mean, self.scenario.std
+            ).to(self.device)
 
     def new_logdir(self) -> Path:
         logdir = self.config.logdir

@@ -82,9 +82,16 @@ class UnattachedLearner(BatchClassifier):
         self.device = learner.device
         self.last_proba: torch.Tensor | None = None
         self.after_train: Callable[[], None] | None = None
+        self.repeats = 1
+        """Training steps per batch. Each sample is still predicted only once."""
+        self.augment: Callable[[torch.Tensor], torch.Tensor] | None = None
+        """Applied to the batch before each extra step."""
 
     def batch_train(self, x: torch.Tensor, y: torch.Tensor) -> None:
         self.learner.batch_train(x, y)
+        for _ in range(self.repeats - 1):
+            x_step = x if self.augment is None else self.augment(x)
+            self.learner.batch_train(x_step, y)
         if self.after_train is not None:
             self.after_train()
 

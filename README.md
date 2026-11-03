@@ -48,10 +48,13 @@ CLDD_A                   Generate continual learners as a drift detection datase
 CLDD_B                   Generate continual learners as a drift detection dataset.
 ```
 
-### Dataset check (DomainCIFAR100)
+### Dataset check (CORe50)
 
-A smaller check repeats the pipeline on DomainCIFAR100 (frozen ViT features). Its
-config is `config/dataset/dcifar100.yml` and its outputs go to `$LOGDIR/cldd/dcifar100`.
+A smaller check repeats the pipeline on CORe50, with each of its 11 sessions as a
+distribution and a CNN trained end to end. Its config is `config/dataset/core50.yml` and
+its outputs go to `$LOGDIR/cldd/core50`. It reads `$DATASETS/core50_32x32.hdf5`.
+`config/dataset/dcifar100.yml` (DomainCIFAR100 on frozen ViT features) was an earlier
+check, dropped because it forgets too little to test detection.
 Phase 3 runs only the oracle, ADWIN (picked on RotatedFashionMNIST) and `BEST`, the
 detector picked by `select_best` from phase 2 (see `src/select_best.py`). Write the
 comparison tables with `uv run analysis/results_check.py`.

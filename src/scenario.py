@@ -56,6 +56,9 @@ class Scenario:
     train_tasks: Sequence[Dataset]
     test_tasks: Sequence[Dataset]
     schema: Schema
+    mean: Optional[torch.Tensor] = None
+    """Per-channel mean used to normalize images, if known."""
+    std: Optional[torch.Tensor] = None
 
 
 @dataclass
@@ -68,6 +71,7 @@ class ScenarioArgs:
         "RotatedFashionMNISTPT",
         "RotatedTinyMNIST",
         "CLEAR10",
+        "CORe50",
     ]
     normalize_features: bool = True
     gradual: float = 0.0
@@ -116,6 +120,66 @@ class ScenarioArgs:
             schema=dataset.schema,
         )
 
+    def _get_domain_cifar100(self, seed: int) -> Scenario:
+        # Same fixed domain split as DomainCIFAR100ViT, on raw pixels.
+        dataset = datasets.DomainCIFAR100(
+            seed=DOMAIN_SPLIT_SEED, normalize_features=self.normalize_features
+        )
+        return Scenario(
+            train_tasks=shuffle_task_contents(dataset.train_tasks, seed),
+            test_tasks=dataset.test_tasks,
+            schema=dataset.schema,
+        )
+
+    def _get_core50(self, seed: int) -> Scenario:
+        """CORe50 with each of its 11 sessions as a domain (new instances, NI).
+
+        Sessions change background and lighting. The label is one of 50 objects.
+        Reads `$DATASETS/core50_32x32.hdf5`. The run seed shuffles instances within
+        each session.
+        """
+        import h5py
+
+        path = Path(environ["DATASETS"]) / "core50_32x32.hdf5"
+        with h5py.File(path, "r") as f:
+            sessions = sorted(f.keys(), key=lambda k: int(k[1:]))
+            train = [
+                (
+                    torch.from_numpy(f[f"{s}/train/features"][:]),
+                    torch.from_numpy(f[f"{s}/train/labels"][:]).long(),
+                )
+                for s in sessions
+            ]
+            test = [
+                (
+                    torch.from_numpy(f[f"{s}/test/features"][:]),
+                    torch.from_numpy(f[f"{s}/test/labels"][:]).long(),
+                )
+                for s in sessions
+            ]
+
+        mean = std = None
+        if self.normalize_features:
+            x = torch.cat([x for x, _ in train]).float() / 255.0
+            mean = x.mean(dim=(0, 2, 3)).view(3, 1, 1)
+            std = x.std(dim=(0, 2, 3)).view(3, 1, 1)
+
+        train_tasks = [_ImageTask(x, y, mean, std) for x, y in train]
+        test_tasks = [_ImageTask(x, y, mean, std) for x, y in test]
+        schema = Schema.from_custom(
+            features=[str(i) for i in range(3 * 32 * 32)] + ["class"],
+            target="class",
+            categories={"class": [str(i) for i in range(50)]},
+        )
+        schema.shape = (3, 32, 32)
+        return Scenario(
+            train_tasks=shuffle_task_contents(train_tasks, seed),
+            test_tasks=test_tasks,
+            schema=schema,
+            mean=mean,
+            std=std,
+        )
+
     def _get_rotated_fashion_mnist_pt(self) -> Scenario:
         data_path = (
             Path(__file__).resolve().parent.parent
@@ -154,7 +218,7 @@ class ScenarioArgs:
             case "DomainCIFAR100ViT":
                 return self._get_domain_cifar100_vit(seed)
             case "DomainCIFAR100":
-                return datasets.DomainCIFAR100(**kwargs)
+                return self._get_domain_cifar100(seed)
             case "RotatedMNIST":
                 return datasets.RotatedMNIST(**kwargs, preload_test=False)
             case "RotatedFashionMNIST":
@@ -165,6 +229,8 @@ class ScenarioArgs:
                 return datasets.RotatedTinyMNIST(**kwargs, preload_test=False)
             case "CLEAR10":
                 return self._get_clear10(seed)
+            case "CORe50":
+                return self._get_core50(seed)
             case _:
                 raise ValueError(f"Unknown scenario name: {self.name}")
 
@@ -203,6 +269,8 @@ class ScenarioArgs:
             train_tasks=train_tasks,  # type: ignore
             test_tasks=test_tasks,  # type: ignore
             schema=scenario.schema,
+            mean=getattr(scenario, "mean", None),
+            std=getattr(scenario, "std", None),
         )
 
 
@@ -220,4 +288,29 @@ class _RotatedFashionMNISTTask(Dataset):
             x = x.float() / 255.0
         else:
             x = x.float()
+        return x, self.y[index]
+
+
+class _ImageTask(Dataset):
+    """uint8 images in memory, scaled to [0, 1] and normalized per channel."""
+
+    def __init__(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        mean: torch.Tensor | None,
+        std: torch.Tensor | None,
+    ):
+        self.x = x
+        self.y = y
+        self.mean = mean
+        self.std = std
+
+    def __len__(self) -> int:
+        return len(self.y)
+
+    def __getitem__(self, index: int):
+        x = self.x[index].float() / 255.0
+        if self.mean is not None:
+            x = (x - self.mean) / self.std
         return x, self.y[index]

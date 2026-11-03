@@ -90,4 +90,8 @@ class AirbenchCNN(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        if x.dim() == 2:
+            # CapyMOA passes flat rows, so restore a square 3-channel image.
+            side = int(round((x.shape[1] / 3) ** 0.5))
+            x = x.view(-1, 3, side, side)
         return self.classifier(self.features(x))

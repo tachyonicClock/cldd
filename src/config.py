@@ -31,6 +31,10 @@ class Config:
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
+    train_repeats: int = 1
+    """Training steps on each mini-batch. Values above 1 help single-pass convergence."""
+    augment_repeats: bool = False
+    """Apply AutoAugment to the batch on the extra steps (needs scenario mean/std)."""
     mb_test: int = 256
     disable_progress_bar: bool = False
 

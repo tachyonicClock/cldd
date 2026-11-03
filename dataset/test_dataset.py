@@ -24,8 +24,8 @@ EXPECTED_COLUMNS = [
 BOUNDARIES = ["abrupt", "gradual", "slow"]
 
 # CLDD-A specific configurations
-DATASETS_A = ["rfmnist", "dcifar100"]
-STREAM_LENGTHS = {"rfmnist": 300_000, "dcifar100": 50_000}
+DATASETS_A = ["rfmnist", "core50"]
+STREAM_LENGTHS = {"rfmnist": 300_000, "core50": 126_500}
 STRATEGIES_A = ["EWC", "FT", "LWF", "MAS", "RWalk", "SI"]
 DETECTORS_A = ["oracle"]
 
