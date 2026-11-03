@@ -1,12 +1,15 @@
-"""Write the dataset check table (LaTeX): Oracle vs the best detector on each dataset.
+"""Write the dataset check tables (LaTeX): Oracle vs ADWIN vs the best detector.
 
 Run with `uv run analysis/results_check.py`. Reads `evaluate/data_frame.csv` and the
 `select_best` outputs of each dataset under `$LOGDIR/cldd`. Writes
-`table/check_oracle_best.tex`.
+`table/check_oracle_best.tex` (accuracy) and `table/check_oracle_best_dd.tex` (F1 and
+NMDT).
 
-The best detector of each strategy and boundary is picked on the tuning seeds (see
-`src/select_best.py`). Significance marks use the same tests as
-`results_strategy.py`, run per dataset on the Oracle and best detector runs only.
+ADWIN is the detector picked on RotatedFashionMNIST. The best detector (`Best`) of
+each strategy and boundary is picked on the tuning seeds of each dataset (see
+`src/select_best.py`). Significance marks use the same tests as `results_strategy.py`.
+Each detector is tested against the Oracle on its own, so the two families do not
+share runs when the best detector is ADWIN.
 """
 
 import pandas as pd
@@ -25,93 +28,106 @@ from results_strategy import (
     significance_tests,
 )
 
+ORACLE = "oracle"
+FIXED = "ADWIN"
 BEST = "BEST"
-DATASETS = {"rfmnist": ("RotatedFashionMNIST", LOGS), "dcifar100": ("DomainCIFAR100", LOGS / "dcifar100")}
+DATASETS = {
+    "rfmnist": ("RotatedFashionMNIST", LOGS),
+    "dcifar100": ("DomainCIFAR100", LOGS / "dcifar100"),
+}
 BOUNDARY_ORDER = ["abrupt", "gradual", "slow"]
+NO_ARROW = r"$\ \;$"
 
 
-def oracle_and_best(df_ev: pd.DataFrame, df_best: pd.DataFrame) -> pd.DataFrame:
-    """Keep Oracle runs and best-detector runs, the latter labelled `BEST`.
+def select_runs(df_ev: pd.DataFrame, df_best: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Split runs into Oracle, fixed (ADWIN) and best detector, with a `best` column.
 
     The main dataset ran every detector live, so its best runs are the rows of the
-    picked detector. Check datasets ran only the picked detector, already labelled.
+    picked detector. Check datasets ran the picked detector as its own `BEST` runs.
     """
-    df_ev = df_ev[~df_ev["strategy"].isin(BOUNDARY_AGNOSTIC)]
-    df = df_ev.merge(df_best, on=["boundary", "strategy"], how="left")
-    is_best = (df["detector_label"] == df["best"]) | (df["detector_label"] == BEST)
-    df = df[is_best | (df["detector_label"] == "oracle")].copy()
-    df.loc[is_best, "detector_label"] = BEST
-    return df
+    df = df_ev[~df_ev["strategy"].isin(BOUNDARY_AGNOSTIC)]
+    df = df.merge(df_best, on=["boundary", "strategy"], how="left")
+    has_best_runs = (df["detector_label"] == BEST).any()
+    best_label = df["detector_label"] == (BEST if has_best_runs else df["best"])
+    return {
+        ORACLE: df[df["detector_label"] == ORACLE],
+        FIXED: df[df["detector_label"] == FIXED],
+        BEST: df[best_label].assign(detector_label=BEST),
+    }
 
 
-def summarise(df: pd.DataFrame, name: str) -> pd.DataFrame:
-    better, worse = significance_tests(df)
-    agg = df.groupby(["boundary", "strategy", "detector_label"]).aggregate(
-        {DV: ["mean", "std"], F1_METRIC: ["mean", "std"], "nmdt": ["mean", "std"]}
+def arrows(runs: dict[str, pd.DataFrame], detector: str) -> dict[tuple, str]:
+    """Map (boundary, strategy) to the significance arrow of `detector` vs Oracle."""
+    better, worse = significance_tests(pd.concat([runs[ORACLE], runs[detector]]))
+    out = {}
+    for key, _ in runs[detector].groupby(["boundary", "strategy"]):
+        full = (*key, detector)
+        out[key] = UP if full in better else DOWN if full in worse else NO_ARROW
+    return out
+
+
+def mean_std(df: pd.DataFrame, col: str, scale: float) -> pd.DataFrame:
+    g = df.groupby(["boundary", "strategy"])[col]
+    return pd.DataFrame({"mean": g.mean() * scale, "std": g.std() * scale})
+
+
+def formatted(df: pd.DataFrame, col: str, scale: float, ndigits: int) -> pd.Series:
+    return format_column(mean_std(df, col, scale), ndigits=ndigits)
+
+
+def dataset_columns(runs: dict[str, pd.DataFrame], name: str):
+    """Return (accuracy columns, detection columns) for one dataset."""
+    fixed_arrow = arrows(runs, FIXED)
+    best_arrow = arrows(runs, BEST)
+    picked = runs[BEST].groupby(["boundary", "strategy"])["best"].first()
+
+    acc = pd.DataFrame(
+        {
+            (name, "Oracle"): formatted(runs[ORACLE], DV, 100, 1),
+            (name, FIXED): formatted(runs[FIXED], DV, 100, 1),
+            (name, "Best"): formatted(runs[BEST], DV, 100, 1),
+            (name, "Det."): picked.map(lambda d: ONE_SIDED_LABELS.get(d, d)),
+        }
     )
-    rows = []
-    for (boundary, strategy), group in agg.groupby(level=[0, 1]):
-        oracle = group.xs("oracle", level=2).iloc[0]
-        best = group.xs(BEST, level=2).iloc[0]
-        key = (boundary, strategy, BEST)
-        arrow = UP if key in better else DOWN if key in worse else r"$\ \;$"
-        picked = df.loc[
-            (df["boundary"] == boundary) & (df["strategy"] == strategy), "best"
-        ].iloc[0]
-        rows.append(
-            {
-                "boundary": boundary,
-                "strategy": strategy,
-                (name, "Det."): ONE_SIDED_LABELS.get(picked, picked),
-                (name, "Oracle"): (oracle[(DV, "mean")] * 100, oracle[(DV, "std")] * 100),
-                (name, "Best"): (best[(DV, "mean")] * 100, best[(DV, "std")] * 100, arrow),
-                (name, f"F1 {UP}"): (
-                    best[(F1_METRIC, "mean")] * 100,
-                    best[(F1_METRIC, "std")] * 100,
-                ),
-                (name, f"NMDT {DOWN}"): (best[("nmdt", "mean")], best[("nmdt", "std")]),
-            }
-        )
-    return pd.DataFrame(rows).set_index(["boundary", "strategy"])
+    acc[(name, FIXED)] = acc.index.map(fixed_arrow) + acc[(name, FIXED)]
+    acc[(name, "Best")] = acc.index.map(best_arrow) + acc[(name, "Best")]
 
-
-def cell(value, ndigits: int) -> str:
-    mean, std, *arrow = value
-    text = format_column(
-        pd.DataFrame({"mean": [mean], "std": [std]}), ndigits=ndigits
-    ).iloc[0]
-    return (arrow[0] if arrow else "") + text
+    dd = pd.DataFrame(
+        {
+            (name, f"{FIXED} F1 {UP}"): formatted(runs[FIXED], F1_METRIC, 100, 1),
+            (name, f"{FIXED} NMDT {DOWN}"): formatted(runs[FIXED], "nmdt", 1, 2),
+            (name, f"Best F1 {UP}"): formatted(runs[BEST], F1_METRIC, 100, 1),
+            (name, f"Best NMDT {DOWN}"): formatted(runs[BEST], "nmdt", 1, 2),
+        }
+    )
+    return acc, dd
 
 
 def latex_table(df: pd.DataFrame) -> str:
-    out = pd.DataFrame(index=df.index)
-    for col in df.columns:
-        name, metric = col
-        if metric == "Det.":
-            out[col] = df[col]
-        else:
-            ndigits = 2 if metric.startswith("NMDT") else 1
-            out[col] = df[col].map(lambda v: cell(v, ndigits))
-    out.columns = pd.MultiIndex.from_tuples(out.columns)
-    out = out.reindex(BOUNDARY_ORDER, level=0)
-    out.index.names = ["Boundary", "Strategy"]
-    table = out.to_latex(escape=False, sparsify=True, multicolumn_format="c")
+    df = df.copy()
+    df.columns = pd.MultiIndex.from_tuples(df.columns)
+    df = df.reindex(BOUNDARY_ORDER, level=0)
+    df.index.names = ["Boundary", "Strategy"]
+    table = df.to_latex(escape=False, sparsify=True, multicolumn_format="c")
     # Same rules as results_strategy.py: midrule between boundaries, none at the end
-    n_cols = out.index.nlevels + len(out.columns)
+    n_cols = df.index.nlevels + len(df.columns)
     table = table.replace(f"\\cline{{1-{n_cols}}}\n\\bottomrule", "\\bottomrule")
     table = table.replace(f"\\cline{{1-{n_cols}}}", "\\midrule")
     return table
 
 
 if __name__ == "__main__":
-    parts = []
-    for key, (name, root) in DATASETS.items():
+    acc_parts, dd_parts = [], []
+    for name, root in DATASETS.values():
         df_ev = pd.read_csv(root / "evaluate/data_frame.csv").pipe(compute_nmdt)
-        df = oracle_and_best(df_ev, load_best_detectors(root))
-        print(f"== {name}: picked detectors")
-        print(df.groupby(["boundary", "strategy"])["best"].first().unstack(0))
-        parts.append(summarise(df, name))
-    table = latex_table(pd.concat(parts, axis=1))
-    path = TABLE_DIR / "check_oracle_best.tex"
-    print(f"Saving {path}")
-    path.write_text(table)
+        runs = select_runs(df_ev, load_best_detectors(root))
+        acc, dd = dataset_columns(runs, name)
+        print(f"== {name}")
+        print(acc.to_string())
+        acc_parts.append(acc)
+        dd_parts.append(dd)
+
+    for suffix, parts in [("", acc_parts), ("_dd", dd_parts)]:
+        path = TABLE_DIR / f"check_oracle_best{suffix}.tex"
+        print(f"Saving {path}")
+        path.write_text(latex_table(pd.concat(parts, axis=1)))

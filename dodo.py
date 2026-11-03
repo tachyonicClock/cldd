@@ -70,8 +70,11 @@ BEST_DETECTOR = "BEST"
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
 CHECK_DATASETS = ["dcifar100"]
-"""Datasets for the smaller check. Phase 3 runs only the oracle and the best detector.
-Each has a `config/dataset/<name>.yml`."""
+"""Datasets for the smaller check. Phase 3 runs only the oracle, the fixed detector and
+the best detector. Each has a `config/dataset/<name>.yml`."""
+FIXED_DETECTOR = "ADWIN"
+"""Detector picked on the main dataset, run live on check datasets with its phase-2
+HP from that dataset."""
 DATASETS = [DEFAULT_DATASET, *CHECK_DATASETS]
 
 N_TRIALS = 10
@@ -350,6 +353,14 @@ def iter_evaluate_specs(dataset: str = DEFAULT_DATASET):
             continue
 
         if dataset != DEFAULT_DATASET:
+            fixed_hp = Unit(
+                strategy, FIXED_DETECTOR, boundary, dataset=dataset
+            ).tune_detector_hp
+            yield (
+                Unit(strategy, FIXED_DETECTOR, boundary, trial, dataset),
+                seed,
+                [strategy_hp, fixed_hp],
+            )
             best_hp = Unit(strategy, BEST_DETECTOR, boundary, dataset=dataset)
             yield (
                 Unit(strategy, BEST_DETECTOR, boundary, trial, dataset),
@@ -379,7 +390,7 @@ def task_evaluate():
 
     Detector-agnostic strategies are evaluated once with the oracle boundary
     setting. On the main dataset, boundary-aware strategies are evaluated with every
-    detector. On check datasets, only with the best detector.
+    detector. On check datasets, only with the fixed and the best detector.
     """
 
     for dataset in DATASETS:
