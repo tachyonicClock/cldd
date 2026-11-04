@@ -102,6 +102,27 @@ class FashionCNNArgs(ModelArgs):
         return FashionCNN(num_classes=schema.get_num_classes())
 
 
+@dataclass
+class PretrainedResNet18Args(ModelArgs):
+    type_: ClassVar[str] = "ResNet18"
+    image_size: int = 64
+    """Inputs are upsampled to this size before the network."""
+    pretrained: bool = True
+    freeze_bn_stats: bool = True
+    """Keep ImageNet BatchNorm statistics; scale and shift still train."""
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.resnet import PretrainedResNet18
+
+        manual_seed(seed)
+        return PretrainedResNet18(
+            num_classes=schema.get_num_classes(),
+            image_size=self.image_size,
+            pretrained=self.pretrained,
+            freeze_bn_stats=self.freeze_bn_stats,
+        )
+
+
 AnyModel = (
     PerceptronArgs
     | ResNet_32x32Args
@@ -109,4 +130,5 @@ AnyModel = (
     | AirbenchCNNArgs
     | DeepLightweightMLPArgs
     | FashionCNNArgs
+    | PretrainedResNet18Args
 )

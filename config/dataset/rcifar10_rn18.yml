@@ -1,0 +1,12 @@
+# RotatedCIFAR10 with an ImageNet-pretrained ResNet-18 fine-tuned end to end. Inputs are
+# upsampled to 64 px. BatchNorm keeps its ImageNet statistics. One step per mini-batch.
+dataset_label: rcifar10_rn18
+scenario:
+  name: RotatedCIFAR10
+model:
+  type_: ResNet18
+  image_size: 64
+  pretrained: true
+  freeze_bn_stats: true
+train_repeats: 1
+augment_repeats: false
