@@ -1,0 +1,7 @@
+# Learning-rate floor for the pretrained ResNet-18. Without it, tuning let FT and weak
+# regularisers gain stability by barely learning (FT picked lr 3.4e-5), and RWalk tuned
+# itself into FT. Stability must come from the regulariser instead.
+hpsearch:
+  args:
+    "optimizer.lr":
+      low: 1.0e-4

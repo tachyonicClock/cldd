@@ -136,6 +136,10 @@ class Unit:
             configs.append(r / "dataset" / f"{self.dataset}.yml")
         if hp is not None:
             configs.append(r / "hp" / f"{hp}.yml")
+            # Optional search-space changes for one dataset, e.g. a learning-rate floor
+            dataset_hp = r / "hp" / f"{hp}_{self.dataset}.yml"
+            if dataset_hp.exists():
+                configs.append(dataset_hp)
         if DEBUG_MODE:
             configs.append(r / "debug.yml")
         return configs
