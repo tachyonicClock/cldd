@@ -2,7 +2,7 @@ from dataclasses import asdict, replace
 
 from src.tblogger import TensorboardLogger
 from src import config
-from capymoa.ocl.events import Dispatcher
+from capymoa.ocl.events import Dispatcher, Handler
 from capymoa.drift.eval_detector import EvaluateDriftDetector
 from capymoa.ocl.evaluation import ocl_train_eval_loop
 from typing import Dict, Sequence
@@ -100,7 +100,8 @@ class Experiment:
         new_loader = partial(DataLoader, batch_size=self.config.mb_test, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
-    def run(self) -> Dict:
+    def run(self, handlers: Sequence[Handler] = ()) -> Dict:
+        """Train and evaluate. ``handlers`` are attached to the event dispatcher."""
         self.logdir.mkdir(parents=True, exist_ok=True)
 
         logger.info("Saving config...")
@@ -113,6 +114,8 @@ class Experiment:
         self.drift_detector.attach_with(self.dispatcher)
         if self.scheduler is not None:
             self.scheduler.attach_with(self.dispatcher)
+        for handler in handlers:
+            handler.attach_with(self.dispatcher)
 
         ocl_metrics = ocl_train_eval_loop(
             learner=self.drift_detector.learner,

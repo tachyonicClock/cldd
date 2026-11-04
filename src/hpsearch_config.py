@@ -58,9 +58,22 @@ class HPSearchConfig:
     study_prefix: str = "bocl"
     metric: str = "accuracy_final"
     storage: str = field(
-        default_factory=lambda: os.environ.get("LOGDIR", "logs") + "/cldd/optuna.journal.log"
+        default_factory=lambda: (
+            os.environ.get("LOGDIR", "logs") + "/cldd/optuna.journal.log"
+        )
     )
     maximize: bool = True
+
+    multivariate: bool = False
+    """Use multivariate TPE, which models the hyperparameters jointly."""
+    constant_liar: bool = False
+    """TPE avoids proposing the same region to parallel workers (n_jobs > 1)."""
+    pruner: Literal["none", "median"] = "none"
+    """Prune trials whose running score falls below the median of earlier trials."""
+    pruner_warmup_steps: int = 2
+    """Tasks before pruning can start. Regularisers only act after the first task."""
+    pruner_startup_trials: int = 10
+    """Trials that always run to the end before pruning starts."""
 
     mode: Literal["w", "a", "x"] = "x"
     """Control what happens if the study already exists. "w" to overwrite, "a" to
@@ -77,11 +90,24 @@ class HPSearchConfig:
             except KeyError:
                 pass
 
+        sampler = None
+        if self.multivariate or self.constant_liar:
+            sampler = optuna.samplers.TPESampler(
+                multivariate=self.multivariate, constant_liar=self.constant_liar
+            )
+        pruner = None
+        if self.pruner == "median":
+            pruner = optuna.pruners.MedianPruner(
+                n_startup_trials=self.pruner_startup_trials,
+                n_warmup_steps=self.pruner_warmup_steps,
+            )
         return optuna.create_study(
             study_name=study_name,
             storage=storage,
             direction="maximize" if self.maximize else "minimize",
             load_if_exists=self.mode == "a",
+            sampler=sampler,
+            pruner=pruner,
         )
 
     def suggest(

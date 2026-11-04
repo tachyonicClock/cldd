@@ -62,10 +62,15 @@ class HPSearch:
         self.study = self.hpsearch.new_study(config.study_name)
 
     def optimize(self) -> None:
+        states = (optuna.trial.TrialState.COMPLETE,)
+        if self.hpsearch.pruner != "none":
+            # Pruned trials count toward the budget too
+            states += (optuna.trial.TrialState.PRUNED,)
         optimize_with_max_trials(
             self.study,
             self._objective,
             n_trials=self.hpsearch.n_trials,
+            states=states,
             n_jobs=self.hpsearch.n_jobs,
         )
 
@@ -80,7 +85,12 @@ class HPSearch:
         config.trial = trial.number
         config.seed = trial.number
         experiment = Experiment(config)
-        metrics = experiment.run()
+        handlers = []
+        if self.hpsearch.pruner != "none":
+            from src.pruning import PruneOnSeenAccuracy
+
+            handlers.append(PruneOnSeenAccuracy(trial))
+        metrics = experiment.run(handlers=handlers)
 
         trial.set_user_attr("accuracy_seen_avg", float(metrics["accuracy_seen_avg"]))
         trial.set_user_attr("accuracy_all_avg", float(metrics["accuracy_all_avg"]))
