@@ -1,19 +1,19 @@
 from capymoa.ocl import datasets
 from capymoa.stream import Schema
-from capymoa.stream.torch import TorchStream
 from capymoa.ocl.datasets.gradual import gradual_sigmoid_transitions
 from typing import Literal, Optional, Sequence
 from dataclasses import dataclass
 from torch.utils.data import Dataset, Subset
-from torchvision.transforms import Compose, Normalize, ToTensor
+from torchvision.transforms.functional import rotate
 import numpy as np
 import torch
 from loguru import logger
 from os import environ
 from pathlib import Path
-from src.dataset.clear10 import load_clear10
 
 VALID_FRACTION = 0.1
+ROTATED_TASKS = 5
+"""Tasks of RotatedCIFAR10, spread over 180 degrees like CapyMOA's rotated datasets."""
 DOMAIN_SPLIT_SEED = 0
 """Seed that picks which fine classes form each DomainCIFAR100 domain."""
 
@@ -72,40 +72,55 @@ class ScenarioArgs:
         "RotatedTinyMNIST",
         "CLEAR10",
         "CORe50",
+        "RotatedCIFAR10",
     ]
     normalize_features: bool = True
     gradual: float = 0.0
     label: str = "unnamed-scenario"
     epochs: int = 1
     validation: bool = False
+    image_size: int = 32
+    """Image side in pixels, for datasets stored at several sizes (CLEAR10)."""
     debug_truncate: Optional[int] = None
     """If set, truncates each task to this many samples for faster debugging."""
 
     def _get_clear10(self, seed: int) -> Scenario:
-        root = environ["DATASETS"]
-        if self.normalize_features:
-            transform = Compose(
-                [ToTensor(), Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])]
-            )
-        else:
-            transform = Compose([ToTensor()])
+        """CLEAR10: 10 time buckets as domains, 11 classes (10 objects and background).
 
-        train_tasks = load_clear10(Path(root), "train", transform)
-        test_tasks = load_clear10(Path(root), "test", transform)
-        train_tasks = shuffle_task_contents(train_tasks, seed)
-
-        stream = TorchStream.from_classification(
-            train_tasks[0],
-            num_classes=10,
-            dataset_name="CLEAR10",
-            shape=[3, 224, 224],
-            shuffle=False,
+        Reads `data/clear10_<image_size>.pt`, made by `script/clear10.py`. The run seed
+        shuffles instances within each bucket.
+        """
+        path = (
+            Path(__file__).resolve().parent.parent
+            / "data"
+            / f"clear10_{self.image_size}.pt"
         )
-
+        if not path.exists():
+            raise FileNotFoundError(
+                f"{path} not found. Run `uv run script/clear10.py --size {self.image_size}`."
+            )
+        data = torch.load(path, map_location="cpu")
+        mean = std = None
+        if self.normalize_features:
+            x = torch.cat([x for x, _ in data["train"]]).float() / 255.0
+            mean = x.mean(dim=(0, 2, 3)).view(3, 1, 1)
+            std = x.std(dim=(0, 2, 3)).view(3, 1, 1)
+        train_tasks = [_ImageTask(x, y, mean, std) for x, y in data["train"]]
+        test_tasks = [_ImageTask(x, y, mean, std) for x, y in data["test"]]
+        n_classes = len(data["classes"])
+        side = self.image_size
+        schema = Schema.from_custom(
+            features=[str(i) for i in range(3 * side * side)] + ["class"],
+            target="class",
+            categories={"class": [str(i) for i in range(n_classes)]},
+        )
+        schema.shape = (3, side, side)
         return Scenario(
-            train_tasks=train_tasks,
+            train_tasks=shuffle_task_contents(train_tasks, seed),
             test_tasks=test_tasks,
-            schema=stream.get_schema(),
+            schema=schema,
+            mean=mean,
+            std=std,
         )
 
     def _get_domain_cifar100_vit(self, seed: int) -> Scenario:
@@ -129,6 +144,42 @@ class ScenarioArgs:
             train_tasks=shuffle_task_contents(dataset.train_tasks, seed),
             test_tasks=dataset.test_tasks,
             schema=dataset.schema,
+        )
+
+    def _get_rotated_cifar10(self, seed: int) -> Scenario:
+        """CIFAR-10 with 5 domains, each a fixed rotation of the full set.
+
+        Uses the angles of RotatedFashionMNIST (0, 36, 72, 108, 144 degrees) and the
+        same nearest-neighbour rotation with black corners. Reads `data/cifar10.pt`,
+        made by `script/cifar10.py`. The run seed shuffles instances within each task.
+        """
+        path = Path(__file__).resolve().parent.parent / "data" / "cifar10.pt"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"{path} not found. Run `uv run script/cifar10.py`."
+            )
+        data = torch.load(path, map_location="cpu")
+        (x_train, y_train), (x_test, y_test) = data["train"], data["test"]
+        mean = std = None
+        if self.normalize_features:
+            x = x_train.float() / 255.0
+            mean = x.mean(dim=(0, 2, 3)).view(3, 1, 1)
+            std = x.std(dim=(0, 2, 3)).view(3, 1, 1)
+        angles = [180.0 * i / ROTATED_TASKS for i in range(ROTATED_TASKS)]
+        train_tasks = [_ImageTask(x_train, y_train, mean, std, a) for a in angles]
+        test_tasks = [_ImageTask(x_test, y_test, mean, std, a) for a in angles]
+        schema = Schema.from_custom(
+            features=[str(i) for i in range(3 * 32 * 32)] + ["class"],
+            target="class",
+            categories={"class": [str(i) for i in range(10)]},
+        )
+        schema.shape = (3, 32, 32)
+        return Scenario(
+            train_tasks=shuffle_task_contents(train_tasks, seed),
+            test_tasks=test_tasks,
+            schema=schema,
+            mean=mean,
+            std=std,
         )
 
     def _get_core50(self, seed: int) -> Scenario:
@@ -231,6 +282,8 @@ class ScenarioArgs:
                 return self._get_clear10(seed)
             case "CORe50":
                 return self._get_core50(seed)
+            case "RotatedCIFAR10":
+                return self._get_rotated_cifar10(seed)
             case _:
                 raise ValueError(f"Unknown scenario name: {self.name}")
 
@@ -292,7 +345,8 @@ class _RotatedFashionMNISTTask(Dataset):
 
 
 class _ImageTask(Dataset):
-    """uint8 images in memory, scaled to [0, 1] and normalized per channel."""
+    """uint8 images in memory, optionally rotated, then scaled to [0, 1] and normalized
+    per channel."""
 
     def __init__(
         self,
@@ -300,17 +354,23 @@ class _ImageTask(Dataset):
         y: torch.Tensor,
         mean: torch.Tensor | None,
         std: torch.Tensor | None,
+        angle: float = 0.0,
     ):
         self.x = x
         self.y = y
         self.mean = mean
         self.std = std
+        self.angle = angle
 
     def __len__(self) -> int:
         return len(self.y)
 
     def __getitem__(self, index: int):
-        x = self.x[index].float() / 255.0
+        x = self.x[index]
+        if self.angle:
+            # Same as CapyMOA's rotated datasets: nearest neighbour, black corners
+            x = rotate(x, self.angle)
+        x = x.float() / 255.0
         if self.mean is not None:
             x = (x - self.mean) / self.std
         return x, self.y[index]

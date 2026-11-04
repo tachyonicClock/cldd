@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Literal, Optional, Sequence
 from omegaconf import OmegaConf
 from pathlib import Path
 import cattrs
@@ -34,7 +34,10 @@ class Config:
     train_repeats: int = 1
     """Training steps on each mini-batch. Values above 1 help single-pass convergence."""
     augment_repeats: bool = False
-    """Apply AutoAugment to the batch on the extra steps (needs scenario mean/std)."""
+    """Augment the batch on the extra steps."""
+    repeat_augment: Literal["autoaugment", "flipcrop"] = "autoaugment"
+    """AutoAugment (CIFAR-10 policy, includes rotations; needs scenario mean/std) or
+    random flip and crop (no rotation)."""
     mb_test: int = 256
     disable_progress_bar: bool = False
 

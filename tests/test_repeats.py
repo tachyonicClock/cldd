@@ -53,3 +53,19 @@ def test_flat_autoaugment_keeps_shape_and_scale():
     lo = ((0 - mean) / std).min()
     hi = ((1 - mean) / std).max()
     assert out.min() >= lo - 1e-4 and out.max() <= hi + 1e-4
+
+
+def test_flat_flip_crop_keeps_shape_and_moves_pixels():
+    from src.augment import FlatFlipCrop
+
+    torch.manual_seed(0)
+    x = torch.randn(32, 3 * 8 * 8)
+    out = FlatFlipCrop((3, 8, 8), padding=2)(x)
+    assert out.shape == x.shape
+    assert not torch.equal(out, x)
+    # A crop with zero offset and no flip is the identity on the centre
+    aug = FlatFlipCrop((3, 8, 8), padding=0)
+    torch.manual_seed(1)
+    y = aug(x)
+    flipped = x.view(32, 3, 8, 8).flip(-1).reshape(32, -1)
+    assert all(torch.equal(y[i], x[i]) or torch.equal(y[i], flipped[i]) for i in range(32))

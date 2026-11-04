@@ -1,0 +1,11 @@
+# RotatedCIFAR10: CIFAR-10 in 5 rotations (0 to 144 degrees), CNN trained end to end.
+dataset_label: rcifar10
+scenario:
+  name: RotatedCIFAR10
+model:
+  type_: AirbenchCNN
+# 4 training steps per mini-batch, with random flip and crop (no rotation) on the extra
+# steps. A pilot over k in {1, 4, 8, 16} gave the best current-task accuracy at 4.
+train_repeats: 4
+augment_repeats: true
+repeat_augment: flipcrop

@@ -72,13 +72,17 @@ class Experiment:
         learner = self.drift_detector.learner
         learner.repeats = config.train_repeats
         if config.augment_repeats and config.train_repeats > 1:
-            if self.scenario.mean is None or self.scenario.std is None:
-                raise ValueError("augment_repeats needs the scenario mean and std.")
-            from src.augment import FlatAutoAugment
+            from src.augment import FlatAutoAugment, FlatFlipCrop
 
-            learner.augment = FlatAutoAugment(
-                tuple(self.schema.shape), self.scenario.mean, self.scenario.std
-            ).to(self.device)
+            shape = tuple(self.schema.shape)
+            if config.repeat_augment == "flipcrop":
+                learner.augment = FlatFlipCrop(shape).to(self.device)
+            else:
+                if self.scenario.mean is None or self.scenario.std is None:
+                    raise ValueError("AutoAugment needs the scenario mean and std.")
+                learner.augment = FlatAutoAugment(
+                    shape, self.scenario.mean, self.scenario.std
+                ).to(self.device)
 
     def new_logdir(self) -> Path:
         logdir = self.config.logdir

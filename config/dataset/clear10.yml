@@ -1,0 +1,9 @@
+# CLEAR10, its 10 time buckets as domains, CNN trained end to end on raw pixels.
+dataset_label: clear10
+scenario:
+  name: CLEAR10
+  image_size: 32
+model:
+  type_: AirbenchCNN
+train_repeats: 8
+augment_repeats: true

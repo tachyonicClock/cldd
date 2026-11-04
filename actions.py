@@ -1,8 +1,24 @@
+import itertools
 import os
+import threading
 from pathlib import Path
 from typing import Sequence, Dict, Any, List
 from loguru import logger
 from subprocess import check_call as _call, CalledProcessError, STDOUT
+
+
+_GPUS = [g for g in os.environ.get("CLDD_GPUS", "").split(",") if g]
+_next_gpu = itertools.count()
+_gpu_lock = threading.Lock()
+
+
+def _gpu_env() -> dict | None:
+    """Give each subprocess the next GPU from `CLDD_GPUS` (e.g. "0,1"), in turn."""
+    if not _GPUS:
+        return None
+    with _gpu_lock:
+        gpu = _GPUS[next(_next_gpu) % len(_GPUS)]
+    return {**os.environ, "CUDA_VISIBLE_DEVICES": gpu}
 
 
 def call(
@@ -39,12 +55,14 @@ def call(
         log_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
+        env = _gpu_env()
         if log_file is None:
-            _call(cmd)
+            _call(cmd, env=env)
         else:
             with open(log_file, "w") as f:
-                f.write(f"$ {' '.join(cmd)}\n\n")
-                _call(cmd, stdout=f, stderr=STDOUT)
+                gpu = f" (CUDA_VISIBLE_DEVICES={env['CUDA_VISIBLE_DEVICES']})" if env else ""
+                f.write(f"$ {' '.join(cmd)}{gpu}\n\n")
+                _call(cmd, stdout=f, stderr=STDOUT, env=env)
     except CalledProcessError:
         logger.error(f"error occured check logs at: {log_file}")
         exit(1)

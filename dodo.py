@@ -69,7 +69,7 @@ BEST_DETECTOR = "BEST"
 
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
-CHECK_DATASETS = ["core50"]
+CHECK_DATASETS = ["core50", "rcifar10"]
 """Datasets for the smaller check. Phase 3 runs only the oracle, the fixed detector and
 the best detector. Each has a `config/dataset/<name>.yml`."""
 FIXED_DETECTOR = "ADWIN"

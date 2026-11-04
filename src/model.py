@@ -66,6 +66,8 @@ class ConvNeXtArgs(ModelArgs):
 class AirbenchCNNArgs(ModelArgs):
     type_: ClassVar[str] = "AirbenchCNN"
     channels_per_group: int = 16
+    width: int = 1
+    """Multiplies the channels of every block."""
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         from .models.airbench import AirbenchCNN
@@ -74,6 +76,7 @@ class AirbenchCNNArgs(ModelArgs):
         return AirbenchCNN(
             num_classes=schema.get_num_classes(),
             channels_per_group=self.channels_per_group,
+            width=self.width,
         )
 
 
