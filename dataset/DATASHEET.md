@@ -16,8 +16,8 @@ concatenated together if desired.
 
 CLDD-A contains the `oracle` drift detector which perflectly predicts drifts controling
 a continual learning algorithm. It holds two datasets, told apart by the `dataset`
-column: RotatedFashionMNIST (`rfmnist`, the main study) and CORe50 (`core50`, a
-smaller check).
+column: RotatedFashionMNIST (`rfmnist`, the main study) and RotatedCIFAR10 with a
+pre-trained ResNet-18 (`rcifar10_rn18`, a smaller check).
 
 The standard evaluation scheme splits the dataset based on seeds into a training set
 (10 seeds) and a test set (10 seeds). Using five training error-streams, each detector
@@ -28,7 +28,7 @@ CLDD-A is a full factorial of 2 datasets × 3 boundaries × 6 strategies × 1 de
 
 | `dataset`          | `boundary`            | `strategy`                      | `detector` | count each |
 |:-------------------|:----------------------|:--------------------------------|:-----------|:----------:|
-| rfmnist, core50    | abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     20     |
+| rfmnist, rcifar10_rn18 | abrupt, gradual, slow | EWC, FT, LWF, MAS, RWalk, SI    | oracle     |     20     |
 
 
 ### CLDD-B `CLDD_B.parquet`
@@ -70,9 +70,9 @@ cldd_a
 *   `dataset` (String)
 
     The dataset the learner was trained on. `rfmnist` is RotatedFashionMNIST (5
-    distributions of 60,000 images, so streams of about 300,000 values). `core50` is
-    CORe50 with each of its 11 sessions as a distribution (11,500 images each, so
-    streams of about 126,500 values). CLDD-B holds only `rfmnist`.
+    distributions of 60,000 images, so streams of about 300,000 values). `rcifar10_rn18` is
+    CIFAR-10 in 5 rotations (0 to 144 degrees) learned by an ImageNet-pretrained
+    ResNet-18 (5 distributions of 50,000 images, so streams of about 250,000 values). CLDD-B holds only `rfmnist`.
 
 *   `boundary` (String)
 
@@ -95,7 +95,7 @@ cldd_a
 
 *   `error_stream` (list, boolean)
 
-    Test-then-train per-instance errors. Roughly 300,000 values for `rfmnist` and 126,500 for `core50`.
+    Test-then-train per-instance errors. Roughly 300,000 values for `rfmnist` and 250,000 for `rcifar10_rn18`.
 
 *   `trues` (list, int32)
 
