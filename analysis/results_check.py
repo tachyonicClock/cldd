@@ -77,8 +77,12 @@ def formatted(df: pd.DataFrame, col: str, scale: float, ndigits: int) -> pd.Seri
     return format_column(mean_std(df, col, scale), ndigits=ndigits)
 
 
-def dataset_columns(runs: dict[str, pd.DataFrame], name: str):
-    """Return (accuracy columns, detection columns) for one dataset."""
+def dataset_columns(runs: dict[str, pd.DataFrame], baseline: pd.DataFrame, name: str):
+    """Return (accuracy columns, detection columns) for one dataset.
+
+    :param baseline: Oracle runs of the detector-agnostic strategies (FT). They get an
+        accuracy row with no detector columns, as a reference.
+    """
     fixed_arrow = arrows(runs, FIXED)
     best_arrow = arrows(runs, BEST)
     picked = runs[BEST].groupby(["boundary", "strategy"])["best"].first()
@@ -93,6 +97,8 @@ def dataset_columns(runs: dict[str, pd.DataFrame], name: str):
     )
     acc[(name, FIXED)] = acc.index.map(fixed_arrow) + acc[(name, FIXED)]
     acc[(name, "Best")] = acc.index.map(best_arrow) + acc[(name, "Best")]
+    base = pd.DataFrame({(name, "Oracle"): formatted(baseline, DV, 100, 1)})
+    acc = pd.concat([acc, base]).fillna("")
 
     dd = pd.DataFrame(
         {
@@ -108,7 +114,13 @@ def dataset_columns(runs: dict[str, pd.DataFrame], name: str):
 def latex_table(df: pd.DataFrame) -> str:
     df = df.copy()
     df.columns = pd.MultiIndex.from_tuples(df.columns)
-    df = df.reindex(BOUNDARY_ORDER, level=0)
+    # Boundaries in order, and the detector-agnostic baseline last in each block
+    strategies = sorted(
+        df.index.get_level_values(1).unique(), key=lambda s: (s in BOUNDARY_AGNOSTIC, s)
+    )
+    df = df.reindex(
+        pd.MultiIndex.from_product([BOUNDARY_ORDER, strategies]), fill_value=""
+    )
     df.index.names = ["Boundary", "Strategy"]
     table = df.to_latex(escape=False, sparsify=True, multicolumn_format="c")
     # Same rules as results_strategy.py: midrule between boundaries, none at the end
@@ -123,7 +135,10 @@ if __name__ == "__main__":
     for name, root in DATASETS.values():
         df_ev = pd.read_csv(root / "evaluate/data_frame.csv").pipe(compute_nmdt)
         runs = select_runs(df_ev, load_best_detectors(root))
-        acc, dd = dataset_columns(runs, name)
+        baseline = df_ev[
+            df_ev["strategy"].isin(BOUNDARY_AGNOSTIC) & (df_ev["detector_label"] == ORACLE)
+        ]
+        acc, dd = dataset_columns(runs, baseline, name)
         print(f"== {name}")
         print(acc.to_string())
         acc_parts.append(acc)
