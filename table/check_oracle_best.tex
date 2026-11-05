@@ -1,25 +1,25 @@
 \begin{tabular}{llllllllll}
 \toprule
- &  & \multicolumn{4}{c}{RotatedFashionMNIST} & \multicolumn{4}{c}{DomainCIFAR100} \\
+ &  & \multicolumn{4}{c}{RotatedFashionMNIST} & \multicolumn{4}{c}{RotatedCIFAR10 (ResNet-18)} \\
  &  & Oracle & ADWIN & Best & Det. & Oracle & ADWIN & Best & Det. \\
 Boundary & Strategy &  &  &  &  &  &  &  &  \\
 \midrule
-\multirow[t]{5}{*}{abrupt} & EWC & 64.0\tiny{$\pm$2.5} & $\ \;$65.0\tiny{$\pm$1.4} & $\ \;$65.0\tiny{$\pm$1.4} & ADWIN & 92.0\tiny{$\pm$0.2} & $\ \;$92.0\tiny{$\pm$0.2} & $\ \;$92.0\tiny{$\pm$0.2} & PH \\
- & LWF & 62.9\tiny{$\pm$0.8} & $\ \;$62.9\tiny{$\pm$0.9} & $\ \;$62.9\tiny{$\pm$0.9} & ADWIN & 92.6\tiny{$\pm$0.1} & $\ \;$92.6\tiny{$\pm$0.1} & $\ \;$92.6\tiny{$\pm$0.1} & PH \\
- & MAS & 63.6\tiny{$\pm$1.5} & $\ \;$61.7\tiny{$\pm$3.8} & $\ \;$63.3\tiny{$\pm$2.5} & PH & 92.4\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & PH \\
- & RWalk & 62.7\tiny{$\pm$3.4} & $\ \;$62.9\tiny{$\pm$2.1} & $\ \;$62.9\tiny{$\pm$2.1} & ADWIN & 92.7\tiny{$\pm$0.1} & $\ \;$92.7\tiny{$\pm$0.1} & $\ \;$92.7\tiny{$\pm$0.1} & ADWIN \\
- & SI & 59.6\tiny{$\pm$3.6} & $\ \;$59.9\tiny{$\pm$3.8} & $\ \;$61.5\tiny{$\pm$3.0} & PH & 91.8\tiny{$\pm$0.2} & $\ \;$91.8\tiny{$\pm$0.2} & $\ \;$91.8\tiny{$\pm$0.2} & PH \\
+\multirow[t]{5}{*}{abrupt} & EWC & 64.0\tiny{$\pm$2.5} & $\ \;$65.0\tiny{$\pm$1.4} & $\ \;$65.0\tiny{$\pm$1.4} & ADWIN & 74.0\tiny{$\pm$0.8} & $\ \;$73.9\tiny{$\pm$0.8} & $\ \;$73.8\tiny{$\pm$0.9} & PH \\
+ & LWF & 62.9\tiny{$\pm$0.8} & $\ \;$62.9\tiny{$\pm$0.9} & $\ \;$62.9\tiny{$\pm$0.9} & ADWIN & 77.4\tiny{$\pm$0.6} & $\ \;$77.7\tiny{$\pm$0.4} & $\ \;$77.6\tiny{$\pm$0.5} & PH \\
+ & MAS & 63.6\tiny{$\pm$1.5} & $\ \;$61.7\tiny{$\pm$3.8} & $\ \;$63.3\tiny{$\pm$2.5} & PH & 74.0\tiny{$\pm$0.8} & $\ \;$73.9\tiny{$\pm$0.7} & $\ \;$74.0\tiny{$\pm$0.8} & SEED \\
+ & RWalk & 62.7\tiny{$\pm$3.4} & $\ \;$62.9\tiny{$\pm$2.1} & $\ \;$62.9\tiny{$\pm$2.1} & ADWIN & 73.1\tiny{$\pm$0.5} & $\ \;$73.0\tiny{$\pm$0.6} & $\ \;$73.0\tiny{$\pm$0.6} & ADWIN \\
+ & SI & 59.6\tiny{$\pm$3.6} & $\ \;$59.9\tiny{$\pm$3.8} & $\ \;$61.5\tiny{$\pm$3.0} & PH & 74.2\tiny{$\pm$1.0} & $\ \;$74.3\tiny{$\pm$0.9} & $\ \;$74.5\tiny{$\pm$0.8} & ADWIN \\
 \midrule
-\multirow[t]{5}{*}{gradual} & EWC & 62.6\tiny{$\pm$0.7} & $\ \;$62.5\tiny{$\pm$0.8} & $\ \;$61.9\tiny{$\pm$0.8} & DDM & 92.4\tiny{$\pm$0.2} & $\ \;$92.3\tiny{$\pm$0.2} & $\ \;$92.3\tiny{$\pm$0.3} & ADWIN \\
- & LWF & 68.2\tiny{$\pm$1.6} & $\uparrow$72.1\tiny{$\pm$1.3} & $\downarrow$51.3\tiny{$\pm$1.1} & DDM & 92.3\tiny{$\pm$0.2} & $\ \;$92.2\tiny{$\pm$0.2} & $\ \;$92.1\tiny{$\pm$0.1} & STEPD \\
- & MAS & 61.1\tiny{$\pm$3.6} & $\ \;$60.1\tiny{$\pm$4.0} & $\downarrow$50.4\tiny{$\pm$1.1} & PH & 92.3\tiny{$\pm$0.1} & $\ \;$92.0\tiny{$\pm$0.3} & $\ \;$92.2\tiny{$\pm$0.2} & STEPD \\
- & RWalk & 62.5\tiny{$\pm$3.1} & $\ \;$61.2\tiny{$\pm$3.9} & $\downarrow$54.2\tiny{$\pm$3.4} & DDM & 92.1\tiny{$\pm$0.2} & $\ \;$92.0\tiny{$\pm$0.1} & $\ \;$92.0\tiny{$\pm$0.2} & STEPD \\
- & SI & 64.8\tiny{$\pm$3.6} & $\ \;$62.4\tiny{$\pm$3.6} & $\downarrow$56.8\tiny{$\pm$2.5} & SEED & 92.6\tiny{$\pm$0.2} & $\ \;$92.6\tiny{$\pm$0.2} & $\ \;$92.6\tiny{$\pm$0.2} & ADWIN \\
+\multirow[t]{5}{*}{gradual} & EWC & 62.6\tiny{$\pm$0.7} & $\ \;$62.5\tiny{$\pm$0.8} & $\ \;$61.9\tiny{$\pm$0.8} & DDM & 73.9\tiny{$\pm$0.4} & $\ \;$73.9\tiny{$\pm$0.3} & $\ \;$73.9\tiny{$\pm$0.4} & SEED \\
+ & LWF & 68.2\tiny{$\pm$1.6} & $\uparrow$72.1\tiny{$\pm$1.3} & $\downarrow$51.3\tiny{$\pm$1.1} & DDM & 77.4\tiny{$\pm$1.2} & $\ \;$77.8\tiny{$\pm$0.9} & $\ \;$77.9\tiny{$\pm$0.7} & ADWIN \\
+ & MAS & 61.1\tiny{$\pm$3.6} & $\ \;$60.1\tiny{$\pm$4.0} & $\downarrow$50.4\tiny{$\pm$1.1} & PH & 74.0\tiny{$\pm$0.4} & $\ \;$73.7\tiny{$\pm$0.6} & $\ \;$73.8\tiny{$\pm$0.8} & ADWIN \\
+ & RWalk & 62.5\tiny{$\pm$3.1} & $\ \;$61.2\tiny{$\pm$3.9} & $\downarrow$54.2\tiny{$\pm$3.4} & DDM & 73.9\tiny{$\pm$0.7} & $\ \;$73.4\tiny{$\pm$0.8} & $\ \;$73.0\tiny{$\pm$0.9} & ADWIN \\
+ & SI & 64.8\tiny{$\pm$3.6} & $\ \;$62.4\tiny{$\pm$3.6} & $\downarrow$56.8\tiny{$\pm$2.5} & SEED & 74.3\tiny{$\pm$0.5} & $\ \;$73.9\tiny{$\pm$0.7} & $\ \;$74.0\tiny{$\pm$0.7} & ADWIN \\
 \midrule
-\multirow[t]{5}{*}{slow} & EWC & 59.1\tiny{$\pm$2.1} & $\ \;$60.1\tiny{$\pm$2.5} & $\ \;$60.1\tiny{$\pm$2.5} & ADWIN & 92.6\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & ADWIN \\
- & LWF & 70.8\tiny{$\pm$1.2} & $\downarrow$69.1\tiny{$\pm$0.9} & $\downarrow$52.8\tiny{$\pm$1.4} & PH & 92.3\tiny{$\pm$0.1} & $\ \;$92.3\tiny{$\pm$0.1} & $\ \;$92.2\tiny{$\pm$0.1} & ADWIN \\
- & MAS & 67.7\tiny{$\pm$3.1} & $\ \;$68.3\tiny{$\pm$1.2} & $\ \;$68.3\tiny{$\pm$1.2} & ADWIN & 92.7\tiny{$\pm$0.2} & $\ \;$92.6\tiny{$\pm$0.2} & $\ \;$92.6\tiny{$\pm$0.2} & ADWIN \\
- & RWalk & 62.5\tiny{$\pm$3.0} & $\ \;$60.8\tiny{$\pm$2.3} & $\downarrow$50.8\tiny{$\pm$2.3} & DDM & 92.4\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & $\ \;$92.4\tiny{$\pm$0.2} & ADWIN \\
- & SI & 60.8\tiny{$\pm$3.6} & $\ \;$63.1\tiny{$\pm$5.3} & $\ \;$63.1\tiny{$\pm$5.3} & ADWIN & 90.8\tiny{$\pm$0.3} & $\downarrow$90.3\tiny{$\pm$0.3} & $\ \;$90.4\tiny{$\pm$0.4} & STEPD \\
+\multirow[t]{5}{*}{slow} & EWC & 59.1\tiny{$\pm$2.1} & $\ \;$60.1\tiny{$\pm$2.5} & $\ \;$60.1\tiny{$\pm$2.5} & ADWIN & 74.5\tiny{$\pm$0.7} & $\ \;$74.0\tiny{$\pm$0.9} & $\ \;$74.4\tiny{$\pm$0.6} & SEED \\
+ & LWF & 70.8\tiny{$\pm$1.2} & $\downarrow$69.1\tiny{$\pm$0.9} & $\downarrow$52.8\tiny{$\pm$1.4} & PH & 77.8\tiny{$\pm$0.9} & $\ \;$78.6\tiny{$\pm$0.6} & $\uparrow$79.0\tiny{$\pm$0.5} & ADWIN \\
+ & MAS & 67.7\tiny{$\pm$3.1} & $\ \;$68.3\tiny{$\pm$1.2} & $\ \;$68.3\tiny{$\pm$1.2} & ADWIN & 74.1\tiny{$\pm$0.6} & $\ \;$73.7\tiny{$\pm$0.8} & $\ \;$73.7\tiny{$\pm$0.7} & ADWIN \\
+ & RWalk & 62.5\tiny{$\pm$3.0} & $\ \;$60.8\tiny{$\pm$2.3} & $\downarrow$50.8\tiny{$\pm$2.3} & DDM & 72.9\tiny{$\pm$0.5} & $\ \;$72.9\tiny{$\pm$0.5} & $\ \;$73.1\tiny{$\pm$0.6} & SEED \\
+ & SI & 60.8\tiny{$\pm$3.6} & $\ \;$63.1\tiny{$\pm$5.3} & $\ \;$63.1\tiny{$\pm$5.3} & ADWIN & 74.4\tiny{$\pm$0.5} & $\ \;$74.4\tiny{$\pm$0.5} & $\ \;$74.5\tiny{$\pm$0.3} & SEED \\
 \bottomrule
 \end{tabular}

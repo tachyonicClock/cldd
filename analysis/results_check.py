@@ -5,7 +5,8 @@ Run with `uv run analysis/results_check.py`. Reads `evaluate/data_frame.csv` and
 `table/check_oracle_best.tex` (accuracy) and `table/check_oracle_best_dd.tex` (F1 and
 NMDT).
 
-ADWIN is the detector picked on RotatedFashionMNIST, so CORe50 is a held-out test.
+ADWIN is the detector picked on RotatedFashionMNIST, so RotatedCIFAR10 is a held-out
+test.
 The best detector (`Best`) of
 each strategy and boundary is picked on the tuning seeds of each dataset (see
 `src/select_best.py`). Significance marks use the same tests as `results_strategy.py`.
@@ -34,7 +35,7 @@ FIXED = "ADWIN"
 BEST = "BEST"
 DATASETS = {
     "rfmnist": ("RotatedFashionMNIST", LOGS),
-    "core50": ("CORe50", LOGS / "core50"),
+    "rcifar10_rn18": ("RotatedCIFAR10 (ResNet-18)", LOGS / "rcifar10_rn18"),
 }
 BOUNDARY_ORDER = ["abrupt", "gradual", "slow"]
 NO_ARROW = r"$\ \;$"
