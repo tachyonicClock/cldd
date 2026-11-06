@@ -1,8 +1,0 @@
-learner:
-  type_: PN
-hpsearch:
-  args:
-    "learner.prune_fraction":
-      type_: float
-      low: 0.5
-      high: 0.9

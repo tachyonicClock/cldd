@@ -220,30 +220,6 @@ class LWFArgs(LearnerArgs):
 
 
 @dataclass
-class DERArgs(LearnerArgs):
-    """Dark Experience Replay"""
-
-    type_: ClassVar[str] = "DER"
-    capacity: int = DEFAULT_BUFFER_CAPACITY
-    """Capacity of the experience replay buffer."""
-    alpha: float = 0.5
-    """Weight of the DER replay-logit loss term."""
-
-    augment: AugmentTypes = "AutoAugCIFAR10"
-
-    @override
-    def build(
-        self,
-        seed: int,
-        schema: Schema,
-        device: str,
-        model: nn.Module,
-        optimizer: Optimizer,
-    ) -> BatchClassifier:
-        raise NotImplementedError("DER is not in CapyMOA 0.15.1.")
-
-
-@dataclass
 class RWalkArgs(LearnerArgs):
     """Riemannian Walk"""
 
@@ -310,4 +286,4 @@ class MASArgs(LearnerArgs):
         )
 
 
-AnyLearner = FTArgs | EWCArgs | LWFArgs | DERArgs | SIArgs | RWalkArgs | MASArgs
+AnyLearner = FTArgs | EWCArgs | LWFArgs | SIArgs | RWalkArgs | MASArgs
