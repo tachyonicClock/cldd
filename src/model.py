@@ -81,6 +81,19 @@ class AirbenchCNNArgs(ModelArgs):
 
 
 @dataclass
+class IncrementalCNNArgs(ModelArgs):
+    type_: ClassVar[str] = "IncrementalCNN"
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.incremental_cnn import IncrementalCNN
+
+        manual_seed(seed)
+        return IncrementalCNN(
+            num_classes=schema.get_num_classes(),
+        )
+
+
+@dataclass
 class DeepLightweightMLPArgs(ModelArgs):
     type_: ClassVar[str] = "DeepLightweightMLP"
 
@@ -110,6 +123,12 @@ class PretrainedResNet18Args(ModelArgs):
     pretrained: bool = True
     freeze_bn_stats: bool = True
     """Keep ImageNet BatchNorm statistics; scale and shift still train."""
+    norm: Literal["batch", "group"] = "batch"
+    """GroupNorm (from scratch only) has no running statistics to drift between domains."""
+    cifar_stem: bool = False
+    """3x3 stride-1 stem without max pooling, for 32x32 inputs at image_size 32."""
+    base_width: int = 64
+    """Channels of the first stage; 20 gives the reduced ResNet-18 of GEM."""
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         from .models.resnet import PretrainedResNet18
@@ -120,6 +139,9 @@ class PretrainedResNet18Args(ModelArgs):
             image_size=self.image_size,
             pretrained=self.pretrained,
             freeze_bn_stats=self.freeze_bn_stats,
+            norm=self.norm,
+            cifar_stem=self.cifar_stem,
+            base_width=self.base_width,
         )
 
 
@@ -128,6 +150,7 @@ AnyModel = (
     | ResNet_32x32Args
     | ConvNeXtArgs
     | AirbenchCNNArgs
+    | IncrementalCNNArgs
     | DeepLightweightMLPArgs
     | FashionCNNArgs
     | PretrainedResNet18Args

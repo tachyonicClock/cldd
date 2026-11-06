@@ -466,6 +466,88 @@ class OracleArgs(DriftDetectorArgs):
         return OracleDriftDetector()
 
 
+
+class ScheduleDriftDetector(BaseDriftDetector):
+    """Alarm at fixed instance counts, ignoring the error stream.
+
+    Used for detection-free triggers (periodic, random) and for controlled faults on
+    the oracle (shifted, dropped or extra alarms). ``alarms`` holds 1-based counts of
+    ``add_element`` calls, which match ``OCLDD._stream_index``.
+    """
+
+    def __init__(self, alarms: Sequence[int]):
+        super().__init__()
+        self._alarms = set(int(a) for a in alarms)
+        self._count = 0
+        self._fire = False
+
+    def add_element(self, element: float) -> None:
+        self._count += 1
+        self._fire = self._count in self._alarms
+
+    def detected_change(self) -> bool:
+        fire, self._fire = self._fire, False
+        return fire
+
+    def detected_warning(self) -> bool:
+        return False
+
+    def reset(self, clean_history: bool = False) -> None:
+        # OCLDD resets after each alarm; the schedule must keep counting.
+        self._fire = False
+
+    def get_params(self) -> dict:
+        return {"n_alarms": len(self._alarms)}
+
+
+@dataclass
+class ScheduleArgs(DriftDetectorArgs):
+    """Synthetic trigger. Call ``set_stream`` before ``build``.
+
+    mode ``periodic``: every ``period`` instances, from a random phase.
+    mode ``random``: ``n_random`` alarms at uniform random instances.
+    mode ``oracle``: the true drift centres shifted by ``offset`` instances, with
+    ``n_miss`` of them dropped and ``n_extra`` uniform random alarms added.
+    The randomness is seeded by ``seed`` (set to the run seed).
+    """
+
+    type_: ClassVar[str] = "schedule"
+    mode: Literal["periodic", "random", "oracle"] = "oracle"
+    period: int = 60000
+    n_random: int = 4
+    offset: int = 0
+    n_miss: int = 0
+    n_extra: int = 0
+    seed: int = 0
+
+    def set_stream(self, task_lengths: Sequence[int], seed: int) -> None:
+        self._task_lengths = [int(n) for n in task_lengths]
+        self.seed = seed
+
+    def alarms(self) -> list[int]:
+        rng = np.random.default_rng(self.seed)
+        total = int(np.sum(self._task_lengths))
+        trues = np.cumsum(self._task_lengths)[:-1]
+        if self.mode == "periodic":
+            phase = int(rng.integers(1, self.period + 1))
+            out = np.arange(phase, total + 1, self.period)
+        elif self.mode == "random":
+            out = rng.integers(1, total + 1, size=self.n_random)
+        else:
+            out = np.clip(trues + self.offset, 1, total)
+            if self.n_miss > 0:
+                keep = rng.permutation(len(out))[self.n_miss:]
+                out = out[np.sort(keep)]
+            if self.n_extra > 0:
+                out = np.concatenate([out, rng.integers(1, total + 1, size=self.n_extra)])
+        return sorted(set(int(a) for a in out))
+
+    def build_dd(self) -> BaseDriftDetector:
+        alarms = self.alarms()
+        logger.info("Scheduled alarms ({}): {}", self.mode, alarms)
+        return ScheduleDriftDetector(alarms)
+
+
 AnyDriftDetector = (
     ADWINArgs
     | DDMArgs
@@ -475,4 +557,5 @@ AnyDriftDetector = (
     | ABCDArgs
     | OracleArgs
     | CUSUMArgs
+    | ScheduleArgs
 )

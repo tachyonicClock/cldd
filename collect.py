@@ -36,6 +36,12 @@ dd_metric_keys = [
 
 ttt_metric_keys = ["accuracy"]
 
+balanced_metric_keys = [
+    "balanced_accuracy_final",
+    "balanced_accuracy_seen_avg",
+    "balanced_backward_transfer",
+]
+
 
 def copy_keys(
     dst: dict, src: dict, prefix: str, keys: Sequence[Tuple[str, str] | str]
@@ -76,6 +82,10 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
     # Drift Detection Metrics
     record = copy_keys(record, dd_metrics, "dd", dd_metric_keys)
     record = copy_keys(record, ocl_metrics, "ocl", ocl_metric_keys)
+    balanced_pkl = dirname / "balanced_metrics.pkl"
+    if balanced_pkl.exists():
+        with open(balanced_pkl, "rb") as f:
+            record = copy_keys(record, pickle.load(f), "ocl", balanced_metric_keys)
     record = copy_keys(record, ttt_metrics["cumulative"], "ttt", ttt_metric_keys)
     return record
 

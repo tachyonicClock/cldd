@@ -1,6 +1,7 @@
 from dataclasses import asdict, replace
 
 from src.tblogger import TensorboardLogger
+from src.balanced_accuracy import BalancedAccuracy
 from src import config
 from capymoa.ocl.events import Dispatcher, Handler
 from capymoa.drift.eval_detector import EvaluateDriftDetector
@@ -20,11 +21,11 @@ class Experiment:
         self.config = config
         self.device = config.device
 
-        logger.info("Build scenario.")
+        logger.info("Build scenario: {}", config.scenario)
         self.scenario = config.scenario.build(config.seed)
         self.schema = self.scenario.schema
 
-        logger.info("Build model.")
+        logger.info("Build model: {}", config.model)
         self.model = config.model.build(config.seed, self.schema)
         n_parameters = sum(p.numel() for p in self.model.parameters())
         n_buffers = sum(p.numel() for p in self.model.buffers())
@@ -52,6 +53,7 @@ class Experiment:
         self._init_repeats(config)
 
         self.logdir = self.new_logdir()
+        logger.info("Saving experiment outputs to {}", self.logdir)
         self.tb_logger = TensorboardLogger(self.logdir.as_posix())
 
     def _init_drift_detector(self, config):
@@ -59,6 +61,10 @@ class Experiment:
         mean_length = task_lengths.mean()
         pad = self.config.mb_train * 10
         drift_width = int(mean_length * self.config.scenario.gradual + pad)
+        from src.drift_detector import ScheduleArgs
+
+        if isinstance(config.drift_detector, ScheduleArgs):
+            config.drift_detector.set_stream(task_lengths, config.seed)
         self.drift_detector = config.drift_detector.build(
             self.learner,
             EvaluateDriftDetector(
@@ -116,6 +122,9 @@ class Experiment:
             self.scheduler.attach_with(self.dispatcher)
         for handler in handlers:
             handler.attach_with(self.dispatcher)
+        balanced = BalancedAccuracy(self.schema.get_num_classes()).attach_with(
+            self.dispatcher
+        )
 
         ocl_metrics = ocl_train_eval_loop(
             learner=self.drift_detector.learner,
@@ -143,6 +152,11 @@ class Experiment:
             ocl_metrics = replace(ocl_metrics, ttt=None)
             pickle.dump(ocl_metrics, f)
 
+        # Save balanced-accuracy metrics
+        balanced_metrics = balanced.summary(ocl_metrics.n_tasks)
+        with open(self.logdir / "balanced_metrics.pkl", "wb") as f:
+            pickle.dump(balanced_metrics, f)
+
         # Save Drift Detection Metrics
         dd_metrics = self.drift_detector.metrics()
         dd_pickle = self.logdir / "dd_metrics.pkl"
@@ -167,4 +181,5 @@ class Experiment:
         logger.info(f"accuracy_final     {ocl_metrics.accuracy_final:.3f}")
         ocl_metrics = asdict(ocl_metrics)
         ocl_metrics["accuracy_forgetful"] = accuracy_forgetful
+        ocl_metrics |= balanced_metrics
         return ocl_metrics

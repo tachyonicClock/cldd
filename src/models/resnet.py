@@ -1,4 +1,4 @@
-"""ImageNet-pretrained ResNet-18 for small images, fine-tuned end to end."""
+"""ResNet-18 for small images: ImageNet-pretrained and fine-tuned, or trained from scratch."""
 
 import torch
 import torch.nn.functional as F
@@ -22,10 +22,40 @@ class PretrainedResNet18(nn.Module):
         image_size: int = 64,
         pretrained: bool = True,
         freeze_bn_stats: bool = True,
+        norm: str = "batch",
+        cifar_stem: bool = False,
+        base_width: int = 64,
     ):
         super().__init__()
         weights = ResNet18_Weights.IMAGENET1K_V1 if pretrained else None
-        self.net = resnet18(weights=weights)
+        if base_width != 64 and pretrained:
+            raise ValueError("Only base_width 64 has pretrained weights.")
+        if norm == "group":
+            if pretrained:
+                raise ValueError("GroupNorm has no pretrained weights; use pretrained=False.")
+            # No running statistics to drift between domains. Groups of 32 as in Wu and
+            # He (2018), or fewer when the width is too small to divide.
+            norm_layer = lambda c: nn.GroupNorm(32 if c % 32 == 0 else c // 4, c)
+        else:
+            norm_layer = None
+        self.net = resnet18(weights=weights, norm_layer=norm_layer)
+        if base_width != 64:
+            # Reduced ResNet-18 (Lopez-Paz and Ranzato, 2017): same layout, fewer maps.
+            from torchvision.models.resnet import BasicBlock, ResNet
+            self.net = ResNet(BasicBlock, [2, 2, 2, 2], norm_layer=norm_layer)
+            self.net.inplanes = base_width
+            w = base_width
+            self.net.conv1 = nn.Conv2d(3, w, kernel_size=7, stride=2, padding=3, bias=False)
+            self.net.bn1 = (norm_layer or nn.BatchNorm2d)(w)
+            self.net.layer1 = self.net._make_layer(BasicBlock, w, 2)
+            self.net.layer2 = self.net._make_layer(BasicBlock, 2 * w, 2, stride=2)
+            self.net.layer3 = self.net._make_layer(BasicBlock, 4 * w, 2, stride=2)
+            self.net.layer4 = self.net._make_layer(BasicBlock, 8 * w, 2, stride=2)
+            self.net.fc = nn.Linear(8 * w, num_classes)
+        if cifar_stem:
+            # 3x3 stride-1 stem without max pooling, the usual change for 32x32 inputs.
+            self.net.conv1 = nn.Conv2d(3, base_width, kernel_size=3, stride=1, padding=1, bias=False)
+            self.net.maxpool = nn.Identity()
         self.net.fc = nn.Linear(self.net.fc.in_features, num_classes)
         self.image_size = image_size
         self.freeze_bn_stats = freeze_bn_stats

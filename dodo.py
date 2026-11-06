@@ -69,13 +69,16 @@ BEST_DETECTOR = "BEST"
 
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
-CHECK_DATASETS = ["rcifar10_rn18"]
+CHECK_DATASETS = ["rcifar10_rn18", "covertype_elevation"]
 """Datasets for the smaller check. Phase 3 runs only the oracle, the fixed detector and
 the best detector. Each has a `config/dataset/<name>.yml`."""
 FIXED_DETECTOR = "ADWIN"
 """Detector picked on the main dataset, run live on check datasets with its phase-2
 HP from that dataset."""
 DATASETS = [DEFAULT_DATASET, *CHECK_DATASETS]
+if os.environ.get("CLDD_DATASETS"):
+    # Comma-separated subset, e.g. CLDD_DATASETS=covertype_elevation
+    DATASETS = [d for d in DATASETS if d in os.environ["CLDD_DATASETS"].split(",")]
 
 N_TRIALS = 10
 rng = random.Random(0)

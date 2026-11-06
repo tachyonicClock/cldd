@@ -64,6 +64,17 @@ Analysis with the scripts in `analysis/` can be run with:
 uv run analysis/plots.py
 ```
 
+### Controlled triggers
+
+`script/run_synthetic.py` re-runs each phase-three Oracle run with a `schedule` detector
+(`ScheduleArgs` in `src/drift_detector.py`) that ignores the error stream: periodic
+snapshots, random alarms matched to ADWIN's count, and an Oracle with dropped, extra or
+shifted alarms. It also runs ADWIN and the Oracle on 10 more evaluation seeds. Runs go to
+`$LOGDIR/cldd/synthetic`, and finished runs are skipped, so the script can be restarted:
+```sh
+uv run python -P script/run_synthetic.py --gpus 0,1,2 --per-gpu 3
+```
+
 ## Result Files
 
 The workflow writes two CSV files to `$LOGDIR/cldd`. Copies are in `data/`. The scripts in

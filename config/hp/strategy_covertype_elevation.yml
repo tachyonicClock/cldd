@@ -1,0 +1,6 @@
+# Multivariate TPE models lr and strength jointly. The median pruner stays off: classes
+# vanish from later domains, so a running score is a poor guide.
+hpsearch:
+  n_trials: 40
+  multivariate: true
+  constant_liar: true
