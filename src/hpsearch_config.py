@@ -1,6 +1,5 @@
-import os
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -59,11 +58,8 @@ class HPSearchConfig:
     n_jobs: int = 1
     study_prefix: str = "bocl"
     metric: str = "accuracy_final"
-    storage: str = field(
-        default_factory=lambda: (
-            os.environ.get("LOGDIR", "logs") + "/cldd/optuna.journal.log"
-        )
-    )
+    storage: str | None = None
+    """Optuna journal file. None uses the journal of the dataset (see `new_study`)."""
     maximize: bool = True
 
     multivariate: bool = False
@@ -81,9 +77,11 @@ class HPSearchConfig:
     """Control what happens if the study already exists. "w" to overwrite, "a" to
     append, "x" to raise an error."""
 
-    def new_study(self, study_name: str) -> optuna.Study:
+    def new_study(self, study_name: str, dataset_root: Path) -> optuna.Study:
+        journal = Path(self.storage or dataset_root / "optuna.journal.log")
+        journal.parent.mkdir(parents=True, exist_ok=True)
         storage = optuna.storages.JournalStorage(
-            optuna.storages.journal.JournalFileBackend(Path(self.storage).as_posix())  # type: ignore
+            optuna.storages.journal.JournalFileBackend(journal.as_posix())  # type: ignore
         )
 
         if self.mode == "w":

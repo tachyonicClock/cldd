@@ -21,7 +21,7 @@ class DDHPSearch:
         self.config = config
         self.hpsearch = config.hpsearch
         self.error_streams = error_streams
-        self.study = self.hpsearch.new_study(config.study_name)
+        self.study = self.hpsearch.new_study(config.study_name, config.dataset_root)
 
     def _mean_metrics(self, metrics_per_stream: list[dict]) -> dict[str, float]:
         keys = metrics_per_stream[0].keys()

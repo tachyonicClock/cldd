@@ -986,7 +986,7 @@ def plot_faceted_strategy_boxplots(df: pd.DataFrame) -> plt.Figure:
 
 if __name__ == "__main__":
     # 1. Load data
-    logs_path = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
+    logs_path = Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist"
     df_eval_raw = pd.read_csv(logs_path / "evaluate/data_frame.csv")
     df_dd_raw = pd.read_csv(logs_path / "dd_run/data_frame.csv")
     for _df in (df_eval_raw, df_dd_raw):

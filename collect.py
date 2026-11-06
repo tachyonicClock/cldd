@@ -13,7 +13,7 @@ import tqdm
 import yaml
 from loguru import logger
 
-from src.config import DEFAULT_DATASET_LABEL, Config, converter
+from src.config import Config, converter
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
@@ -99,10 +99,8 @@ def load_dd_run_record(dirname: Path | str) -> tuple[dict[str, Any], dict[str, A
     with open(dirname / "dd_metrics.pkl", "rb") as f:
         dd_metrics = pickle.load(f)
 
-    # Expected layout: cldd/[<dataset>/]<label>/<boundary>/<strategy>/<detector>/<trial>
+    # Expected layout: cldd/<dataset>/<label>/<boundary>/<strategy>/<detector>/<trial>
     dataset = dirname.parents[4].name
-    if dataset == "cldd":
-        dataset = DEFAULT_DATASET_LABEL
     detector = dirname.parent.name
     strategy = dirname.parent.parent.name
     boundary = dirname.parent.parent.parent.name

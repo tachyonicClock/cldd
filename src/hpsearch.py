@@ -63,7 +63,7 @@ class HPSearch:
         if self.hpsearch.args is None:
             logger.warning("Running only 1 trial since the search space is empty.")
             self.hpsearch.n_trials = 1
-        self.study = self.hpsearch.new_study(config.study_name)
+        self.study = self.hpsearch.new_study(config.study_name, config.dataset_root)
 
     def optimize(self) -> None:
         states = (optuna.trial.TrialState.COMPLETE,)

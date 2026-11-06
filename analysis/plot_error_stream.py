@@ -275,7 +275,7 @@ def plot_drift_detection_pair(
 
 
 fig = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
+    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
     good=("SI", "ADWIN"),
     bad=("SI", "STEPD"),
     seed="009",
@@ -284,7 +284,7 @@ fig.savefig("fig/plot_error_stream.pdf")
 
 # A detector that misses drifts: no alarm at all in Gradual and Slow
 fig_missed = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
+    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
     good=("LWF", "ADWIN"),
     bad=("LWF", "DDM"),
     seed="005",
@@ -410,7 +410,7 @@ def plot_drift_detection_stack(
 
 # Each run is picked to tell its part of the story (they differ in strategy and seed)
 fig_stack = plot_drift_detection_stack(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
+    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
     runs=[
         ("High F1", "LWF", "ADWIN", BOUNDARIES, "001"),
         ("False alarms", "RWalk", "STEPD", ("gradual",), "007"),

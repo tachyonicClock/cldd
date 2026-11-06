@@ -31,7 +31,7 @@ from actions import (
 from collect import collect_dataset
 from src.config import DEFAULT_DATASET_LABEL
 
-DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", "False"))
+DEBUG_MODE = os.environ.get("DEBUG_BOCL", "False").lower() in ("1", "true")
 if DEBUG_MODE:
     logger.warning(
         "Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds."
@@ -71,7 +71,7 @@ BEST_DETECTOR = "BEST"
 
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
-CHECK_DATASETS = ["covertype_elevation"]
+CHECK_DATASETS = ["covertype"]
 """Datasets for the smaller check. Phase 3 runs the oracle, the best detector and every
 detector with its own phase-2 HP (no joint-HP ADWIN*). Each has a `config/dataset/<name>.yml`."""
 FIXED_DETECTOR = "ADWIN"
@@ -79,7 +79,7 @@ FIXED_DETECTOR = "ADWIN"
 HP from that dataset."""
 DATASETS = [DEFAULT_DATASET, *CHECK_DATASETS]
 if os.environ.get("CLDD_DATASETS"):
-    # Comma-separated subset, e.g. CLDD_DATASETS=covertype_elevation
+    # Comma-separated subset, e.g. CLDD_DATASETS=covertype
     DATASETS = [d for d in DATASETS if d in os.environ["CLDD_DATASETS"].split(",")]
 
 N_TRIALS = 10
@@ -150,9 +150,9 @@ class Unit:
         return configs
 
     def logdir(self, label: str) -> Path:
-        root = LOG_ROOT if self.is_default_dataset else LOG_ROOT / self.dataset
         return (
-            root
+            LOG_ROOT
+            / self.dataset
             / label
             / self.boundary
             / self.strategy
@@ -441,7 +441,7 @@ def task_dd_run():
 
 
 def dataset_root(dataset: str) -> Path:
-    return LOG_ROOT if dataset == DEFAULT_DATASET else LOG_ROOT / dataset
+    return LOG_ROOT / dataset
 
 
 def task_collect_evaluate():

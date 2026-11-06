@@ -1,7 +1,7 @@
 """Write the dataset check tables (LaTeX): Oracle vs ADWIN vs the best detector.
 
 Run with `uv run analysis/results_check.py`. Reads `evaluate/data_frame.csv` and the
-`select_best` outputs of each dataset under `$LOGDIR/cldd`. Writes
+`select_best` outputs of each dataset under `$LOGDIR/cldd/<dataset>`. Writes
 `table/check_oracle_best.tex` (accuracy) and `table/check_oracle_best_dd.tex` (F1 and
 NMDT).
 

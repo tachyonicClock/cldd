@@ -10,6 +10,8 @@ from typing import Any
 
 from loguru import logger
 
+from src.config import DEFAULT_DATASET_LABEL
+
 _GPUS = [g for g in os.environ.get("CLDD_GPUS", "").split(",") if g]
 _next_gpu = itertools.count()
 _gpu_lock = threading.Lock()
@@ -49,9 +51,14 @@ def call(
 
     log_file = None
     if identifier is not None:
+        dataset = next(
+            (c.stem for c in configs if c.parent.name == "dataset"),
+            DEFAULT_DATASET_LABEL,
+        )
         log_file = (
             Path(os.environ.get("LOGDIR", "logs"))
             / "cldd"
+            / dataset
             / "console"
             / f"{identifier}.log"
         )

@@ -38,16 +38,16 @@ JOBS ?= 6
 
 .PHONY: run-covertype
 run-covertype:
-	mkdir -p ${LOGDIR}/cldd
-	CLDD_DATASETS=covertype_elevation CLDD_GPUS=$(GPU) OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 \
+	mkdir -p ${LOGDIR}/cldd/covertype
+	CLDD_DATASETS=covertype CLDD_GPUS=$(GPU) OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 \
 	nohup uv run doit run -n $(JOBS) tune_strategy error_stream tune_hp_detector select_best evaluate dd_run collect_evaluate dd_collect \
-	> ${LOGDIR}/cldd/nohup_covertype.log 2>&1 &
+	> ${LOGDIR}/cldd/covertype/nohup.log 2>&1 &
 
 .PHONY: notify-covertype
 # Run after `make run-covertype`; the bracket keeps pgrep from matching this shell.
 notify-covertype:
 	nohup sh -c 'pid=$$(pgrep -of "[d]oit run -n") || exit 1; tail --pid=$$pid -f /dev/null; \
-	if [ -f ${LOGDIR}/cldd/covertype_elevation/dd_run/data_frame.csv ]; then s=finished; else s="stopped early, see nohup_covertype.log"; fi; \
+	if [ -f ${LOGDIR}/cldd/covertype/dd_run/data_frame.csv ]; then s=finished; else s="stopped early, see covertype/nohup.log"; fi; \
 	discord.sh --text "covertype pipeline $$s"' > /dev/null 2>&1 &
 
 stop:

@@ -1,6 +1,6 @@
 """Write the strategy result tables (LaTeX) from the evaluate runs.
 
-Run with `uv run analysis/results_strategy.py`. Reads `$LOGDIR/cldd/evaluate/data_frame.csv`.
+Run with `uv run analysis/results_strategy.py`. Reads `$LOGDIR/cldd/rfmnist/evaluate/data_frame.csv`.
 Writes `table/strategy_<boundary>.tex` (Oracle, ADWIN and ADWIN* only) and
 `table/appendix_strategy_<boundary>.tex` (all detectors).
 
@@ -29,7 +29,7 @@ AGGREGATIONS = ("mean", "std")
 UP = r"$\uparrow$"
 DOWN = r"$\downarrow$"
 
-LOGS = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
+LOGS = Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist"
 TABLE_DIR = Path(__file__).resolve().parent.parent / "table"
 
 _template = Template(

@@ -47,8 +47,8 @@ class Config:
     label: str = "noname"
     """Optional top level name for the experiment."""
     dataset_label: str | None = None
-    """Adds a dataset level to log paths and study names. None keeps the
-    RotatedFashionMNIST layout."""
+    """Adds a dataset level to study names. Log paths always have a dataset level.
+    None is RotatedFashionMNIST, whose study names have no dataset level."""
     trial: int | None = None
     hpsearch: HPSearchConfig | None = None
 
@@ -58,6 +58,10 @@ class Config:
     @property
     def dataset_name(self) -> str:
         return self.dataset_label or DEFAULT_DATASET_LABEL
+
+    @property
+    def dataset_root(self) -> Path:
+        return Path(os.environ.get("LOGDIR", "logs")) / "cldd" / self.dataset_name
 
     @property
     def scenario_label(self) -> str:
@@ -70,11 +74,8 @@ class Config:
         else:
             trial_id = f"{self.trial:03d}"
 
-        root = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
-        if self.dataset_label is not None:
-            root = root / self.dataset_label
         return (
-            root
+            self.dataset_root
             / self.label
             / self.scenario_label
             / self.learner.type_

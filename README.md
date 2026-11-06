@@ -32,7 +32,7 @@ Run experiment workflow `dodo.py` to generate benchmark and dataset:
 ```sh
 uv run doit
 ```
-Will generate a `$LOGDIR/cldd/evaluate/data_frame.csv` and `$LOGDIR/cldd/dd_run/data_frame.csv`.
+Will generate a `$LOGDIR/cldd/<dataset>/evaluate/data_frame.csv` and `$LOGDIR/cldd/<dataset>/dd_run/data_frame.csv`, where `<dataset>` is `rfmnist` or `covertype`. Each dataset directory also has its own `console/` logs and `optuna.journal.log`.
 
 Parts of the workflow can be run independently
 ```
@@ -66,8 +66,8 @@ uv run python -P script/run_synthetic.py --gpus 0,1,2 --per-gpu 3
 
 ## Result Files
 
-The workflow writes two CSV files to `$LOGDIR/cldd`. Copies are in `data/`. The scripts in
-`analysis/` read the ones in `$LOGDIR/cldd`. Each row is one run, and both files share these columns:
+The workflow writes two CSV files to `$LOGDIR/cldd/<dataset>`. Copies are in `data/`. The scripts in
+`analysis/` read the ones in `$LOGDIR/cldd/rfmnist`. Each row is one run, and both files share these columns:
 
 | Column | Meaning |
 | --- | --- |

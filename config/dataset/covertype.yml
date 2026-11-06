@@ -1,5 +1,5 @@
 # UCI Covertype (7 cover types), 5 domains by elevation bin, MLP on tabular features.
-dataset_label: covertype_elevation
+dataset_label: covertype
 scenario:
   name: Covertype
   covertype_partition: Elevation
