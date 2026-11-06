@@ -19,13 +19,6 @@ EVAL_SEEDS = [2201, 9325, 1033]  # first three evaluation seeds of dodo.py
 LOG_LOCK = threading.Lock()
 CANDIDATES = {
     # Run the repository's dataset config directly as a pilot candidate.
-    "adult": None,
-    "adult_occupation": None,
-    "adult_education": None,
-    "credit_limit": None,
-    "credit_education": None,
-    "credit_education_limit": None,
-    "credit_limit_rot": None,
     "covertype_elevation": None,
 }
 
@@ -59,7 +52,7 @@ def job(name: str, spec: dict | None, strategy: str, trials: int, env: dict, log
     journal = root / "optuna.journal.log"
     root.mkdir(parents=True, exist_ok=True)
     # Imbalanced tabular sets are tuned on balanced accuracy; accuracy tracks the label prior.
-    metric = "balanced_accuracy_seen_avg" if name.startswith(("adult", "credit")) else "accuracy_seen_avg"
+    metric = "accuracy_seen_avg"
     if not best.exists():
         cmd = main_cmd(base + [r / "hp/strategy.yml"],
                        [f"hpsearch.n_trials={trials}", "hpsearch.n_jobs=1", "hpsearch.multivariate=True", f"hpsearch.storage={journal}",
