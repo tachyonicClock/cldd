@@ -1,8 +1,8 @@
 """Report a running continual-learning score to Optuna so weak trials can be pruned."""
 
 import optuna
-from capymoa.ocl.events import Dispatcher, Handler
 from capymoa.ocl.evaluation.events import EvalBatchPredict, TestBegin, TestEnd
+from capymoa.ocl.events import Dispatcher, Handler
 
 
 class PruneOnSeenAccuracy(Handler):

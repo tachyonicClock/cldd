@@ -3,14 +3,16 @@ from a previous experiment. This allows us to optimize drift detector hyperparam
 without the computational cost of running a full experiment for each trial.
 """
 
+import pickle
+from pathlib import Path
+
+import optuna
+from loguru import logger
+
 from src.config import Config
 from src.dd_eval import evaluate_dd_stream
 from src.hpsearch import optimize_with_max_trials
 from src.util import obj_dot_notation_set
-import optuna
-import pickle
-from pathlib import Path
-from loguru import logger
 
 
 class DDHPSearch:

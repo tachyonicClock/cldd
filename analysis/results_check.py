@@ -15,7 +15,6 @@ share runs when the best detector is ADWIN.
 """
 
 import pandas as pd
-
 from common import ONE_SIDED_LABELS, load_best_detectors
 from plots import compute_nmdt
 from results_strategy import (
@@ -135,7 +134,8 @@ if __name__ == "__main__":
         df_ev = pd.read_csv(root / "evaluate/data_frame.csv").pipe(compute_nmdt)
         runs = select_runs(df_ev, load_best_detectors(root))
         baseline = df_ev[
-            df_ev["strategy"].isin(BOUNDARY_AGNOSTIC) & (df_ev["detector_label"] == ORACLE)
+            df_ev["strategy"].isin(BOUNDARY_AGNOSTIC)
+            & (df_ev["detector_label"] == ORACLE)
         ]
         acc, dd = dataset_columns(runs, baseline, name)
         print(f"== {name}")

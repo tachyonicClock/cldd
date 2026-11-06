@@ -1,10 +1,12 @@
-from src.config import Config
-import optuna
-from typing import Callable
-from src.experiment import Experiment
-from loguru import logger
-from src.util import obj_dot_notation_set
+from collections.abc import Callable
 from copy import deepcopy
+
+import optuna
+from loguru import logger
+
+from src.config import Config
+from src.experiment import Experiment
+from src.util import obj_dot_notation_set
 
 
 def optimize_with_max_trials(
@@ -12,7 +14,7 @@ def optimize_with_max_trials(
     objective: Callable[[optuna.trial.Trial], tuple[float, ...] | float],
     n_trials: int,
     states: tuple[optuna.trial.TrialState, ...] = (optuna.trial.TrialState.COMPLETE,),
-    callbacks=[],
+    callbacks=None,
     **kwargs,
 ):
     """
@@ -34,6 +36,8 @@ def optimize_with_max_trials(
     Source: https://github.com/optuna/optuna/issues/1883#issuecomment-702688136
     """
 
+    if callbacks is None:
+        callbacks = []
     trials = study.get_trials(deepcopy=False, states=states)
     n_complete = len(trials)
 

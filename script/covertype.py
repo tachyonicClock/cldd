@@ -15,7 +15,9 @@ Usage (from the repo root):
 from os import environ
 from pathlib import Path
 
-environ.setdefault("OMP_NUM_THREADS", "1")  # multi-threaded BLAS is slower on small fits
+environ.setdefault(
+    "OMP_NUM_THREADS", "1"
+)  # multi-threaded BLAS is slower on small fits
 environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
 import urllib.request
@@ -28,9 +30,24 @@ import torch
 from sklearn.linear_model import LogisticRegression
 
 URL = "https://archive.ics.uci.edu/static/public/31/covertype.zip"
-NUMERIC = ["Elevation", "Aspect", "Slope", "Horz_Dist_Hydrology", "Vert_Dist_Hydrology",
-           "Horz_Dist_Roadways", "Hillshade_9am", "Hillshade_Noon", "Hillshade_3pm", "Horz_Dist_Fire"]
-NAMES = [*NUMERIC, *[f"Wilderness_{i}" for i in range(4)], *[f"Soil_{i}" for i in range(40)], "Cover_Type"]
+NUMERIC = [
+    "Elevation",
+    "Aspect",
+    "Slope",
+    "Horz_Dist_Hydrology",
+    "Vert_Dist_Hydrology",
+    "Horz_Dist_Roadways",
+    "Hillshade_9am",
+    "Hillshade_Noon",
+    "Hillshade_3pm",
+    "Horz_Dist_Fire",
+]
+NAMES = [
+    *NUMERIC,
+    *[f"Wilderness_{i}" for i in range(4)],
+    *[f"Soil_{i}" for i in range(40)],
+    "Cover_Type",
+]
 BINNED = ["Elevation", "Aspect", "Slope", "Horz_Dist_Roadways", "Horz_Dist_Hydrology"]
 CANDIDATES = [*BINNED, "Wilderness"]
 N_BINS = 5
@@ -43,18 +60,28 @@ def load(root: Path) -> pd.DataFrame:
     if not archive.exists():
         urllib.request.urlretrieve(URL, archive)
     with zipfile.ZipFile(archive) as zf:
-        return pd.read_csv(zf.open("covtype.data.gz"), compression="gzip", header=None, names=NAMES)
+        return pd.read_csv(
+            zf.open("covtype.data.gz"), compression="gzip", header=None, names=NAMES
+        )
 
 
 def domains(df: pd.DataFrame, attr: str) -> tuple[np.ndarray, list]:
     if attr == "Wilderness":
-        return df[[f"Wilderness_{i}" for i in range(4)]].to_numpy().argmax(1), [f"area{i}" for i in range(4)]
+        return df[[f"Wilderness_{i}" for i in range(4)]].to_numpy().argmax(1), [
+            f"area{i}" for i in range(4)
+        ]
     edges = np.unique(df[attr].quantile(np.linspace(0, 1, N_BINS + 1)[1:-1]))
-    return np.searchsorted(edges, df[attr].to_numpy(), side="right"), [f"bin{i}" for i in range(len(edges) + 1)]
+    return np.searchsorted(edges, df[attr].to_numpy(), side="right"), [
+        f"bin{i}" for i in range(len(edges) + 1)
+    ]
 
 
 def features(df: pd.DataFrame, attr: str) -> np.ndarray:
-    drop = [c for c in df.columns if c.startswith("Wilderness_")] if attr == "Wilderness" else [attr]
+    drop = (
+        [c for c in df.columns if c.startswith("Wilderness_")]
+        if attr == "Wilderness"
+        else [attr]
+    )
     cols = [c for c in df.columns if c not in ("Cover_Type", *drop)]
     x = df[cols].astype(float)
     numeric = [c for c in cols if c in NUMERIC]
@@ -111,10 +138,16 @@ def main() -> None:
     x = torch.from_numpy(features(df, args.by))
     y = torch.from_numpy(df["Cover_Type"].to_numpy() - 1)
     tr, te = split(domain, len(labels), args.per_domain)
-    data = {"train": [(x[i], y[i]) for i in tr], "test": [(x[i], y[i]) for i in te], "n_classes": 7}
+    data = {
+        "train": [(x[i], y[i]) for i in tr],
+        "test": [(x[i], y[i]) for i in te],
+        "n_classes": 7,
+    }
     for d, label in enumerate(labels):
-        print(f"domain {d} ({label}): train {len(tr[d])}, test {len(te[d])}, "
-              f"class shares {np.round(np.bincount(y[tr[d]].numpy(), minlength=7) / len(tr[d]), 2).tolist()}")
+        print(
+            f"domain {d} ({label}): train {len(tr[d])}, test {len(te[d])}, "
+            f"class shares {np.round(np.bincount(y[tr[d]].numpy(), minlength=7) / len(tr[d]), 2).tolist()}"
+        )
     out = Path(__file__).resolve().parent.parent / "data" / f"covertype_{args.by}.pt"
     torch.save(data, out)
     print(f"Saved {out} ({x.shape[1]} features)")

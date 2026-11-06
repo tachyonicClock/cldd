@@ -1,18 +1,18 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from capymoa.stream import Schema
 from typing import ClassVar, Literal, cast, override
+
+import torch
+import torchvision.transforms as T
 from capymoa.base import BatchClassifier
-from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
-from capymoa.ocl.strategy import EWC, LWF, SI, RWalk, MAS
 from capymoa.ocl.evaluation.events import TrainTaskBegin
+from capymoa.ocl.strategy import EWC, LWF, MAS, SI, RWalk
 from capymoa.ocl.util._optim import reset_optimizer_state
+from capymoa.stream import Schema
+from torch import nn
 from torch.optim import Optimizer
-from abc import ABC, abstractmethod
-import torchvision.transforms as T
-import torch
-
 
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
 

@@ -11,11 +11,15 @@ class FlatAutoAugment(nn.Module):
     One random policy is drawn per call and applied to the whole batch.
     """
 
-    def __init__(self, shape: tuple[int, int, int], mean: torch.Tensor, std: torch.Tensor):
+    def __init__(
+        self, shape: tuple[int, int, int], mean: torch.Tensor, std: torch.Tensor
+    ):
         super().__init__()
         self.shape = shape
         self._augment = T.AutoAugment(T.AutoAugmentPolicy.CIFAR10)
-        self.register_buffer("mean", mean.reshape(1, -1, 1, 1).float(), persistent=False)
+        self.register_buffer(
+            "mean", mean.reshape(1, -1, 1, 1).float(), persistent=False
+        )
         self.register_buffer("std", std.reshape(1, -1, 1, 1).float(), persistent=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

@@ -1,16 +1,19 @@
 """Script to collect result files into a single CSV for analysis."""
 
-from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
-from src.config import converter, Config, DEFAULT_DATASET_LABEL
 import pickle
-import yaml
+from collections.abc import Sequence
 from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import tqdm
+import yaml
 from loguru import logger
+
+from src.config import DEFAULT_DATASET_LABEL, Config, converter
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
@@ -44,7 +47,7 @@ balanced_metric_keys = [
 
 
 def copy_keys(
-    dst: dict, src: dict, prefix: str, keys: Sequence[Tuple[str, str] | str]
+    dst: dict, src: dict, prefix: str, keys: Sequence[tuple[str, str] | str]
 ) -> dict:
     for key in keys:
         if key not in src:
@@ -56,7 +59,7 @@ def copy_keys(
     return dst
 
 
-def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
+def load_record(dirname: Path | str) -> dict[str, int | str | float | bool]:
     """Load the results from a directory."""
     logger.info(f"Loading record from {dirname}")
 
@@ -90,7 +93,7 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
     return record
 
 
-def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def load_dd_run_record(dirname: Path | str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load drift-detector replay results from one dd_run directory."""
     dirname = Path(dirname)
     with open(dirname / "dd_metrics.pkl", "rb") as f:
@@ -111,7 +114,7 @@ def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, A
             config = converter.structure(yaml.safe_load(f), Config)
             seed = config.seed
 
-    record: Dict[str, int | str | float | bool] = {
+    record: dict[str, int | str | float | bool] = {
         "dataset": dataset,
         "strategy": strategy,
         "detector": detector,

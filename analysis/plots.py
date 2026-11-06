@@ -1,26 +1,20 @@
 import os
+from collections.abc import Sequence
+
 # Run with `uv run notebook/plots.py`
 from pathlib import Path
 
-from typing import Sequence
-
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.patches import Patch, Rectangle
-from matplotlib.patheffects import withStroke
 import numpy as np
 import pandas as pd
-from cmcrameri import cm
 import seaborn as sns
-from scipy import stats
-
+from cmcrameri import cm
 from common import (
-    PANEL_LABEL_COLOR,
-    PAPER_STYLE,
     BOUNDARY_PALETTE,
     DETECTOR_PALETTE,
     DRIFT_WINDOW_COLOR,
+    FIGSIZE_SR,
     FONT_LABEL,
     FONT_SUBTITLE,
     FONT_TICK,
@@ -28,13 +22,18 @@ from common import (
     LABEL_ACC,
     LABEL_F1,
     LABEL_NMDT,
-    load_best_detectors,
-    FIGSIZE_SR,
     NO_TOP_RIGHT,
-    STRATEGY_PALETTE,
-    rename_methods,
     ONE_SIDED_LABELS,
+    PANEL_LABEL_COLOR,
+    PAPER_STYLE,
+    STRATEGY_PALETTE,
+    load_best_detectors,
+    rename_methods,
 )
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch, Rectangle
+from matplotlib.patheffects import withStroke
+from scipy import stats
 
 # --- Configuration & Setup ---
 plt.style.use(PAPER_STYLE)
@@ -152,7 +151,7 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
     y = data[y_col]
 
     # 1. Perform linear regression on all runs (no outlier filter)
-    slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    slope, intercept, r_value, _p_value, _std_err = stats.linregress(x, y)
 
     # 2. Plot line across the X-range of the panel
     x_range = np.array([df[x_col].min(), df[x_col].max()])
@@ -170,7 +169,7 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
         transform=ax.transAxes,
         verticalalignment="top",
         fontsize=FONT_LABEL,
-        bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=1),
+        bbox={"facecolor": "white", "alpha": 0.7, "edgecolor": "none", "pad": 1},
     )
 
     return r_value**2
@@ -244,8 +243,13 @@ def barplot_f1_detector_strategy(
     ax_sim.spines["left"].set_visible(False)
 
     put_legend(
-        fig, ax_sim, ncol=6, fontsize=FONT_LABEL,
-        handlelength=0.9, columnspacing=0.6, handletextpad=0.3,
+        fig,
+        ax_sim,
+        ncol=6,
+        fontsize=FONT_LABEL,
+        handlelength=0.9,
+        columnspacing=0.6,
+        handletextpad=0.3,
     )
 
     return fig
@@ -348,7 +352,11 @@ def scatter_by_boundary(
 
     boundaries = list(BOUNDARY_PALETTE.keys())
     fig, axes = plt.subplots(
-        1, len(boundaries), figsize=(FIGSIZE_LOSS[0], 2.0), sharex=share_x, sharey=True,
+        1,
+        len(boundaries),
+        figsize=(FIGSIZE_LOSS[0], 2.0),
+        sharex=share_x,
+        sharey=True,
         constrained_layout=True,
     )
 
@@ -385,25 +393,34 @@ def scatter_by_boundary(
                 if strategy == "FT":
                     # FT has no detector, its only run is listed under the Oracle
                     ax.axhline(
-                        oracle_acc[(boundary, "FT")], color=lighten(color, 0.1), linewidth=0.7,
+                        oracle_acc[(boundary, "FT")],
+                        color=lighten(color, 0.1),
+                        linewidth=0.7,
                         zorder=1,
                     )
                 else:
                     # Thin, lighter reference lines stay behind the fit lines
                     ax.axhline(
-                        oracle_acc[(boundary, strategy)], color=lighten(color, 0.3),
-                        linewidth=0.5, linestyle=(0, (2, 2)), zorder=1,
+                        oracle_acc[(boundary, strategy)],
+                        color=lighten(color, 0.3),
+                        linewidth=0.5,
+                        linestyle=(0, (2, 2)),
+                        zorder=1,
                     )
         if window is not None:
             ax.axvspan(
-                -window[boundary], window[boundary],
-                color=DRIFT_WINDOW_COLOR, alpha=0.6, linewidth=0, zorder=0,
+                -window[boundary],
+                window[boundary],
+                color=DRIFT_WINDOW_COLOR,
+                alpha=0.6,
+                linewidth=0,
+                zorder=0,
             )
         if strategy_fits:
             valid = df_b[df_b[x_col] < 1.0]  # NMDT is 1.0 when undefined
-            r_squared[boundary] = stats.linregress(valid[x_col], valid[ACC_METRIC])[
-                2
-            ] ** 2
+            r_squared[boundary] = (
+                stats.linregress(valid[x_col], valid[ACC_METRIC])[2] ** 2
+            )
             for strategy, color in STRATEGY_PALETTE.items():
                 d = valid[valid["strategy"] == strategy]
                 if len(d) < 3:
@@ -419,7 +436,9 @@ def scatter_by_boundary(
                     # White outline so the line stands out from the dots
                     path_effects=[withStroke(linewidth=2.6, foreground="white")],
                 )
-                print(f"{boundary} {strategy}: slope={res.slope:.3f} p={res.pvalue:.2f}")
+                print(
+                    f"{boundary} {strategy}: slope={res.slope:.3f} p={res.pvalue:.2f}"
+                )
         else:
             r_squared[boundary] = add_linear_fit_and_r_value(
                 ax, df_b, x_col, ACC_METRIC
@@ -448,17 +467,28 @@ def scatter_by_boundary(
         print(f"{x_col}: {n_out} points outside the x range of their panel")
     extra = []
     if references:
-        extra.append((Line2D([], [], color=STRATEGY_PALETTE["FT"], linewidth=0.7), "FT"))
         extra.append(
-            (Line2D([], [], color="dimgrey", linewidth=0.5, linestyle=(0, (2, 2))), "Oracle")
+            (Line2D([], [], color=STRATEGY_PALETTE["FT"], linewidth=0.7), "FT")
+        )
+        extra.append(
+            (
+                Line2D([], [], color="dimgrey", linewidth=0.5, linestyle=(0, (2, 2))),
+                "Oracle",
+            )
         )
     if window is not None:
         extra.append(
             (Patch(facecolor=DRIFT_WINDOW_COLOR, alpha=0.6), "Acceptable window")
         )
     put_legend(
-        fig, axes[-1], ncol=4 if extra else 5, extra=extra, fontsize=FONT_LABEL,
-        handlelength=0.9, columnspacing=0.6, handletextpad=0.3,
+        fig,
+        axes[-1],
+        ncol=4 if extra else 5,
+        extra=extra,
+        fontsize=FONT_LABEL,
+        handlelength=0.9,
+        columnspacing=0.6,
+        handletextpad=0.3,
     )
     return fig, r_squared
 
@@ -571,7 +601,11 @@ def lineplot_acc_loss_strategy_boundary(
     boundaries = [b for b in BOUNDARY_PALETTE if b not in skip_boundaries]
     ylim = (-0.2, 0.1)
     fig, axes = plt.subplots(
-        1, len(boundaries), figsize=FIGSIZE_LOSS, sharex=True, sharey=True,
+        1,
+        len(boundaries),
+        figsize=FIGSIZE_LOSS,
+        sharex=True,
+        sharey=True,
         constrained_layout=True,
     )
     rng = np.random.default_rng(0)
@@ -584,8 +618,11 @@ def lineplot_acc_loss_strategy_boundary(
         pts = df_b[df_b[x_col].between(x_lo, x_hi)]
         jitter = 0.01 * (x_hi - x_lo)
         ax.scatter(
-            pts[x_col] + rng.uniform(-jitter, jitter, len(pts)), pts["loss"],
-            s=3, linewidth=0, zorder=2,
+            pts[x_col] + rng.uniform(-jitter, jitter, len(pts)),
+            pts["loss"],
+            s=3,
+            linewidth=0,
+            zorder=2,
             color=[lighten(STRATEGY_PALETTE[st], 0.6) for st in pts["strategy"]],
         )
         for strategy, color in STRATEGY_PALETTE.items():
@@ -598,14 +635,25 @@ def lineplot_acc_loss_strategy_boundary(
                     continue
                 grid = np.linspace(*np.percentile(gx, [5, 95]), 25)
                 mean = lowess(gx, gy, grid, frac=0.9)
-                tables.append(pd.DataFrame({
-                    "boundary": boundary, "strategy": strategy, "x": grid, "mean": mean,
-                }))
+                tables.append(
+                    pd.DataFrame(
+                        {
+                            "boundary": boundary,
+                            "strategy": strategy,
+                            "x": grid,
+                            "mean": mean,
+                        }
+                    )
+                )
                 x_line, y_line = grid, mean
                 marker = None
             else:
                 g = df_b[df_b["strategy"] == strategy].dropna(subset=["x"])
-                agg = g.groupby("x", observed=True)["loss"].agg(["mean", "sem", "count"]).reset_index()
+                agg = (
+                    g.groupby("x", observed=True)["loss"]
+                    .agg(["mean", "sem", "count"])
+                    .reset_index()
+                )
                 agg = agg[agg["count"] >= n_min]
                 # 95% confidence interval of the mean (t distribution)
                 agg["ci95"] = agg["sem"] * stats.t.ppf(0.975, agg["count"] - 1)
@@ -615,9 +663,15 @@ def lineplot_acc_loss_strategy_boundary(
                 x_line, y_line = agg["x"], agg["mean"]
                 marker = "o"
             ax.plot(
-                x_line, y_line, color=color, linewidth=0.9, marker=marker, markersize=3,
+                x_line,
+                y_line,
+                color=color,
+                linewidth=0.9,
+                marker=marker,
+                markersize=3,
                 solid_capstyle="round",
-                zorder=3, label=strategy,
+                zorder=3,
+                label=strategy,
                 path_effects=[
                     withStroke(linewidth=1.9, foreground="white", capstyle="round")
                 ],
@@ -625,32 +679,41 @@ def lineplot_acc_loss_strategy_boundary(
         n_out += int((df_b["loss"] < ylim[0]).sum() + (df_b["loss"] > ylim[1]).sum())
         ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
         ax.set_xlabel("")
-        ax.set_ylabel(
-            "Accuracy $-$ control" if idx == 0 else "", fontsize=FONT_LABEL
-        )
+        ax.set_ylabel("Accuracy $-$ control" if idx == 0 else "", fontsize=FONT_LABEL)
         ax.tick_params(labelsize=FONT_TICK)
     axes[0].set_xlim(x_lo - pad, x_hi + pad)
     axes[0].set_ylim(*ylim)
     # Name the sides of the zero line at the top and bottom of the first panel
     for text, y, va, dy in (
-        ("$>$ control", 1, "top", -3), ("$<$ control", 0, "bottom", 3)
+        ("$>$ control", 1, "top", -3),
+        ("$<$ control", 0, "bottom", 3),
     ):
         axes[0].annotate(
-            text, xy=(0.04, y), xycoords="axes fraction", xytext=(2, dy),
-            textcoords="offset points", ha="left", va=va,
-            fontsize=FONT_SUBTITLE, color="dimgrey",
+            text,
+            xy=(0.04, y),
+            xycoords="axes fraction",
+            xytext=(2, dy),
+            textcoords="offset points",
+            ha="left",
+            va=va,
+            fontsize=FONT_SUBTITLE,
+            color="dimgrey",
         )
     axes[len(axes) // 2].set_xlabel(x_label, fontsize=FONT_LABEL)
     axes[0].set_xticks([x_lo, (x_lo + x_hi) / 2, x_hi])
     axes[0].set_yticks([-0.2, -0.1, 0, 0.1])
     print(f"loss plot {x_col}: {n_out} of {len(df)} runs outside the y range")
-    put_legend(fig, axes[-1], ncol=len(STRATEGY_PALETTE) - 1, fontsize=FONT_LABEL,
-        handlelength=0.9, columnspacing=0.3, handletextpad=0.2,
+    put_legend(
+        fig,
+        axes[-1],
+        ncol=len(STRATEGY_PALETTE) - 1,
+        fontsize=FONT_LABEL,
+        handlelength=0.9,
+        columnspacing=0.3,
+        handletextpad=0.2,
     )
     if title:
-        fig.suptitle(
-            rf"\textbf{{{title}}}", x=0, ha="left", fontsize=FONT_TITLE
-        )
+        fig.suptitle(rf"\textbf{{{title}}}", x=0, ha="left", fontsize=FONT_TITLE)
     return fig, pd.concat(tables, ignore_index=True)
 
 
@@ -682,24 +745,37 @@ def contour_acc_nmdt_f1_boundary(
     ]
     gx, gy = np.meshgrid(np.linspace(-1, 1, 300), np.linspace(0, 1, 300))
     fig, axes = plt.subplots(
-        1, len(BOUNDARY_PALETTE), figsize=(FIGSIZE_LOSS[0], 2.2), sharex=True,
-        sharey=True, constrained_layout=True,
+        1,
+        len(BOUNDARY_PALETTE),
+        figsize=(FIGSIZE_LOSS[0], 2.2),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
     )
     runs, means = {}, {}
     for boundary in BOUNDARY_PALETTE:
         g = df[df["boundary"] == boundary]
-        x, y, z = g["nmdt"].to_numpy(), g[F1_METRIC].to_numpy(), g[ACC_METRIC].to_numpy()
+        x, y, z = (
+            g["nmdt"].to_numpy(),
+            g[F1_METRIC].to_numpy(),
+            g[ACC_METRIC].to_numpy(),
+        )
         w = np.exp(
-            -0.5 * (((gx[..., None] - x) / bandwidth[0]) ** 2
-                    + ((gy[..., None] - y) / bandwidth[1]) ** 2)
+            -0.5
+            * (
+                ((gx[..., None] - x) / bandwidth[0]) ** 2
+                + ((gy[..., None] - y) / bandwidth[1]) ** 2
+            )
         )
         weight = w.sum(-1)
         runs[boundary] = (x, y)
-        means[boundary] = np.ma.masked_where(weight < min_weight, (w * z).sum(-1) / weight)
+        means[boundary] = np.ma.masked_where(
+            weight < min_weight, (w * z).sum(-1) / weight
+        )
     # One scale for all panels, from the lowest to the highest value drawn, in steps of 0.02
     lo = np.floor(min(m.min() for m in means.values()) * 50) / 50
     hi = np.ceil(max(m.max() for m in means.values()) * 50) / 50
-    levels = np.linspace(lo, hi, int(round((hi - lo) * 50)) + 1)
+    levels = np.linspace(lo, hi, round((hi - lo) * 50) + 1)
     for letter, ax, boundary in zip("abc", axes, BOUNDARY_PALETTE):
         cs = ax.contourf(gx, gy, means[boundary], levels=levels, cmap=cm.batlow)
         # Draw each band edge in its own colour so no white seams show between bands
@@ -708,8 +784,14 @@ def contour_acc_nmdt_f1_boundary(
         ax.scatter(*runs[boundary], s=2.5, color="black", linewidth=0, zorder=3)
         letter, lx, ly = CONTOUR_LETTERS[boundary]
         ax.text(
-            lx, ly, rf"\textbf{{{letter}}}", color=PANEL_LABEL_COLOR, fontsize=FONT_LABEL,
-            ha="center", va="center", zorder=4,
+            lx,
+            ly,
+            rf"\textbf{{{letter}}}",
+            color=PANEL_LABEL_COLOR,
+            fontsize=FONT_LABEL,
+            ha="center",
+            va="center",
+            zorder=4,
             path_effects=[withStroke(linewidth=1.5, foreground="white")],
         )
         ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
@@ -721,15 +803,25 @@ def contour_acc_nmdt_f1_boundary(
     axes[0].set_ylabel("F1", fontsize=FONT_LABEL)
     axes[len(axes) // 2].set_xlabel(f"{LABEL_NMDT} (delay)", fontsize=FONT_LABEL)
     cbar = fig.colorbar(
-        cs, ax=axes, orientation="vertical", fraction=0.09, pad=0.03,
+        cs,
+        ax=axes,
+        orientation="vertical",
+        fraction=0.09,
+        pad=0.03,
         ticks=np.round(np.arange(np.ceil(lo * 10) / 10, hi, 0.1), 1),
     )
     cbar.ax.minorticks_off()
     cbar.ax.tick_params(labelsize=FONT_TICK)
     # Vertical label beside the bar, between the 0.5 and 0.6 ticks
     cbar.ax.annotate(
-        "Acc.", xy=(1, 0.55), xycoords=cbar.ax.get_yaxis_transform(),
-        xytext=(6, 0), textcoords="offset points", ha="left", va="center", rotation=90,
+        "Acc.",
+        xy=(1, 0.55),
+        xycoords=cbar.ax.get_yaxis_transform(),
+        xytext=(6, 0),
+        textcoords="offset points",
+        ha="left",
+        va="center",
+        rotation=90,
         fontsize=FONT_LABEL,
     )
     return fig
@@ -761,14 +853,21 @@ def heatmap_acc_strategy_detector_boundary(df_eval: pd.DataFrame) -> plt.Figure:
     # Same order in every panel: best first, by the mean over all panels. Oracle stays first.
     overall = sum(tables.values()) / len(tables)
     strategies = overall.mean(axis=1).sort_values(ascending=False).index.tolist()
-    detectors = ["Oracle"] + overall[others].mean().sort_values(ascending=False).index.tolist()
-    tables = {b: t.reindex(index=strategies, columns=detectors) for b, t in tables.items()}
+    detectors = ["Oracle"] + overall[others].mean().sort_values(
+        ascending=False
+    ).index.tolist()
+    tables = {
+        b: t.reindex(index=strategies, columns=detectors) for b, t in tables.items()
+    }
     for t in tables.values():
         t["Avg."] = t.mean(axis=1)
         t.loc["Avg."] = t.mean(axis=0)
     norm = mcolors.Normalize(lo, hi)
     fig, axes = plt.subplots(
-        1, len(BOUNDARY_PALETTE), figsize=(FIGSIZE_LOSS[0], 1.47), sharey=True,
+        1,
+        len(BOUNDARY_PALETTE),
+        figsize=(FIGSIZE_LOSS[0], 1.47),
+        sharey=True,
         constrained_layout=True,
     )
     gap = 0.35  # Extra space before the Avg. row and column, in cells
@@ -783,13 +882,23 @@ def heatmap_acc_strategy_detector_boundary(df_eval: pd.DataFrame) -> plt.Figure:
                     continue
                 colour = cm.batlow(norm(v))
                 ax.add_patch(
-                    Rectangle((x - 0.5, y - 0.5), 1, 1, facecolor=colour,
-                              edgecolor="white", linewidth=0.8)
+                    Rectangle(
+                        (x - 0.5, y - 0.5),
+                        1,
+                        1,
+                        facecolor=colour,
+                        edgecolor="white",
+                        linewidth=0.8,
+                    )
                 )
                 # Digits have no descender, so centre them by half their height (0.72 em)
                 ax.annotate(
-                    f"{100 * v:.0f}", xy=(x, y), xytext=(0, -0.36 * FONT_TICK),
-                    textcoords="offset points", ha="center", va="baseline",
+                    f"{100 * v:.0f}",
+                    xy=(x, y),
+                    xytext=(0, -0.36 * FONT_TICK),
+                    textcoords="offset points",
+                    ha="center",
+                    va="baseline",
                     fontsize=FONT_TICK,
                     color="white" if np.mean(colour[:3]) < 0.5 else "black",
                 )
@@ -806,7 +915,10 @@ def heatmap_acc_strategy_detector_boundary(df_eval: pd.DataFrame) -> plt.Figure:
     fig.canvas.draw()
     middle = axes[len(axes) // 2].get_position()
     fig.suptitle(
-        "Accuracy (\\%)", x=(middle.x0 + middle.x1) / 2, ha="center", fontsize=FONT_SUBTITLE
+        "Accuracy (\\%)",
+        x=(middle.x0 + middle.x1) / 2,
+        ha="center",
+        fontsize=FONT_SUBTITLE,
     )
     return fig
 
@@ -886,11 +998,15 @@ if __name__ == "__main__":
 
     fig_scatter, r2_f1 = scatterplot_acc_f1_strategy_boundary(df_eval_raw)
     save_fig(fig_scatter, "scatterplot_acc_f1_strategy_boundary.pdf")
-    print(f"scatterplot_acc_f1_strategy_boundary: R^2={ {k: round(float(v), 3) for k, v in r2_f1.items()} }")
+    print(
+        f"scatterplot_acc_f1_strategy_boundary: R^2={ {k: round(float(v), 3) for k, v in r2_f1.items()} }"
+    )
 
     fig_scatter_nmdt, r2_nmdt = scatterplot_acc_nmdt_strategy_boundary(df_eval_raw)
     save_fig(fig_scatter_nmdt, "scatterplot_acc_nmdt_strategy_boundary.pdf")
-    print(f"scatterplot_acc_nmdt_strategy_boundary: R^2={ {k: round(float(v), 3) for k, v in r2_nmdt.items()} }")
+    print(
+        f"scatterplot_acc_nmdt_strategy_boundary: R^2={ {k: round(float(v), 3) for k, v in r2_nmdt.items()} }"
+    )
 
     fig_heat = heatmap_acc_strategy_detector_boundary(df_eval_raw)
     save_fig(fig_heat, "heatmap_acc_strategy_detector_boundary.pdf")

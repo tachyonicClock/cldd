@@ -1,13 +1,15 @@
-from capymoa.ocl import datasets
-from capymoa.stream import Schema
-from capymoa.ocl.datasets.gradual import gradual_sigmoid_transitions
-from typing import Literal, Optional, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from torch.utils.data import Dataset, Subset
+from pathlib import Path
+from typing import Literal
+
 import numpy as np
 import torch
+from capymoa.ocl import datasets
+from capymoa.ocl.datasets.gradual import gradual_sigmoid_transitions
+from capymoa.stream import Schema
 from loguru import logger
-from pathlib import Path
+from torch.utils.data import Dataset, Subset
 
 VALID_FRACTION = 0.1
 
@@ -50,9 +52,9 @@ class Scenario:
     train_tasks: Sequence[Dataset]
     test_tasks: Sequence[Dataset]
     schema: Schema
-    mean: Optional[torch.Tensor] = None
+    mean: torch.Tensor | None = None
     """Per-channel mean used to normalize images, if known."""
-    std: Optional[torch.Tensor] = None
+    std: torch.Tensor | None = None
 
 
 @dataclass
@@ -67,10 +69,17 @@ class ScenarioArgs:
     label: str = "unnamed-scenario"
     epochs: int = 1
     validation: bool = False
-    debug_truncate: Optional[int] = None
+    debug_truncate: int | None = None
     """If set, truncates each task to this many samples for faster debugging."""
 
-    covertype_partition: Literal["Elevation", "Aspect", "Slope", "Horz_Dist_Roadways", "Horz_Dist_Hydrology", "Wilderness"] = "Elevation"
+    covertype_partition: Literal[
+        "Elevation",
+        "Aspect",
+        "Slope",
+        "Horz_Dist_Roadways",
+        "Horz_Dist_Hydrology",
+        "Wilderness",
+    ] = "Elevation"
     """Covertype: attribute that defines the domains (`data/covertype_<attr>.pt`)."""
 
     def _get_rotated_fashion_mnist_pt(self) -> Scenario:
@@ -108,7 +117,8 @@ class ScenarioArgs:
         Reads `data/covertype_<covertype_partition>.pt`, made by `script/covertype.py`.
         """
         return self._get_tabular(
-            seed, f"covertype_{self.covertype_partition}",
+            seed,
+            f"covertype_{self.covertype_partition}",
             f"script/covertype.py --by {self.covertype_partition}",
         )
 
@@ -133,10 +143,10 @@ class ScenarioArgs:
         )
 
     def _get_dataset(self, seed: int):
-        kwargs = dict(
-            seed=seed,
-            normalize_features=self.normalize_features,
-        )
+        kwargs = {
+            "seed": seed,
+            "normalize_features": self.normalize_features,
+        }
         match self.name:
             case "RotatedFashionMNIST":
                 return datasets.RotatedFashionMNIST(**kwargs, preload_test=False)

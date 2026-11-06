@@ -1,7 +1,9 @@
 import os
-from dataclasses import dataclass, asdict, field
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Dict, ClassVar, Literal, Optional, Sequence, Any
+from typing import Any, ClassVar, Literal
+
 import optuna
 
 
@@ -51,7 +53,7 @@ SuggestAny = SuggestCategorical | SuggestInt | SuggestFloat
 
 @dataclass
 class HPSearchConfig:
-    args: Optional[Dict[str, SuggestAny]] = None
+    args: dict[str, SuggestAny] | None = None
 
     n_trials: int = 1
     n_jobs: int = 1
@@ -112,7 +114,7 @@ class HPSearchConfig:
 
     def suggest(
         self, trial: optuna.Trial, startswith: str | None = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         suggestions = {}
         if self.args is None:
             return suggestions

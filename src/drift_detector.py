@@ -1,26 +1,27 @@
-from typing import Any, Callable, ClassVar, Literal, Sequence
-from capymoa.base import BatchClassifier
-from capymoa.ocl.events import Dispatcher, Handler
+import enum
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass
+from typing import Any, ClassVar, Literal
 
-from src.events import LogScalar
+import numpy as np
+import torch
+from capymoa.base import BatchClassifier
+from capymoa.drift.base_detector import BaseDriftDetector
+from capymoa.drift.detectors import ABCD, ADWIN, CUSUM, DDM, SEED, STEPD, PageHinkley
+from capymoa.drift.eval_detector import EvaluateDriftDetector
 from capymoa.ocl.evaluation.events import (
+    TestBegin,
+    TestEnd,
     TrainBatchPredict,
     TrainTaskBegin,
     TrainTaskEnd,
-    TestBegin,
-    TestEnd,
 )
-from capymoa.drift.base_detector import BaseDriftDetector
-from capymoa.drift.detectors import ABCD, ADWIN, DDM, PageHinkley, SEED, STEPD, CUSUM
-from capymoa.drift.eval_detector import EvaluateDriftDetector
-from dataclasses import dataclass, asdict
+from capymoa.ocl.events import Dispatcher, Handler
 from loguru import logger
-import numpy as np
 from torch.nn.functional import cross_entropy
-import torch
-import enum
 
 from src import one_sided_detectors
+from src.events import LogScalar
 from src.metrics import drift_confusion
 
 LOG_EVERY = 10
@@ -177,9 +178,9 @@ class OCLDD(Handler):
         # add them to the respective streams to save for later.
         # The old loop passed probabilities as "logits", so this matches the CE stream
         # of earlier runs (softmax is applied twice).
-        ce_losses = (
-            cross_entropy(proba.cpu().float(), event.y.cpu(), reduction="none").numpy()
-        )
+        ce_losses = cross_entropy(
+            proba.cpu().float(), event.y.cpu(), reduction="none"
+        ).numpy()
         ce_loss = ce_losses.mean()
         errors = (event.y.cpu() != event.y_hat.cpu()).bool().numpy()
         error_rate = errors.mean()
@@ -241,7 +242,7 @@ class OCLDD(Handler):
             self._downstream.notify(event)
             return
         self._dd_trues.append(self._stream_index)
-        logger.info("True drift at instance {}".format(self._stream_index))
+        logger.info(f"True drift at instance {self._stream_index}")
 
     def _proxy(self, event):
         self._downstream.notify(event)
@@ -466,7 +467,6 @@ class OracleArgs(DriftDetectorArgs):
         return OracleDriftDetector()
 
 
-
 class ScheduleDriftDetector(BaseDriftDetector):
     """Alarm at fixed instance counts, ignoring the error stream.
 
@@ -477,7 +477,7 @@ class ScheduleDriftDetector(BaseDriftDetector):
 
     def __init__(self, alarms: Sequence[int]):
         super().__init__()
-        self._alarms = set(int(a) for a in alarms)
+        self._alarms = {int(a) for a in alarms}
         self._count = 0
         self._fire = False
 
@@ -536,11 +536,13 @@ class ScheduleArgs(DriftDetectorArgs):
         else:
             out = np.clip(trues + self.offset, 1, total)
             if self.n_miss > 0:
-                keep = rng.permutation(len(out))[self.n_miss:]
+                keep = rng.permutation(len(out))[self.n_miss :]
                 out = out[np.sort(keep)]
             if self.n_extra > 0:
-                out = np.concatenate([out, rng.integers(1, total + 1, size=self.n_extra)])
-        return sorted(set(int(a) for a in out))
+                out = np.concatenate(
+                    [out, rng.integers(1, total + 1, size=self.n_extra)]
+                )
+        return sorted({int(a) for a in out})
 
     def build_dd(self) -> BaseDriftDetector:
         alarms = self.alarms()

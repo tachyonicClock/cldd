@@ -11,8 +11,9 @@ A detector that never fires on any tuning stream ranks last.
 """
 
 import math
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Mapping, Sequence
+
 from omegaconf import OmegaConf
 
 

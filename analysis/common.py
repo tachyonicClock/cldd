@@ -1,11 +1,24 @@
+from typing import TYPE_CHECKING
+
 from cycler import cycler
 from matplotlib.colors import ListedColormap
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 # The "science" then "nature" styles of SciencePlots, copied here to drop the package.
 # Text is set with LaTeX, so it needs a TeX install.
 PAPER_STYLE = {
     "axes.prop_cycle": cycler(
-        color=["#0C5DA5", "#00B945", "#FF9500", "#FF2C00", "#845B97", "#474747", "#9e9e9e"]
+        color=[
+            "#0C5DA5",
+            "#00B945",
+            "#FF9500",
+            "#FF2C00",
+            "#845B97",
+            "#474747",
+            "#9e9e9e",
+        ]
     ),
     "figure.figsize": (3.3, 2.5),
     "xtick.direction": "in",
@@ -36,8 +49,15 @@ PAPER_STYLE = {
     "font.size": 7,
     "font.family": "sans-serif",
     "font.sans-serif": [
-        "DejaVu Sans", "Arial", "Helvetica", "Lucida Grande", "Verdana", "Geneva",
-        "Lucid", "Avant Garde", "sans-serif",
+        "DejaVu Sans",
+        "Arial",
+        "Helvetica",
+        "Lucida Grande",
+        "Verdana",
+        "Geneva",
+        "Lucid",
+        "Avant Garde",
+        "sans-serif",
     ],
     "mathtext.fontset": "dejavusans",
     "text.usetex": True,

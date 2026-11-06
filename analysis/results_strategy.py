@@ -11,14 +11,13 @@ boundary and strategy, then a Games-Howell test (p=0.05).
 
 import os
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 import pingouin as pg
-from jinja2 import Template
-
 from common import ONE_SIDED_LABELS
+from jinja2 import Template
 from plots import compute_nmdt
 
 F1_METRIC = "dd.my_f1"
@@ -46,8 +45,8 @@ def format_column(
     df: pd.DataFrame | pd.Series,
     mean_col="mean",
     std_col="std",
-    min_style: Optional[TexFontStyle] = None,
-    max_style: Optional[TexFontStyle] = None,
+    min_style: TexFontStyle | None = None,
+    max_style: TexFontStyle | None = None,
     ndigits=3,
     nan_str="N/A",
 ) -> pd.DataFrame | pd.Series:
@@ -86,8 +85,12 @@ def significance_tests(df_ev: pd.DataFrame) -> tuple[set, set]:
             continue
         df_anova = pg.anova(data=context, dv=DV, between=BETWEEN)
         anova_results.append(
-            {"index": i, "keys": keys, "context": context,
-             "p_unc": df_anova["p_unc"].values[0]}
+            {
+                "index": i,
+                "keys": keys,
+                "context": context,
+                "p_unc": df_anova["p_unc"].values[0],
+            }
         )
 
     # Benjamini-Hochberg false discovery rate correction over all contexts
@@ -111,7 +114,9 @@ def significance_tests(df_ev: pd.DataFrame) -> tuple[set, set]:
     return better, worse
 
 
-def latex_table(df: pd.DataFrame, boundary: str, better: set, worse: set) -> pd.DataFrame:
+def latex_table(
+    df: pd.DataFrame, boundary: str, better: set, worse: set
+) -> pd.DataFrame:
     df = df.copy()
     df.reset_index(inplace=True)
     # FT does not use a detector, so put it at the end
@@ -136,16 +141,17 @@ def latex_table(df: pd.DataFrame, boundary: str, better: set, worse: set) -> pd.
     out = pd.DataFrame(index=df.index)
     out["Strategy"] = df["strategy"]
     out["Detector"] = df.apply(detector_label, axis=1)
-    out[f"Acc. {UP}"] = format_column(
-        df[DV] * 100, max_style="textbf", ndigits=1)
+    out[f"Acc. {UP}"] = format_column(df[DV] * 100, max_style="textbf", ndigits=1)
     out[r"Acc$_{ttt}$ " + UP] = format_column(
-        df["ttt.accuracy"], max_style="textbf", ndigits=1)
+        df["ttt.accuracy"], max_style="textbf", ndigits=1
+    )
     out[f"FWT {UP}"] = format_column(
-        df["ocl.forward_transfer"] * 100, max_style="textbf", ndigits=1)
+        df["ocl.forward_transfer"] * 100, max_style="textbf", ndigits=1
+    )
     out[f"BWT {UP}"] = format_column(
-        df["ocl.backward_transfer"] * 100, max_style="textbf", ndigits=1)
-    out[f"F1 {UP}"] = format_column(
-        df[F1_METRIC] * 100, max_style="textbf", ndigits=1)
+        df["ocl.backward_transfer"] * 100, max_style="textbf", ndigits=1
+    )
+    out[f"F1 {UP}"] = format_column(df[F1_METRIC] * 100, max_style="textbf", ndigits=1)
     out[f"NMDT {DOWN}"] = format_column(df["nmdt"], min_style="textbf", ndigits=2)
     return out.set_index(["Strategy", "Detector"])
 

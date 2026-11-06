@@ -1,5 +1,6 @@
-from capymoa.ocl.events import Event
 from dataclasses import dataclass
+
+from capymoa.ocl.events import Event
 
 
 @dataclass

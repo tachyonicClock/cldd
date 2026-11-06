@@ -1,11 +1,14 @@
 import itertools
 import os
+import sys
 import threading
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence, Dict, Any, List
-from loguru import logger
-from subprocess import check_call as _call, CalledProcessError, STDOUT
+from subprocess import STDOUT, CalledProcessError
+from subprocess import check_call as _call
+from typing import Any
 
+from loguru import logger
 
 _GPUS = [g for g in os.environ.get("CLDD_GPUS", "").split(",") if g]
 _next_gpu = itertools.count()
@@ -25,7 +28,7 @@ def call(
     command: str,
     configs: Sequence[Path],
     *args: Any,
-    dotlist: Dict[str, Any] | None = None,
+    dotlist: dict[str, Any] | None = None,
     identifier: str | None = None,
 ):
     if dotlist is None:
@@ -36,7 +39,7 @@ def call(
     dotlist["disable_progress_bar"] = True
 
     # Construct command with config files and dotlist overrides
-    cmd = "uv run main.py".split(" ")
+    cmd = ["uv", "run", "main.py"]
     for config in configs:
         cmd += ["-c", config.as_posix()]
     for k, v in dotlist.items():
@@ -60,12 +63,16 @@ def call(
             _call(cmd, env=env)
         else:
             with open(log_file, "w") as f:
-                gpu = f" (CUDA_VISIBLE_DEVICES={env['CUDA_VISIBLE_DEVICES']})" if env else ""
+                gpu = (
+                    f" (CUDA_VISIBLE_DEVICES={env['CUDA_VISIBLE_DEVICES']})"
+                    if env
+                    else ""
+                )
                 f.write(f"$ {' '.join(cmd)}{gpu}\n\n")
                 _call(cmd, stdout=f, stderr=STDOUT, env=env)
     except CalledProcessError:
         logger.error(f"error occured check logs at: {log_file}")
-        exit(1)
+        sys.exit(1)
 
 
 def tune_strategy(configs: Sequence[Path], identifier: str):
@@ -116,7 +123,7 @@ def evaluate(
 
 def tune_detector(
     configs: Sequence[Path],
-    error_streams: List[Path],
+    error_streams: list[Path],
     identifier: str,
 ):
     label = tune_detector.__name__
@@ -151,7 +158,7 @@ def dd_run(
 
 
 def collect_evaluate_records(
-    evaluate_dirs: List[Path],
+    evaluate_dirs: list[Path],
     target: Path,
 ):
     from collect import load_records
@@ -162,7 +169,7 @@ def collect_evaluate_records(
 
 
 def collect_dd_run_records(
-    dd_run_dirs: List[Path],
+    dd_run_dirs: list[Path],
     target: Path,
 ):
     from collect import load_dd_run_records
@@ -173,9 +180,9 @@ def collect_dd_run_records(
 
 
 def select_best(
-    best_trials: Dict[str, Path],
-    detector_configs: Dict[str, Path],
-    order: List[str],
+    best_trials: dict[str, Path],
+    detector_configs: dict[str, Path],
+    order: list[str],
     label: str,
     target: Path,
 ):

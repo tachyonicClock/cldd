@@ -1,8 +1,8 @@
-from torch.utils.tensorboard import SummaryWriter
+from capymoa.ocl.evaluation.events import TrainEnd
 from capymoa.ocl.events import Dispatcher, Handler
+from torch.utils.tensorboard import SummaryWriter
 
 from src.events import LogScalar
-from capymoa.ocl.evaluation.events import TrainEnd
 
 
 class TensorboardLogger(Handler):

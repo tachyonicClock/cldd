@@ -1,6 +1,7 @@
-import numpy as np
-from typing import Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
+
+import numpy as np
 
 
 @dataclass

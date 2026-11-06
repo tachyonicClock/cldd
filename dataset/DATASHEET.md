@@ -55,12 +55,14 @@ Data is stored in the parquet format and can be loaded with any compatible libra
 ```python
 # Using pandas https://pandas.pydata.org/
 import pandas as pd
+
 cldd_a = pd.read_parquet("CLDD_A.parquet")
 ```
 
 ```python
 # Using pyarrow https://arrow.apache.org/docs/python/index.html
 import pyarrow.parquet as pq
+
 cldd_a = pq.read_table("CLDD_A.parquet")
 cldd_a
 ```

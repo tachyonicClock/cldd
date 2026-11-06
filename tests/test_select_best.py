@@ -1,5 +1,7 @@
 import math
+
 from omegaconf import OmegaConf
+
 from src.config import get_config
 from src.select_best import rank_detectors, write_best_detector
 

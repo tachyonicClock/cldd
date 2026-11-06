@@ -1,9 +1,12 @@
-from capymoa.drift.eval_detector import EvaluateDriftDetector
-from src.metrics import drift_confusion, DriftConfusion
+from collections.abc import Sequence
+
 import numpy as np
-from typing import List, Sequence
-from hypothesis import given, strategies as st
 import pytest
+from capymoa.drift.eval_detector import EvaluateDriftDetector
+from hypothesis import given
+from hypothesis import strategies as st
+
+from src.metrics import DriftConfusion, drift_confusion
 
 
 def reference_drift_confusion(
@@ -26,7 +29,7 @@ def reference_drift_confusion(
     max_delay=st.integers(min_value=1, max_value=10),
 )
 def test_drift_confusion_match_reference(
-    trues: List[int], preds: List[int], max_early: int, max_delay: int
+    trues: list[int], preds: list[int], max_early: int, max_delay: int
 ):
     trues.sort()
     preds.sort()

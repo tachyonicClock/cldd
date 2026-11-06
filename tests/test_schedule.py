@@ -1,3 +1,5 @@
+import itertools
+
 from src.drift_detector import ScheduleArgs, ScheduleDriftDetector
 
 
@@ -20,7 +22,7 @@ def test_oracle_faults():
 
 def test_periodic_and_random():
     periodic = alarms(mode="periodic", period=50)
-    assert all(b - a == 50 for a, b in zip(periodic, periodic[1:]))
+    assert all(b - a == 50 for a, b in itertools.pairwise(periodic))
     assert len(alarms(mode="random", n_random=7)) <= 7
 
 

@@ -1,20 +1,22 @@
 import os
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Optional, Sequence
-from omegaconf import OmegaConf
 from pathlib import Path
+from typing import Literal
+
 import cattrs
+import torch
 from cattrs.strategies import configure_tagged_union
-from src.scenario import ScenarioArgs
+from omegaconf import OmegaConf
+
 from src.drift_detector import AnyDriftDetector
-from src.strategy import AnyLearner
+from src.hpsearch_config import HPSearchConfig, SuggestAny
 from src.model import AnyModel
 from src.optimizer import AnyOptimizer
+from src.scenario import ScenarioArgs
 from src.scheduler import AnyScheduler
-from src.hpsearch_config import HPSearchConfig, SuggestAny
-import torch
-import time
-
+from src.strategy import AnyLearner
 
 DEFAULT_DATASET_LABEL = "rfmnist"
 """Dataset name used in results when `Config.dataset_label` is None."""
@@ -27,7 +29,7 @@ class Config:
     learner: AnyLearner
     model: AnyModel
     optimizer: AnyOptimizer
-    scheduler: Optional[AnyScheduler] = None
+    scheduler: AnyScheduler | None = None
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
@@ -44,11 +46,11 @@ class Config:
     seed: int = 0
     label: str = "noname"
     """Optional top level name for the experiment."""
-    dataset_label: Optional[str] = None
+    dataset_label: str | None = None
     """Adds a dataset level to log paths and study names. None keeps the
     RotatedFashionMNIST layout."""
-    trial: Optional[int] = None
-    hpsearch: Optional[HPSearchConfig] = None
+    trial: int | None = None
+    hpsearch: HPSearchConfig | None = None
 
     include: Sequence[Path] | None = None
     """List of config files to include. NOT RECURSIVE."""

@@ -1,4 +1,5 @@
 import torch
+
 from src.augment import FlatAutoAugment
 from src.drift_detector import UnattachedLearner
 
@@ -46,7 +47,9 @@ def test_flat_autoaugment_keeps_shape_and_scale():
     torch.manual_seed(0)
     mean, std = torch.tensor([0.5, 0.4, 0.3]), torch.tensor([0.2, 0.2, 0.2])
     aug = FlatAutoAugment((3, 8, 8), mean, std)
-    x = ((torch.rand(16, 3, 8, 8) - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)).reshape(16, -1)
+    x = (
+        (torch.rand(16, 3, 8, 8) - mean.view(1, 3, 1, 1)) / std.view(1, 3, 1, 1)
+    ).reshape(16, -1)
     out = aug(x)
     assert out.shape == x.shape
     # Values stay within the normalized range of [0, 1] images
@@ -68,4 +71,6 @@ def test_flat_flip_crop_keeps_shape_and_moves_pixels():
     torch.manual_seed(1)
     y = aug(x)
     flipped = x.view(32, 3, 8, 8).flip(-1).reshape(32, -1)
-    assert all(torch.equal(y[i], x[i]) or torch.equal(y[i], flipped[i]) for i in range(32))
+    assert all(
+        torch.equal(y[i], x[i]) or torch.equal(y[i], flipped[i]) for i in range(32)
+    )

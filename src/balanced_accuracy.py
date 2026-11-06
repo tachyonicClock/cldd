@@ -1,8 +1,8 @@
 """Balanced accuracy (mean per-class recall) per train/test task, robust to skewed labels."""
 
 import numpy as np
-from capymoa.ocl.events import Dispatcher, Handler
 from capymoa.ocl.evaluation.events import EvalBatchPredict
+from capymoa.ocl.events import Dispatcher, Handler
 
 
 class BalancedAccuracy(Handler):

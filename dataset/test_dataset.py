@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
 
 # --- EXPECTED CONSTANTS FROM DATASHEET ---
 
@@ -39,13 +40,17 @@ DETECTORS_B = ["ADWIN", "DDM", "PH", "SEED", "STEPD"]
 @pytest.fixture(scope="module")
 def cldd_a():
     """Loads CLDD-A from parquet format[cite: 1]."""
-    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_A.parquet")
+    return pd.read_parquet(
+        Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_A.parquet"
+    )
 
 
 @pytest.fixture(scope="module")
 def cldd_b():
     """Loads CLDD-B from parquet format[cite: 1]."""
-    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_B.parquet")
+    return pd.read_parquet(
+        Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_B.parquet"
+    )
 
 
 # --- TESTS FOR CLDD-A ---

@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import ClassVar, Literal, Union
+from typing import ClassVar, Literal
 
 import torch
-from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
+from capymoa.ocl.evaluation.events import TrainBatchPredict
 from capymoa.ocl.events import Dispatcher, Handler
+from torch.optim.lr_scheduler import LRScheduler, OneCycleLR
 
 from src.events import LogScalar
-from capymoa.ocl.evaluation.events import TrainBatchPredict
 
 LOG_EVERY = 32
 
@@ -74,4 +74,4 @@ class OneCycleLRArgs(SchedulerArgs):
         return SchedulerWrapper(scheduler)
 
 
-AnyScheduler = Union[OneCycleLRArgs]
+AnyScheduler = OneCycleLRArgs

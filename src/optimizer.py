@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import ClassVar, Iterable
+from typing import ClassVar
 
 import torch
 from torch.optim import AdamW

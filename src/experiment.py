@@ -1,19 +1,20 @@
+import pickle
+from collections.abc import Sequence
 from dataclasses import asdict, replace
-
-from src.tblogger import TensorboardLogger
-from src.balanced_accuracy import BalancedAccuracy
-from src import config
-from capymoa.ocl.events import Dispatcher, Handler
-from capymoa.drift.eval_detector import EvaluateDriftDetector
-from capymoa.ocl.evaluation import ocl_train_eval_loop
-from typing import Dict, Sequence
-from torch.utils.data import DataLoader
 from functools import partial
 from pathlib import Path
-from loguru import logger
-import pickle
 from shutil import rmtree
+
 import numpy as np
+from capymoa.drift.eval_detector import EvaluateDriftDetector
+from capymoa.ocl.evaluation import ocl_train_eval_loop
+from capymoa.ocl.events import Dispatcher, Handler
+from loguru import logger
+from torch.utils.data import DataLoader
+
+from src import config
+from src.balanced_accuracy import BalancedAccuracy
+from src.tblogger import TensorboardLogger
 
 
 class Experiment:
@@ -106,7 +107,7 @@ class Experiment:
         new_loader = partial(DataLoader, batch_size=self.config.mb_test, shuffle=False)
         return [new_loader(task) for task in self.scenario.test_tasks]
 
-    def run(self, handlers: Sequence[Handler] = ()) -> Dict:
+    def run(self, handlers: Sequence[Handler] = ()) -> dict:
         """Train and evaluate. ``handlers`` are attached to the event dispatcher."""
         self.logdir.mkdir(parents=True, exist_ok=True)
 

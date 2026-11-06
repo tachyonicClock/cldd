@@ -1,6 +1,5 @@
 """ResNet-18 for small images: ImageNet-pretrained and fine-tuned, or trained from scratch."""
 
-import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torchvision.models import ResNet18_Weights, resnet18
@@ -32,7 +31,9 @@ class PretrainedResNet18(nn.Module):
             raise ValueError("Only base_width 64 has pretrained weights.")
         if norm == "group":
             if pretrained:
-                raise ValueError("GroupNorm has no pretrained weights; use pretrained=False.")
+                raise ValueError(
+                    "GroupNorm has no pretrained weights; use pretrained=False."
+                )
             # No running statistics to drift between domains. Groups of 32 as in Wu and
             # He (2018), or fewer when the width is too small to divide.
             norm_layer = lambda c: nn.GroupNorm(32 if c % 32 == 0 else c // 4, c)
@@ -42,10 +43,13 @@ class PretrainedResNet18(nn.Module):
         if base_width != 64:
             # Reduced ResNet-18 (Lopez-Paz and Ranzato, 2017): same layout, fewer maps.
             from torchvision.models.resnet import BasicBlock, ResNet
+
             self.net = ResNet(BasicBlock, [2, 2, 2, 2], norm_layer=norm_layer)
             self.net.inplanes = base_width
             w = base_width
-            self.net.conv1 = nn.Conv2d(3, w, kernel_size=7, stride=2, padding=3, bias=False)
+            self.net.conv1 = nn.Conv2d(
+                3, w, kernel_size=7, stride=2, padding=3, bias=False
+            )
             self.net.bn1 = (norm_layer or nn.BatchNorm2d)(w)
             self.net.layer1 = self.net._make_layer(BasicBlock, w, 2)
             self.net.layer2 = self.net._make_layer(BasicBlock, 2 * w, 2, stride=2)
@@ -54,7 +58,9 @@ class PretrainedResNet18(nn.Module):
             self.net.fc = nn.Linear(8 * w, num_classes)
         if cifar_stem:
             # 3x3 stride-1 stem without max pooling, the usual change for 32x32 inputs.
-            self.net.conv1 = nn.Conv2d(3, base_width, kernel_size=3, stride=1, padding=1, bias=False)
+            self.net.conv1 = nn.Conv2d(
+                3, base_width, kernel_size=3, stride=1, padding=1, bias=False
+            )
             self.net.maxpool = nn.Identity()
         self.net.fc = nn.Linear(self.net.fc.in_features, num_classes)
         self.image_size = image_size
@@ -70,7 +76,7 @@ class PretrainedResNet18(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         if x.dim() == 2:
-            side = int(round((x.shape[1] / 3) ** 0.5))
+            side = round((x.shape[1] / 3) ** 0.5)
             x = x.view(-1, 3, side, side)
         if x.shape[-1] != self.image_size:
             x = F.interpolate(

@@ -10,26 +10,28 @@ The current constants in this file select a reduced subset of strategies,
 detectors, boundaries, and seeds suitable for iterative experimentation.
 """
 
+import os
+import random
+from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from dataclasses import dataclass
+
+from loguru import logger
+
 from actions import (
-    select_best,
-    tune_strategy,
-    error_stream,
-    tune_detector,
-    dd_run,
-    evaluate,
-    collect_evaluate_records,
     collect_dd_run_records,
+    collect_evaluate_records,
+    dd_run,
+    error_stream,
+    evaluate,
+    select_best,
+    tune_detector,
+    tune_strategy,
 )
 from collect import collect_dataset
 from src.config import DEFAULT_DATASET_LABEL
-import os
-from loguru import logger
-import random
 
-DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", False))
+DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", "False"))
 if DEBUG_MODE:
     logger.warning(
         "Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds."
@@ -70,8 +72,8 @@ BEST_DETECTOR = "BEST"
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
 CHECK_DATASETS = ["covertype_elevation"]
-"""Datasets for the smaller check. Phase 3 runs only the oracle, the fixed detector and
-the best detector. Each has a `config/dataset/<name>.yml`."""
+"""Datasets for the smaller check. Phase 3 runs the oracle, the best detector and every
+detector with its own phase-2 HP (no joint-HP ADWIN*). Each has a `config/dataset/<name>.yml`."""
 FIXED_DETECTOR = "ADWIN"
 """Detector picked on the main dataset, run live on check datasets with its phase-2
 HP from that dataset."""
@@ -374,6 +376,17 @@ def iter_evaluate_specs(dataset: str = DEFAULT_DATASET):
                 seed,
                 [strategy_hp, best_hp.best_detector],
             )
+            for detector in DETECTOR:
+                if detector == FIXED_DETECTOR:
+                    continue
+                detector_hp = Unit(
+                    strategy, detector, boundary, dataset=dataset
+                ).tune_detector_hp
+                yield (
+                    Unit(strategy, detector, boundary, trial, dataset),
+                    seed,
+                    [strategy_hp, detector_hp],
+                )
             continue
 
         for detector in DETECTOR:
