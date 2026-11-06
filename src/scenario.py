@@ -12,10 +12,6 @@ from os import environ
 from pathlib import Path
 
 VALID_FRACTION = 0.1
-ROTATED_TASKS = 5
-CIFAR10C_BASE = 10_000
-"""Images per severity in a CIFAR-10-C file: the CIFAR-10 test set."""
-"""Tasks of RotatedCIFAR10, spread over 180 degrees like CapyMOA's rotated datasets."""
 DOMAIN_SPLIT_SEED = 0
 """Seed that picks which fine classes form each DomainCIFAR100 domain."""
 
@@ -74,8 +70,6 @@ class ScenarioArgs:
         "RotatedTinyMNIST",
         "CLEAR10",
         "CORe50",
-        "RotatedCIFAR10",
-        "CIFAR10C",
         "Adult",
         "Credit",
         "Covertype",
@@ -87,19 +81,6 @@ class ScenarioArgs:
     validation: bool = False
     image_size: int = 32
     """Image side in pixels, for datasets stored at several sizes (CLEAR10)."""
-    rotation_range: float = 180.0
-    """RotatedCIFAR10: domain i is rotated by rotation_range * i / 5 degrees."""
-    grayscale: bool = False
-    """RotatedCIFAR10: use luminance only, copied to 3 channels (removes colour cues)."""
-    corruptions: Sequence[str] = (
-        "clean", "gaussian_noise", "defocus_blur", "fog", "jpeg_compression"
-    )
-    """CIFAR10C: one domain per corruption, in this order (`clean` is plain CIFAR-10)."""
-    cifar10c_test: Literal["official", "generated"] = "official"
-    """CIFAR10C: test on the official CIFAR-10-C files or on our own corruptions."""
-    cifar10c_disjoint: bool = False
-    """CIFAR10C: give each domain its own fifth of the training images (10,000 each),
-    fixed with `DOMAIN_SPLIT_SEED`, so no image is seen in two domains."""
     adult_partition: Literal["age", "occupation", "education"] = "age"
     """Adult: attribute that defines the domains (`data/adult[_occupation].pt`)."""
     credit_partition: Literal["SEX", "EDUCATION", "MARRIAGE", "AGE", "LIMIT_BAL", "EDUCATION+LIMIT_BAL"] = "LIMIT_BAL"
@@ -172,44 +153,6 @@ class ScenarioArgs:
             train_tasks=shuffle_task_contents(dataset.train_tasks, seed),
             test_tasks=dataset.test_tasks,
             schema=dataset.schema,
-        )
-
-    def _get_rotated_cifar10(self, seed: int) -> Scenario:
-        """CIFAR-10 with 5 domains, each a fixed rotation of the full set.
-
-        Uses the angles of RotatedFashionMNIST (0, 36, 72, 108, 144 degrees) and the
-        same nearest-neighbour rotation with black corners. Reads `data/cifar10.pt`,
-        made by `script/cifar10.py`. The run seed shuffles instances within each task.
-        """
-        path = Path(__file__).resolve().parent.parent / "data" / "cifar10.pt"
-        if not path.exists():
-            raise FileNotFoundError(
-                f"{path} not found. Run `uv run script/cifar10.py`."
-            )
-        data = torch.load(path, map_location="cpu")
-        (x_train, y_train), (x_test, y_test) = data["train"], data["test"]
-        if self.grayscale:
-            x_train, x_test = _to_gray(x_train), _to_gray(x_test)
-        mean = std = None
-        if self.normalize_features:
-            x = x_train.float() / 255.0
-            mean = x.mean(dim=(0, 2, 3)).view(3, 1, 1)
-            std = x.std(dim=(0, 2, 3)).view(3, 1, 1)
-        angles = [self.rotation_range * i / ROTATED_TASKS for i in range(ROTATED_TASKS)]
-        train_tasks = [_ImageTask(x_train, y_train, mean, std, a) for a in angles]
-        test_tasks = [_ImageTask(x_test, y_test, mean, std, a) for a in angles]
-        schema = Schema.from_custom(
-            features=[str(i) for i in range(3 * 32 * 32)] + ["class"],
-            target="class",
-            categories={"class": [str(i) for i in range(10)]},
-        )
-        schema.shape = (3, 32, 32)
-        return Scenario(
-            train_tasks=shuffle_task_contents(train_tasks, seed),
-            test_tasks=test_tasks,
-            schema=schema,
-            mean=mean,
-            std=std,
         )
 
     def _get_core50(self, seed: int) -> Scenario:
@@ -290,60 +233,6 @@ class ScenarioArgs:
             schema=schema,
         )
 
-    def _get_cifar10c(self, seed: int) -> Scenario:
-        """CIFAR-10 under a sequence of corruptions, one domain per corruption.
-
-        Training streams are the 50,000 CIFAR-10 training images corrupted with the
-        CIFAR-10-C code at one random severity (1 to 5) each, from
-        `data/cifar10c/<corruption>_train.npy` (`script/make_cifar10c.py`). Test sets are
-        the official CIFAR-10-C images (Hendrycks and Dietterich, 2019) of the 10,000
-        test images, one severity each, from `$DATASETS/CIFAR-10-C/<corruption>.npy`,
-        or our own corruptions of them with `cifar10c_test="generated"`. The domain
-        `clean` is plain CIFAR-10, and a suffix `_sK` (e.g. `fog_s5`) fixes severity K. The run seed shuffles instances within each domain.
-        """
-        root = Path(__file__).resolve().parent.parent / "data"
-        clean = torch.load(root / "cifar10.pt", map_location="cpu")
-        (x_clean_tr, y_tr), (x_clean_te, y_te) = clean["train"], clean["test"]
-        official = Path(environ.get("DATASETS", "")) / "CIFAR-10-C"
-        hwc_to_chw = lambda a: torch.from_numpy(np.ascontiguousarray(a)).permute(0, 3, 1, 2).contiguous()
-
-        train, test = [], []
-        for c in self.corruptions:
-            if c == "clean":
-                train.append((x_clean_tr, y_tr))
-                test.append((x_clean_te, y_te))
-                continue
-            train.append((hwc_to_chw(np.load(root / "cifar10c" / f"{c}_train.npy")), y_tr))
-            if self.cifar10c_test == "official":
-                sev = np.load(root / "cifar10c" / f"{c}_test_severity.npy").astype(int)
-                # `fog_s5` uses the official `fog.npy` at the severities stored for it
-                arr = np.load(official / f"{c.split('_s')[0] if c[-3:-1] == '_s' else c}.npy", mmap_mode="r")
-                x = arr[(sev - 1) * CIFAR10C_BASE + np.arange(CIFAR10C_BASE)]
-            else:
-                x = np.load(root / "cifar10c" / f"{c}_test.npy")
-            test.append((hwc_to_chw(x), y_te))
-        if self.cifar10c_disjoint:
-            parts = np.array_split(np.random.default_rng(DOMAIN_SPLIT_SEED).permutation(len(y_tr)), len(train))
-            train = [(x[idx], y[idx]) for (x, y), idx in zip(train, parts)]
-        mean = std = None
-        if self.normalize_features:
-            x = torch.cat([x for x, _ in train]).float() / 255.0
-            mean = x.mean(dim=(0, 2, 3)).view(3, 1, 1)
-            std = x.std(dim=(0, 2, 3)).view(3, 1, 1)
-        schema = Schema.from_custom(
-            features=[str(i) for i in range(3 * 32 * 32)] + ["class"],
-            target="class",
-            categories={"class": [str(i) for i in range(10)]},
-        )
-        schema.shape = (3, 32, 32)
-        return Scenario(
-            train_tasks=shuffle_task_contents([_ImageTask(x, y, mean, std) for x, y in train], seed),
-            test_tasks=[_ImageTask(x, y, mean, std) for x, y in test],
-            schema=schema,
-            mean=mean,
-            std=std,
-        )
-
     def _get_adult(self, seed: int) -> Scenario:
         """UCI Adult (income > 50K), one domain per age bin or occupation.
 
@@ -415,10 +304,6 @@ class ScenarioArgs:
                 return self._get_clear10(seed)
             case "CORe50":
                 return self._get_core50(seed)
-            case "RotatedCIFAR10":
-                return self._get_rotated_cifar10(seed)
-            case "CIFAR10C":
-                return self._get_cifar10c(seed)
             case "Adult":
                 return self._get_adult(seed)
             case "Credit":
@@ -515,10 +400,3 @@ class _ImageTask(Dataset):
         if self.mean is not None:
             x = (x - self.mean) / self.std
         return x, self.y[index]
-
-
-def _to_gray(x: torch.Tensor) -> torch.Tensor:
-    """uint8 (N, 3, H, W) to luminance (ITU-R BT.601), copied to 3 channels."""
-    w = torch.tensor([0.299, 0.587, 0.114]).view(1, 3, 1, 1)
-    g = (x.float() * w).sum(dim=1, keepdim=True).round().clamp(0, 255).to(torch.uint8)
-    return g.expand(-1, 3, -1, -1).contiguous()

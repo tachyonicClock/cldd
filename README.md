@@ -48,17 +48,6 @@ CLDD_A                   Generate continual learners as a drift detection datase
 CLDD_B                   Generate continual learners as a drift detection dataset.
 ```
 
-### Dataset check (RotatedCIFAR10)
-
-A smaller check repeats the pipeline on RotatedCIFAR10 (CIFAR-10 in the rotations of
-RotatedFashionMNIST) with an ImageNet-pretrained ResNet-18. Its config is
-`config/dataset/rcifar10_rn18.yml`, its tuning settings are in
-`config/hp/strategy_rcifar10_rn18.yml`, and its outputs go to `$LOGDIR/cldd/rcifar10_rn18`.
-Make the CIFAR-10 file with `uv run script/cifar10.py` first. Phase 3 runs only the
-oracle, ADWIN (picked on RotatedFashionMNIST) and `BEST`, the detector picked by
-`select_best` from phase 2 (see `src/select_best.py`). Write the comparison tables with
-`uv run analysis/results_check.py`.
-
 Analysis with the scripts in `analysis/` can be run with:
 ```sh
 uv run analysis/plots.py

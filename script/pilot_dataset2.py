@@ -17,13 +17,8 @@ LOGS = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
 STRATEGIES = ["FT", "EWC", "LWF", "MAS", "RWalk", "SI"]
 EVAL_SEEDS = [2201, 9325, 1033]  # first three evaluation seeds of dodo.py
 LOG_LOCK = threading.Lock()
-# AUG = {"train_repeats": 4, "augment_repeats": True, "repeat_augment": "flipcrop"}
-# RN = {"type_": "ResNet18", "image_size": 32, "pretrained": False, "freeze_bn_stats": False,
-    #   "norm": "group", "cifar_stem": True}
-# RotatedCIFAR10 (5 rotations, 0 to 144 degrees), models trained from scratch.
 CANDIDATES = {
     # Run the repository's dataset config directly as a pilot candidate.
-    "rcifar10": None,
     "adult": None,
     "adult_occupation": None,
     "adult_education": None,
@@ -32,29 +27,6 @@ CANDIDATES = {
     "credit_education_limit": None,
     "credit_limit_rot": None,
     "covertype_elevation": None,
-    # "rc10_airbench_w2_k4": {"model": {"type_": "AirbenchCNN", "width": 2}, **AUG},
-    # "rc10_airbench_w4_k4": {"model": {"type_": "AirbenchCNN", "width": 4}, **AUG},
-    # "rc10_rrn18gn_k4": {"model": {**RN, "base_width": 20}, **AUG},
-    # "rc10_rn18gn_k1": {"model": RN},
-    # # SGD with momentum: under Adam the quadratic penalties of EWC/SI/MAS are rescaled
-    # # per parameter, which may undo their importance weighting.
-    # "rc10_airbench_w1_k4_sgd": {"model": {"type_": "AirbenchCNN", "width": 1}, **AUG,
-    #                             "optimizer": {"type_": "SGD", "momentum": 0.9}},
-    # "rc10_airbench_w2_k4_sgd": {"model": {"type_": "AirbenchCNN", "width": 2}, **AUG,
-    #                             "optimizer": {"type_": "SGD", "momentum": 0.9}},
-    # # Grayscale removes colour cues, so rotations interfere more (FT BWT -32 vs -21).
-    # "rc10gray_airbench_w2_k4": {"model": {"type_": "AirbenchCNN", "width": 2}, **AUG,
-    #                             "scenario": {"grayscale": True}},
-    # # CIFAR-10-C "camera" sequence at severity 5 (FT BWT about -10): training images
-    # # corrupted with the CIFAR-10-C code, tested on the official CIFAR-10-C files.
-    # "c10c_s5_camera_airbench_w2_k4": {
-    #     "model": {"type_": "AirbenchCNN", "width": 2}, **AUG,
-    #     "scenario": {"name": "CIFAR10C", "cifar10c_test": "official", "corruptions": [
-    #         "gaussian_noise_s5", "defocus_blur_s5", "fog_s5", "contrast_s5", "brightness_s5"]}},
-    # # Larger buffer for the EWC Fisher and MAS importance estimates (default 1,000).
-    # # Only for EWC and MAS; compare with FT of rc10_airbench_w2_k4.
-    # "rc10_airbench_w2_k4_buf10k": {"model": {"type_": "AirbenchCNN", "width": 2}, **AUG,
-    #                                "learner": {"buffer_capacity": 10000}},
 }
 
 
@@ -64,7 +36,7 @@ def dataset_cfg(name: str, spec: dict | None) -> Path:
     f = LOGS / "pilot_configs" / f"{name}.yml"
     f.parent.mkdir(parents=True, exist_ok=True)
     spec = dict(spec)
-    scenario = {"name": "RotatedCIFAR10", **spec.pop("scenario", {})}
+    scenario = spec.pop("scenario")
     f.write_text(yaml.safe_dump({"dataset_label": f"pilot_{name}", "scenario": scenario, **spec}))
     return f
 
