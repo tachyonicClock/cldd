@@ -25,6 +25,7 @@ from actions import (
     error_stream,
     evaluate,
     select_best,
+    synthetic,
     tune_detector,
     tune_strategy,
 )
@@ -95,6 +96,12 @@ if DEBUG_MODE:
     STRATEGY = ["FT", "EWC"]
     DETECTOR = ["ADWIN"]
     BOUNDARY = ["abrupt"]
+
+EXTRA_EVALUATION_SEEDS = [1774, 7603, 1303, 222, 5283, 6653, 3006, 6533, 2950, 5697]
+"""Ten more held-out seeds for the extra runs of ADWIN and the oracle in `synthetic`.
+Their trials follow the evaluation trials."""
+if DEBUG_MODE:
+    EXTRA_EVALUATION_SEEDS = []
 
 ORACLE_DETECTOR = "oracle"
 """Alarms at the drift centre. Shown as `mid` in tables and figures."""
@@ -570,3 +577,104 @@ def task_dd_collect():
             "file_dep": file_deps + ["collect.py", "script/profile.py"],
             "targets": [target, output_html],
         }
+
+
+def _synthetic_variants() -> dict[str, dict[str, object]]:
+    """Config overrides of each blind trigger and controlled fault of the schedule
+    detector (see `ScheduleArgs`), by the label the runs are saved under."""
+
+    def kilo(offset: int) -> str:
+        return f"{offset // 1000:+d}k" if offset else "0"
+
+    variants: dict[str, dict[str, object]] = {}
+    for period in (15_000, 30_000, 60_000, 120_000):
+        variants[f"periodic{period // 1000}k"] = {"mode": "periodic", "period": period}
+    # The number of alarms is set from ADWIN's alarm counts by `synthetic`.
+    variants["random_adwin"] = {"mode": "random"}
+    for offset in (0, -6_000, 6_000, -18_000, 18_000):
+        variants[f"oracle_off{kilo(offset)}"] = {"mode": "oracle", "offset": offset}
+    for n in (1, 2, 3, 4):
+        variants[f"oracle_miss{n}"] = {"mode": "oracle", "n_miss": n}
+    for n in (3, 10, 20):
+        variants[f"oracle_extra{n}"] = {"mode": "oracle", "n_extra": n}
+    # Every alarm dropped, with the learning rate tuned for FT: no consolidation at all
+    variants[SILENT_FT_LR] = {"mode": "oracle", "n_miss": 4}
+    return variants
+
+
+SILENT_FT_LR = "silent_ftlr"
+"""Variant that also takes the optimizer HP tuned for FT."""
+SYNTHETIC_VARIANTS = _synthetic_variants()
+
+
+def task_synthetic():
+    """Blind triggers and controlled faults on the main dataset.
+
+    Each tuned strategy is rerun with a `schedule` detector that ignores the error
+    stream: periodic and random alarms, and the oracle with shifted, dropped or extra
+    alarms. ADWIN and the oracle are also run on ten more seeds. Outputs go to
+    `<dataset>/synthetic/<boundary>/<strategy>/<variant>/<trial>`.
+    """
+    if DEFAULT_DATASET not in DATASETS:
+        return
+
+    n_eval = len(EVALUATION_SEEDS)
+    extra_trials = range(n_eval, n_eval + len(EXTRA_EVALUATION_SEEDS))
+    seeds = EVALUATION_SEEDS + EXTRA_EVALUATION_SEEDS
+
+    def task(unit: Unit, configs, file_dep=(), dotlist=None, counts_from=()):
+        logdir = unit.logdir(synthetic.__name__)
+        return {
+            "name": unit.identifier,
+            "actions": [
+                (
+                    synthetic,
+                    (configs, seeds[unit.trial], unit.trial, unit.detector),
+                    {
+                        "identifier": unit.identifier,
+                        "dotlist": dotlist,
+                        "alarm_counts_from": list(counts_from),
+                    },
+                )
+            ],
+            "file_dep": [*configs, *file_dep],
+            "targets": [logdir / "ocl_metrics.pkl", logdir / "dd_metrics.pkl"],
+        }
+
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        if strategy in DETECTOR_AGNOSTIC:
+            continue
+        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        ft_hp = Unit("FT", ORACLE_DETECTOR, boundary).tune_strategy_hp
+        adwin_hp = Unit(strategy, FIXED_DETECTOR, boundary).tune_detector_hp
+        adwin_metrics = [
+            Unit(strategy, FIXED_DETECTOR, boundary, trial).evaluate_dd_metrics
+            for trial in range(n_eval)
+        ]
+        schedule_configs = Unit(strategy, "schedule", boundary).configs()
+
+        for trial, (variant, overrides) in product(
+            range(n_eval), SYNTHETIC_VARIANTS.items()
+        ):
+            configs = schedule_configs + [strategy_hp]
+            if variant == SILENT_FT_LR:
+                configs.append(ft_hp)
+            counts_from = adwin_metrics if variant == "random_adwin" else []
+            yield task(
+                Unit(strategy, variant, boundary, trial),
+                configs,
+                file_dep=counts_from,
+                dotlist={f"drift_detector.{k}": v for k, v in overrides.items()},
+                counts_from=counts_from,
+            )
+
+        for trial in extra_trials:
+            yield task(
+                Unit(strategy, f"{FIXED_DETECTOR}_more", boundary, trial),
+                Unit(strategy, FIXED_DETECTOR, boundary).configs()
+                + [strategy_hp, adwin_hp],
+            )
+            yield task(
+                Unit(strategy, f"{ORACLE_DETECTOR}_more", boundary, trial),
+                Unit(strategy, ORACLE_DETECTOR, boundary).configs() + [strategy_hp],
+            )

@@ -55,13 +55,25 @@ uv run analysis/plots.py
 
 ### Controlled triggers
 
-`script/run_synthetic.py` re-runs each phase-three Oracle run with a `schedule` detector
-(`ScheduleArgs` in `src/drift_detector.py`) that ignores the error stream: periodic
-snapshots, random alarms matched to ADWIN's count, and an Oracle with dropped, extra or
-shifted alarms. It also runs ADWIN and the Oracle on 10 more evaluation seeds. Runs go to
-`$LOGDIR/cldd/synthetic`, and finished runs are skipped, so the script can be restarted:
+The doit task `synthetic` re-runs each tuned strategy (not FT) on RotatedFashionMNIST with a
+`schedule` detector (`ScheduleArgs` in `src/drift_detector.py`) that ignores the error
+stream. Variants, per strategy, boundary and evaluation seed:
+
+| Variant | Alarms |
+|---|---|
+| `periodic15k`, `periodic30k`, `periodic60k`, `periodic120k` | every 15k, 30k, 60k or 120k instances, from a random phase |
+| `random_adwin` | uniformly random, as many as ADWIN raises (mean over the evaluation seeds, rounded) |
+| `oracle_off0`, `oracle_off-6k`, `oracle_off+6k`, `oracle_off-18k`, `oracle_off+18k` | the true boundaries, shifted by that many instances |
+| `oracle_miss1` to `oracle_miss4` | the true boundaries with that many dropped |
+| `oracle_extra3`, `oracle_extra10`, `oracle_extra20` | the true boundaries plus that many random alarms |
+| `silent_ftlr` | none, with the learning rate tuned for FT |
+| `ADWIN_more`, `oracle_more` | ADWIN and the oracle on ten more seeds (`EXTRA_EVALUATION_SEEDS` in `dodo.py`) |
+
+Runs go to `$LOGDIR/cldd/rfmnist/synthetic/<boundary>/<strategy>/<variant>/<trial>`.
+The task needs the phase 1 and 2 results, and the evaluate runs of ADWIN. It is part of
+the default `uv run doit`; run only this part, which finished runs are skipped in, with:
 ```sh
-uv run python -P script/run_synthetic.py --gpus 0,1,2 --per-gpu 3
+uv run doit run -n 6 synthetic
 ```
 
 ## Result Files

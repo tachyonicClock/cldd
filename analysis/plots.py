@@ -12,10 +12,9 @@ import seaborn as sns
 from cmcrameri import cm
 from common import (
     BOUNDARY_PALETTE,
-    EARLY_LATE_RAW,
-    MID_LABEL,
     DETECTOR_PALETTE,
     DRIFT_WINDOW_COLOR,
+    EARLY_LATE_RAW,
     FIGSIZE_SR,
     FONT_LABEL,
     FONT_SUBTITLE,
@@ -24,6 +23,7 @@ from common import (
     LABEL_ACC,
     LABEL_F1,
     LABEL_NMDT,
+    MID_LABEL,
     NO_TOP_RIGHT,
     ONE_SIDED_LABELS,
     PANEL_LABEL_COLOR,

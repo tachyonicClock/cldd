@@ -1,5 +1,7 @@
 import itertools
 import os
+import pickle
+import statistics
 import sys
 import threading
 from collections.abc import Sequence
@@ -125,6 +127,39 @@ def evaluate(
         "label": label,
         "drift_detector.label": detector_label,
     }
+    call("run", configs, dotlist=dotlist, identifier=f"{label}.{identifier}")
+
+
+def synthetic(
+    configs: Sequence[Path],
+    seed: int,
+    trial: int,
+    variant: str,
+    identifier: str,
+    dotlist: dict[str, Any] | None = None,
+    alarm_counts_from: Sequence[Path] = (),
+):
+    """Run one controlled trigger or fault, or an extra-seed run of a detector.
+
+    :param variant: Detector label of the run. Outputs go to `synthetic/.../<variant>`.
+    :param dotlist: Extra config overrides, e.g. the schedule mode.
+    :param alarm_counts_from: `dd_metrics.pkl` of runs whose mean alarm count sets the
+        number of random alarms (rounded), so the random trigger matches a detector.
+    """
+    label = synthetic.__name__
+    dotlist = {
+        "seed": seed,
+        "trial": trial,
+        "label": label,
+        "drift_detector.label": variant,
+        **(dotlist or {}),
+    }
+    if alarm_counts_from:
+        counts = []
+        for path in alarm_counts_from:
+            with open(path, "rb") as f:
+                counts.append(pickle.load(f)["n_alarms"])
+        dotlist["drift_detector.n_random"] = round(statistics.mean(counts))
     call("run", configs, dotlist=dotlist, identifier=f"{label}.{identifier}")
 
 
