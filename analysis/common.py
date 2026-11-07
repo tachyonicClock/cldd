@@ -79,7 +79,15 @@ atab10 = ListedColormap(
     ]
 )
 
-rename_methods = {"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"}
+ORACLE_RAW = "oracle"
+"""Label of the runs that alarm at the drift centre. They are shown as `mid`."""
+MID_LABEL = "mid"
+EARLY_LATE_RAW = ("early", "late")
+"""Baselines that alarm one drift width before and after the drift. They are not
+detectors: they have no drift detection scores."""
+# Baselines from the earliest to the latest alarm, by their label in the results
+BASELINE_ORDER = {"early": 0, ORACLE_RAW: 1, "late": 2}
+rename_methods = {"ADWIN_JOINT": "ADWIN*", ORACLE_RAW: MID_LABEL}
 
 # SEED and STEPD runs use the one-sided variants. Show them under the plain names.
 ONE_SIDED_LABELS = {"SEED_ONE_SIDED": "SEED", "STEPD_ONE_SIDED": "STEPD"}
@@ -119,6 +127,7 @@ BOUNDARY_PALETTE = {
 
 DETECTOR_PALETTE = {
     "oracle": "#000000",
+    "mid": "#000000",
     "ADWIN*": "#F0E442",
     "Best": "#999999",
 }

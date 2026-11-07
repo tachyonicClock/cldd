@@ -1,10 +1,10 @@
 """Write the strategy result tables (LaTeX) from the evaluate runs.
 
 Run with `uv run analysis/results_strategy.py`. Reads `$LOGDIR/cldd/{rfmnist,covertype}/evaluate/data_frame.csv`.
-Writes `table/strategy_<boundary>.tex` (Oracle, ADWIN and ADWIN* only) and
+Writes `table/strategy_<boundary>.tex` (the mid, early and late baselines, ADWIN and ADWIN* only) and
 `table/appendix_strategy_<boundary>.tex` (all detectors).
 
-Statistically significant deviation from the control (Oracle) in accuracy is marked with
+Statistically significant deviation from the control (mid) in accuracy is marked with
 an up or down arrow. We run Welch's ANOVA with Benjamini-Hochberg correction for each
 boundary and strategy, then a Games-Howell test (p=0.05).
 """
@@ -16,7 +16,13 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 import pingouin as pg
-from common import ONE_SIDED_LABELS
+from common import (
+    BASELINE_ORDER,
+    EARLY_LATE_RAW,
+    MID_LABEL,
+    ONE_SIDED_LABELS,
+    ORACLE_RAW,
+)
 from jinja2 import Template
 from plots import compute_nmdt
 
@@ -122,20 +128,24 @@ def latex_table(
     # FT does not use a detector, so put it at the end
     agnostic = df["strategy"].isin(BOUNDARY_AGNOSTIC)
     df = pd.concat([df[~agnostic], df[agnostic]], ignore_index=True)
+    # Within a strategy, the baselines go last, from early to late
+    rank = df["detector_label"].map(BASELINE_ORDER).fillna(-1)
+    position = pd.factorize(df["strategy"])[0]
+    df = df.iloc[np.lexsort((rank.to_numpy(), position))].reset_index(drop=True)
     # Keep the raw detector labels for the significance lookup
     df["_detector_label_raw"] = df["detector_label"]
 
-    # Drift detection metrics are not meaningful for the oracle
-    oracle_mask = df["detector"] == "oracle"
+    # Drift detection metrics are not meaningful for the baselines
+    baseline_mask = df["detector_label"].isin([ORACLE_RAW, *EARLY_LATE_RAW])
     dd_cols = [col for col in df.columns if col[0].startswith("dd.")]
-    df.loc[oracle_mask, dd_cols] = np.nan
+    df.loc[baseline_mask, dd_cols] = np.nan
 
     def detector_label(row: pd.Series) -> str:
         (strategy,) = row["strategy"].values
         (raw,) = row["_detector_label_raw"].values
         key = (str(boundary), str(strategy), str(raw))
         arrow = UP if key in better else DOWN if key in worse else r"$\ \;$"
-        label = raw.replace("ADWIN_JOINT", "ADWIN*").replace("oracle", "Oracle")
+        label = raw.replace("ADWIN_JOINT", "ADWIN*").replace(ORACLE_RAW, MID_LABEL)
         return f"{arrow}{label}"
 
     out = pd.DataFrame(index=df.index)
@@ -188,5 +198,7 @@ if __name__ == "__main__":
         # Appendix: all detectors
         write_tables(df_ev, f"{prefix}appendix_strategy")
         # Paper: the control and the two ADWIN variants
-        keep = df_ev["detector_label"].isin(["oracle", "ADWIN", "ADWIN*"])
+        keep = df_ev["detector_label"].isin(
+            [ORACLE_RAW, *EARLY_LATE_RAW, "ADWIN", "ADWIN*"]
+        )
         write_tables(df_ev[keep], f"{prefix}strategy")

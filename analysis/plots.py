@@ -12,6 +12,8 @@ import seaborn as sns
 from cmcrameri import cm
 from common import (
     BOUNDARY_PALETTE,
+    EARLY_LATE_RAW,
+    MID_LABEL,
     DETECTOR_PALETTE,
     DRIFT_WINDOW_COLOR,
     FIGSIZE_SR,
@@ -111,7 +113,7 @@ def compute_nmdt(df: pd.DataFrame) -> pd.DataFrame:
 def prepare_best_detector_data(
     df_best: pd.DataFrame, df_ev: pd.DataFrame
 ) -> pd.DataFrame:
-    """Keep Oracle, ADWIN* and the best detector of each strategy and boundary.
+    """Keep mid, ADWIN* and the best detector of each strategy and boundary.
 
     :param df_best: Output of `common.load_best_detectors`. The best detector is
         picked on the tuning seeds (phase 2), not on these evaluation runs.
@@ -131,7 +133,7 @@ def prepare_best_detector_data(
     # 3. Label the dynamically found best methods
     df_ev.loc[is_best_mask, "detector_label"] = "Best"
 
-    # 4. Filter for only Best, Oracle, and ADWIN_JOINT
+    # 4. Filter for only Best, mid, and ADWIN_JOINT
     baseline_mask = df_ev["detector_label"].isin(["oracle", "ADWIN_JOINT"])
     df_ev = df_ev[baseline_mask | is_best_mask].copy()
 
@@ -303,13 +305,13 @@ def scatter_by_boundary(
 
     Colour shows the strategy. Each panel has a linear fit with its own r and N. With `strategy_fits`, each panel instead has one thin linear fit
     per strategy (no band), so a flat line shows robustness for that strategy.
-    With `references`, the Oracle detector and the FT strategy, which are left out of
+    With `references`, mid detector and the FT strategy, which are left out of
     the points and fits, are drawn as horizontal lines at their mean accuracy: one
-    dashed line per strategy for the Oracle (perfect detection), and one solid grey
+    dashed line per strategy for mid (perfect detection), and one solid grey
     line for FT (no detector).
     With `top_quantile` (for example 0.75), only detectors whose mean F1 score (over all
     strategies and boundaries) is at or above that quantile of the detector means are
-    kept. The others are left out of the points and fits. The Oracle and FT lines stay.
+    kept. The others are left out of the points and fits. The mid and FT lines stay.
     With `min_run_f1`, only runs with an F1 score above it are kept.
     `window` maps each boundary to the half-width of the acceptable window in units
     of `x_col`. It is drawn as a grey band. Points are solid dots with a small horizontal jitter so
@@ -322,16 +324,16 @@ def scatter_by_boundary(
     """
     df = df.copy()
     df["detector_label"] = df["detector_label"].replace(
-        {"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"}
+        {"ADWIN_JOINT": "ADWIN*", "oracle": MID_LABEL}
     )
     oracle_acc = (
-        df[df["detector_label"] == "Oracle"]
+        df[df["detector_label"] == MID_LABEL]
         .groupby(["boundary", "strategy"])[ACC_METRIC]
         .mean()
     )
     mask = (
         (df["dd.my_tp"] + df["dd.my_fp"] > 0)
-        & (~df["detector_label"].isin(["Oracle", "ADWIN*"]))
+        & (~df["detector_label"].isin([MID_LABEL, "ADWIN*"]))
         & (df["strategy"] != "FT")
     )
     df = df[mask]
@@ -391,7 +393,7 @@ def scatter_by_boundary(
         if references:
             for strategy, color in STRATEGY_PALETTE.items():
                 if strategy == "FT":
-                    # FT has no detector, its only run is listed under the Oracle
+                    # FT has no detector, its only run is listed under mid
                     ax.axhline(
                         oracle_acc[(boundary, "FT")],
                         color=lighten(color, 0.1),
@@ -473,7 +475,7 @@ def scatter_by_boundary(
         extra.append(
             (
                 Line2D([], [], color="dimgrey", linewidth=0.5, linestyle=(0, (2, 2))),
-                "Oracle",
+                MID_LABEL,
             )
         )
     if window is not None:
@@ -531,7 +533,7 @@ def lowess(x: np.ndarray, y: np.ndarray, grid: np.ndarray, frac: float) -> np.nd
 
 
 def add_acc_loss(df_eval: pd.DataFrame) -> pd.DataFrame:
-    """Add NMDT and `loss`: accuracy minus the Oracle run with the same strategy,
+    """Add NMDT and `loss`: accuracy minus mid run with the same strategy,
     boundary and seed."""
     df = compute_nmdt(df_eval)
     df["detector_label"] = df["detector_label"].replace({"ADWIN_JOINT": "ADWIN*"})
@@ -563,7 +565,7 @@ def lineplot_acc_loss_strategy_boundary(
 ) -> tuple[plt.Figure, pd.DataFrame]:
     """Accuracy minus control against `x_col`, one panel per boundary.
 
-    Y is the accuracy of a run minus the accuracy of the control (Oracle) run with the
+    Y is the accuracy of a run minus the accuracy of the control (mid) run with the
     same strategy, boundary and seed, so 0 means "as good as perfect detection". `x_col` is
     split into the bins given by `edges`, and a bin is drawn at its centre, or at the
     mean of its runs with `x_at_bin_mean`. Each strategy shows the mean per bin. All detectors are used, but runs with an undefined
@@ -830,6 +832,9 @@ def contour_acc_nmdt_f1_boundary(
 DATASET_LABELS = {"rfmnist": "RFMNIST", "covertype": "Covertype"}
 
 
+HEATMAP_BASELINES = ["early", MID_LABEL, "late"]
+
+
 def heatmap_strategy_detector_boundary(
     df_evals: dict[str, pd.DataFrame],
     metric: str,
@@ -838,14 +843,15 @@ def heatmap_strategy_detector_boundary(
 ) -> plt.Figure:
     """Mean `metric` (shown x100) for each strategy (rows) and detector (columns).
 
-    With `reference` the Oracle is the first column and FT the last row. Without it
-    (drift detection metrics, which they do not have) both are left out.
+    With `reference` the early, mid and late baselines are the first columns and FT the
+    last row. Without it (drift detection metrics, which they do not have) they are left
+    out.
 
     One row of panels per dataset and one column per boundary. FT has no detector, so its
-    accuracy is one cell in the last row, under Oracle (it runs once per boundary). The FT
+    accuracy is one cell in the last row, under mid (it runs once per boundary). The FT
     row is not part of any average. Every cell shows its value, so there is no colour bar. The colour scale is
     shared by the panels of a dataset. Within a dataset, rows and columns are sorted from
-    best to worst by their mean over all panels, with Oracle first. The last column and
+    best to worst by their mean over all panels, with the baselines first. The last column and
     row are the mean of the cells in their row or column. The corner is the mean over all
     strategies and detectors.
     """
@@ -868,17 +874,17 @@ def heatmap_strategy_detector_boundary(
             ft,
         )
     # Columns are shared by all panels: the union of the detectors, best first by the mean
-    # over all panels of all datasets. Oracle stays first.
+    # over all panels of all datasets. The baselines stay first.
     others = sorted(
         {d for tables, _ in raw.values() for t in tables.values() for d in t.columns}
-        - {"Oracle"}
+        - set(HEATMAP_BASELINES)
     )
     overalls = [
         (sum(t.reindex(index=strategies, columns=others) for t in tables.values()))
         / len(tables)
         for tables, _ in raw.values()
     ]
-    detectors = (["Oracle"] if reference else []) + (
+    detectors = (HEATMAP_BASELINES if reference else []) + (
         pd.concat([o.mean() for o in overalls], axis=1)
         .mean(axis=1)
         .sort_values(ascending=False)
@@ -903,7 +909,7 @@ def heatmap_strategy_detector_boundary(
         if reference:
             for b, t in tables.items():
                 t.loc["FT"] = np.nan
-                t.loc["FT", "Oracle"] = ft[b]
+                t.loc["FT", MID_LABEL] = ft[b]
         all_tables[name] = tables
         norms[name] = mcolors.Normalize(lo, hi)
     gap = 0.35  # Extra space before the Avg. row and column, in cells
@@ -963,7 +969,9 @@ def heatmap_strategy_detector_boundary(
                 # Digits have no descender, so centre them by half their height (0.72 em)
                 text = f"{100 * v:.0f}"
                 # Three digits (100) are shrunk to fit the cell
-                size = FONT_TICK if len(text) < 3 else 0.75 * FONT_TICK
+                size = FONT_TICK * min(1.0, 8 / n_cols)
+                if len(text) == 3:
+                    size *= 0.75
                 ax.annotate(
                     text,
                     xy=(x, y),
@@ -1021,7 +1029,7 @@ def heatmap_f1_strategy_detector_boundary(
 
 
 def lineplot_acc_loss_nmdt_strategy_boundary(df_eval: pd.DataFrame):
-    """Accuracy relative to the Oracle against NMDT, one panel per drift speed."""
+    """Accuracy relative to mid against NMDT, one panel per drift speed."""
     return lineplot_acc_loss_strategy_boundary(
         df_eval,
         "nmdt",
@@ -1033,7 +1041,7 @@ def lineplot_acc_loss_nmdt_strategy_boundary(df_eval: pd.DataFrame):
 
 
 def lineplot_acc_loss_f1_strategy_boundary(df_eval: pd.DataFrame):
-    """Accuracy relative to the Oracle against F1 score."""
+    """Accuracy relative to mid against F1 score."""
     return lineplot_acc_loss_strategy_boundary(
         df_eval, F1_METRIC, LABEL_F1, np.linspace(0, 1, 5), x_at_bin_mean=True
     )
@@ -1088,6 +1096,10 @@ if __name__ == "__main__":
     df_dd_raw = pd.read_csv(logs_path / "dd_run/data_frame.csv")
     for _df in (df_eval_raw, df_dd_raw):
         _df["detector_label"] = _df["detector_label"].replace(ONE_SIDED_LABELS)
+    # Early and late are baselines without drift detection scores. Only the accuracy
+    # heatmap shows them.
+    df_eval_all = df_eval_raw
+    df_eval_raw = df_eval_all[~df_eval_all["detector_label"].isin(EARLY_LATE_RAW)]
 
     # 2. Generate standard multi-variable plots
     fig_bar = barplot_f1_detector_strategy(df_eval_raw, df_dd_raw)
@@ -1111,7 +1123,7 @@ if __name__ == "__main__":
     df_eval_covertype["detector_label"] = df_eval_covertype["detector_label"].replace(
         ONE_SIDED_LABELS
     )
-    heat_data = {"rfmnist": df_eval_raw, "covertype": df_eval_covertype}
+    heat_data = {"rfmnist": df_eval_all, "covertype": df_eval_covertype}
     fig_heat = heatmap_acc_strategy_detector_boundary(heat_data)
     save_fig(fig_heat, "hm_acc.pdf")
     fig_heat_f1 = heatmap_f1_strategy_detector_boundary(heat_data)
@@ -1130,7 +1142,7 @@ if __name__ == "__main__":
 
     # 3. Generate individual detector boxplots
     df_box = df_eval_raw.replace(rename_methods).pipe(compute_nmdt)
-    mask_not_oracle = df_box["detector"] != "Oracle"
+    mask_not_oracle = df_box["detector"] != MID_LABEL
 
     fig_acc = boxplot_detector(df_box, ACC_METRIC, LABEL_ACC)
     save_fig(fig_acc, "boxplot_detector_acc.pdf")

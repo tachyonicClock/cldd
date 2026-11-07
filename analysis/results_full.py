@@ -4,18 +4,19 @@ Run with `uv run analysis/results_full.py`. Reads
 `$LOGDIR/cldd/{rfmnist,covertype}/evaluate/data_frame.csv`. Writes
 `table/full_rfmnist.tex` and `table/full_covertype.tex`.
 
-One row per strategy and detector (FT has no detector). One group of columns per
+One row per strategy and detector (FT has no detector; early, mid and late are the baselines that alarm before, at and after the drift). One group of columns per
 boundary: CL accuracy, drift detection F1, backward transfer and test-then-train
 accuracy, as mean and standard deviation over the evaluation seeds. The best mean of
 each column is bold. A detector that did not run on a dataset is left blank.
 """
 
 import pandas as pd
-from common import ONE_SIDED_LABELS
+from common import EARLY_LATE_RAW, MID_LABEL, ONE_SIDED_LABELS, ORACLE_RAW
 from results_strategy import LOGS, TABLE_DIR, format_column
 
 STRATEGIES = ["EWC", "LWF", "MAS", "RWalk", "SI"]
-DETECTORS = ["ADWIN", "ADWIN*", "DDM", "PH", "SEED", "STEPD", "Oracle"]
+BASELINES = ["early", MID_LABEL, "late"]
+DETECTORS = ["ADWIN", "ADWIN*", "DDM", "PH", "SEED", "STEPD", *BASELINES]
 BOUNDARIES = ["abrupt", "gradual", "slow"]
 # (header, column, scale)
 METRICS = [
@@ -33,18 +34,20 @@ def load(root) -> pd.DataFrame:
     df["detector_label"] = (
         df["detector_label"]
         .replace(ONE_SIDED_LABELS)
-        .replace({"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"})
+        .replace({"ADWIN_JOINT": "ADWIN*", ORACLE_RAW: MID_LABEL})
     )
     cols = [c for _, c, _ in METRICS]
-    # The oracle has no drift detector to score
-    df.loc[df["detector_label"] == "Oracle", "dd.my_f1"] = float("nan")
+    # The baselines have no drift detector to score
+    df.loc[df["detector_label"].isin([MID_LABEL, *EARLY_LATE_RAW]), "dd.my_f1"] = float(
+        "nan"
+    )
     return df.groupby(["boundary", "strategy", "detector_label"])[cols].agg(
         ["mean", "std"]
     )
 
 
 def row_keys() -> list[tuple[str, str]]:
-    return [(s, d) for s in STRATEGIES for d in DETECTORS] + [("FT", "Oracle")]
+    return [(s, d) for s in STRATEGIES for d in DETECTORS] + [("FT", MID_LABEL)]
 
 
 def format_cells(stats: pd.DataFrame) -> dict[tuple[str, str], list[str]]:
@@ -96,7 +99,7 @@ def latex_table(cells: dict[tuple[str, str], list[str]]) -> str:
             label = rf"\multirow[t]{{{len(DETECTORS)}}}{{*}}{{{s}}}" if i == 0 else ""
             lines.append(f"{label} & {d} & {' & '.join(cells[(s, d)])} \\\\")
         lines.append(r"\midrule")
-    lines.append(f"FT & & {' & '.join(cells[('FT', 'Oracle')])} \\\\")
+    lines.append(f"FT & & {' & '.join(cells[('FT', MID_LABEL)])} \\\\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     return "\n".join(lines)
 

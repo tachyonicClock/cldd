@@ -15,7 +15,7 @@ share runs when the best detector is ADWIN.
 """
 
 import pandas as pd
-from common import ONE_SIDED_LABELS, load_best_detectors
+from common import MID_LABEL, ONE_SIDED_LABELS, load_best_detectors
 from plots import compute_nmdt
 from results_strategy import (
     BOUNDARY_AGNOSTIC,
@@ -87,7 +87,7 @@ def dataset_columns(runs: dict[str, pd.DataFrame], baseline: pd.DataFrame, name:
 
     acc = pd.DataFrame(
         {
-            (name, "Oracle"): formatted(runs[ORACLE], DV, 100, 1),
+            (name, MID_LABEL): formatted(runs[ORACLE], DV, 100, 1),
             (name, FIXED): formatted(runs[FIXED], DV, 100, 1),
             (name, "Best"): formatted(runs[BEST], DV, 100, 1),
             (name, "Det."): picked.map(lambda d: ONE_SIDED_LABELS.get(d, d)),
@@ -95,7 +95,7 @@ def dataset_columns(runs: dict[str, pd.DataFrame], baseline: pd.DataFrame, name:
     )
     acc[(name, FIXED)] = acc.index.map(fixed_arrow) + acc[(name, FIXED)]
     acc[(name, "Best")] = acc.index.map(best_arrow) + acc[(name, "Best")]
-    base = pd.DataFrame({(name, "Oracle"): formatted(baseline, DV, 100, 1)})
+    base = pd.DataFrame({(name, MID_LABEL): formatted(baseline, DV, 100, 1)})
     acc = pd.concat([acc, base]).fillna("")
 
     dd = pd.DataFrame(

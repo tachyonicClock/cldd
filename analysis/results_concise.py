@@ -14,9 +14,15 @@ best mean of each column is bold. `BEST` is the detector picked on the tuning se
 
 import numpy as np
 import pandas as pd
-from common import ONE_SIDED_LABELS, load_best_detectors
+from common import (
+    EARLY_LATE_RAW,
+    MID_LABEL,
+    ONE_SIDED_LABELS,
+    ORACLE_RAW,
+    load_best_detectors,
+)
 from results_check import BEST, select_runs
-from results_full import DATASETS, METRICS
+from results_full import BASELINES, DATASETS, METRICS
 from results_strategy import TABLE_DIR
 
 OPTION_DIR = TABLE_DIR / "options"
@@ -39,10 +45,10 @@ def load_runs(root) -> pd.DataFrame:
     df["detector_label"] = (
         df["detector_label"]
         .replace(ONE_SIDED_LABELS)
-        .replace({"ADWIN_JOINT": "ADWIN*", "oracle": "Oracle"})
+        .replace({"ADWIN_JOINT": "ADWIN*", ORACLE_RAW: MID_LABEL})
     )
-    # The oracle has no drift detector to score
-    df.loc[df["detector_label"] == "Oracle", "dd.my_f1"] = np.nan
+    # The baselines have no drift detector to score
+    df.loc[df["detector_label"].isin([MID_LABEL, *EARLY_LATE_RAW]), "dd.my_f1"] = np.nan
     return df
 
 
@@ -50,7 +56,7 @@ def per_seed(df, boundaries, strategies, detector, metric) -> pd.Series:
     """The metric of each seed, averaged over boundaries and strategies."""
     _, col, scale = METRIC[metric]
     if strategies == ["FT"]:
-        detector = "Oracle"
+        detector = MID_LABEL
     d = df[df["boundary"].isin(boundaries) & df["strategy"].isin(strategies)]
     if detector == MEDIAN:
         d = d[d["detector_label"].isin(DETECTORS)]
@@ -133,16 +139,16 @@ def strategy_rows(detectors):
         for i, d in enumerate(detectors):
             label = rf"\multirow[t]{{{len(detectors)}}}{{*}}{{{s}}}" if i == 0 else ""
             rows.append(([label, d], [s], d, s))
-    rows.append((["FT", ""], ["FT"], "Oracle", "FT"))
+    rows.append((["FT", ""], ["FT"], MID_LABEL, "FT"))
     return rows
 
 
 def detector_rows(detectors, extras=()):
-    """One row per detector, averaged over strategies, then Oracle, extras and FT."""
+    """One row per detector, averaged over strategies, then the baselines, extras and FT."""
     rows = [([d], STRATEGIES, d, "detectors") for d in detectors]
-    rows += [(["Oracle"], STRATEGIES, "Oracle", "control")]
+    rows += [([b], STRATEGIES, b, "control") for b in BASELINES]
     rows += [([label], STRATEGIES, det, "extra") for label, det in extras]
-    rows.append((["FT"], ["FT"], "Oracle", "FT"))
+    rows.append((["FT"], ["FT"], MID_LABEL, "FT"))
     return rows
 
 
@@ -183,7 +189,7 @@ def build(data) -> dict[str, str]:
         ),
         # C: per strategy with the fixed detectors only, so nothing is selected
         "C_strategy_fixed_detectors": render(
-            strategy_rows(["ADWIN", "ADWIN*", "Oracle"]),
+            strategy_rows(["ADWIN", "ADWIN*", *BASELINES]),
             columns(["acc", "f1"], per_boundary, both),
             data,
             ["Strategy", "Detector"],

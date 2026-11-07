@@ -97,6 +97,10 @@ if DEBUG_MODE:
     BOUNDARY = ["abrupt"]
 
 ORACLE_DETECTOR = "oracle"
+"""Alarms at the drift centre. Shown as `mid` in tables and figures."""
+BASELINE_DETECTORS = ["early", "late"]
+"""Alarms one drift width before the drift starts and after it is over. Evaluated with
+the strategy HP tuned for the oracle, no tuning of their own."""
 
 LOG_ROOT = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
 
@@ -364,6 +368,13 @@ def iter_evaluate_specs(dataset: str = DEFAULT_DATASET):
         if strategy in DETECTOR_AGNOSTIC:
             continue
 
+        for baseline in BASELINE_DETECTORS:
+            yield (
+                Unit(strategy, baseline, boundary, trial, dataset),
+                seed,
+                [strategy_hp],
+            )
+
         if dataset != DEFAULT_DATASET:
             fixed_hp = Unit(
                 strategy, FIXED_DETECTOR, boundary, dataset=dataset
@@ -420,7 +431,7 @@ def task_evaluate():
     """Phase 3: evaluate tuned configurations on held-out evaluation seeds.
 
     Detector-agnostic strategies are evaluated once with the oracle boundary
-    setting. On the main dataset, boundary-aware strategies are evaluated with every
+    setting. The other strategies also run the early and late baselines. On the main dataset, boundary-aware strategies are evaluated with every
     detector. On check datasets, only with the fixed and the best detector.
     """
 
