@@ -1,6 +1,6 @@
 """Write the strategy result tables (LaTeX) from the evaluate runs.
 
-Run with `uv run analysis/results_strategy.py`. Reads `$LOGDIR/cldd/rfmnist/evaluate/data_frame.csv`.
+Run with `uv run analysis/results_strategy.py`. Reads `$LOGDIR/cldd/{rfmnist,covertype}/evaluate/data_frame.csv`.
 Writes `table/strategy_<boundary>.tex` (Oracle, ADWIN and ADWIN* only) and
 `table/appendix_strategy_<boundary>.tex` (all detectors).
 
@@ -175,13 +175,18 @@ def write_tables(df_ev: pd.DataFrame, prefix: str) -> None:
 
 
 if __name__ == "__main__":
-    df_ev = pd.read_csv(LOGS / "evaluate/data_frame.csv")
-    df_ev["detector_label"] = df_ev["detector_label"].replace(ONE_SIDED_LABELS)
-    df_ev["detector_label"] = df_ev["detector_label"].replace("ADWIN_JOINT", "ADWIN*")
-    df_ev = compute_nmdt(df_ev)
+    # (dataset directory, table name prefix)
+    for root, prefix in [(LOGS, ""), (LOGS.parent / "covertype", "covtype_")]:
+        df_ev = pd.read_csv(root / "evaluate/data_frame.csv")
+        df_ev = df_ev.drop(columns="dataset", errors="ignore")
+        df_ev["detector_label"] = df_ev["detector_label"].replace(ONE_SIDED_LABELS)
+        df_ev["detector_label"] = df_ev["detector_label"].replace(
+            "ADWIN_JOINT", "ADWIN*"
+        )
+        df_ev = compute_nmdt(df_ev)
 
-    # Appendix: all detectors
-    write_tables(df_ev, "appendix_strategy")
-    # Paper: the control and the two ADWIN variants
-    keep = df_ev["detector_label"].isin(["oracle", "ADWIN", "ADWIN*"])
-    write_tables(df_ev[keep], "strategy")
+        # Appendix: all detectors
+        write_tables(df_ev, f"{prefix}appendix_strategy")
+        # Paper: the control and the two ADWIN variants
+        keep = df_ev["detector_label"].isin(["oracle", "ADWIN", "ADWIN*"])
+        write_tables(df_ev[keep], f"{prefix}strategy")

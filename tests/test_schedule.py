@@ -20,6 +20,15 @@ def test_oracle_faults():
     assert {100, 200, 300, 400} <= set(extra) and len(extra) <= 9
 
 
+def test_early_and_late_are_a_drift_width_from_the_boundaries():
+    args = ScheduleArgs(mode="early")
+    args.set_stream([100] * 5, seed=0, drift_width=15)
+    assert args.alarms() == [85, 185, 285, 385]
+    args = ScheduleArgs(mode="late")
+    args.set_stream([100] * 5, seed=0, drift_width=15)
+    assert args.alarms() == [115, 215, 315, 415]
+
+
 def test_periodic_and_random():
     periodic = alarms(mode="periodic", period=50)
     assert all(b - a == 50 for a, b in itertools.pairwise(periodic))

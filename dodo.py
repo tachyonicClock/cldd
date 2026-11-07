@@ -72,8 +72,9 @@ BEST_DETECTOR = "BEST"
 DEFAULT_DATASET = DEFAULT_DATASET_LABEL
 """Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
 CHECK_DATASETS = ["covertype"]
-"""Datasets for the smaller check. Phase 3 runs the oracle, the best detector and every
-detector with its own phase-2 HP (no joint-HP ADWIN*). Each has a `config/dataset/<name>.yml`."""
+"""Datasets for the smaller check. Phase 3 runs the oracle, the best detector, every
+detector with its own phase-2 HP and the jointly tuned ADWIN*. Each has a
+`config/dataset/<name>.yml`."""
 FIXED_DETECTOR = "ADWIN"
 """Detector picked on the main dataset, run live on check datasets with its phase-2
 HP from that dataset."""
@@ -296,10 +297,12 @@ def task_tune_strategy():
 
 
 def task_tune_detector_strategy():
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
+    for dataset, strategy, boundary in product(DATASETS, STRATEGY, BOUNDARY):
         if strategy in DETECTOR_AGNOSTIC:
             continue
-        yield Unit(strategy, JOINT_HP_DETECTOR, boundary).task_tune_strategy()
+        yield Unit(
+            strategy, JOINT_HP_DETECTOR, boundary, dataset=dataset
+        ).task_tune_strategy()
 
 
 def task_error_stream():
@@ -387,6 +390,14 @@ def iter_evaluate_specs(dataset: str = DEFAULT_DATASET):
                     seed,
                     [strategy_hp, detector_hp],
                 )
+            joint_hp = Unit(
+                strategy, JOINT_HP_DETECTOR, boundary, dataset=dataset
+            ).tune_strategy_hp
+            yield (
+                Unit(strategy, JOINT_HP_DETECTOR, boundary, trial, dataset),
+                seed,
+                [joint_hp],
+            )
             continue
 
         for detector in DETECTOR:

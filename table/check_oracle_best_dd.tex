@@ -1,25 +1,25 @@
-\begin{tabular}{llllllllll}
+\begin{tabular}{llllll}
 \toprule
- &  & \multicolumn{4}{c}{RotatedFashionMNIST} & \multicolumn{4}{c}{RotatedCIFAR10 (ResNet-18)} \\
- &  & ADWIN F1 $\uparrow$ & ADWIN NMDT $\downarrow$ & Best F1 $\uparrow$ & Best NMDT $\downarrow$ & ADWIN F1 $\uparrow$ & ADWIN NMDT $\downarrow$ & Best F1 $\uparrow$ & Best NMDT $\downarrow$ \\
-Boundary & Strategy &  &  &  &  &  &  &  &  \\
+ &  & \multicolumn{4}{c}{RotatedFashionMNIST} \\
+ &  & ADWIN F1 $\uparrow$ & ADWIN NMDT $\downarrow$ & Best F1 $\uparrow$ & Best NMDT $\downarrow$ \\
+Boundary & Strategy &  &  &  &  \\
 \midrule
-\multirow[t]{5}{*}{abrupt} & EWC & 100.0\tiny{$\pm$0.0} & 0.08\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.08\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.24\tiny{$\pm$0.06} & 98.0\tiny{$\pm$6.3} & 0.20\tiny{$\pm$0.07} \\
- & LWF & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.00} & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.00} & 100.0\tiny{$\pm$0.0} & 0.26\tiny{$\pm$0.03} & 98.9\tiny{$\pm$3.5} & 0.18\tiny{$\pm$0.03} \\
- & MAS & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.06\tiny{$\pm$0.00} & 100.0\tiny{$\pm$0.0} & 0.31\tiny{$\pm$0.05} & 100.0\tiny{$\pm$0.0} & 0.33\tiny{$\pm$0.06} \\
- & RWalk & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.26\tiny{$\pm$0.06} & 100.0\tiny{$\pm$0.0} & 0.26\tiny{$\pm$0.06} \\
- & SI & 100.0\tiny{$\pm$0.0} & 0.11\tiny{$\pm$0.02} & 98.9\tiny{$\pm$3.5} & 0.06\tiny{$\pm$0.01} & 98.9\tiny{$\pm$3.5} & 0.20\tiny{$\pm$0.03} & 100.0\tiny{$\pm$0.0} & 0.21\tiny{$\pm$0.02} \\
+\multirow[t]{5}{*}{abrupt} & EWC & 100.0\tiny{$\pm$0.0} & 0.08\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.08\tiny{$\pm$0.01} \\
+ & LWF & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.00} & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.00} \\
+ & MAS & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.06\tiny{$\pm$0.00} \\
+ & RWalk & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} & 100.0\tiny{$\pm$0.0} & 0.09\tiny{$\pm$0.01} \\
+ & SI & 100.0\tiny{$\pm$0.0} & 0.11\tiny{$\pm$0.02} & 98.9\tiny{$\pm$3.5} & 0.06\tiny{$\pm$0.01} \\
 \midrule
-\multirow[t]{5}{*}{gradual} & EWC & 74.9\tiny{$\pm$3.5} & -0.23\tiny{$\pm$0.02} & 76.1\tiny{$\pm$3.4} & 0.18\tiny{$\pm$0.05} & 98.9\tiny{$\pm$3.5} & 0.10\tiny{$\pm$0.06} & 98.9\tiny{$\pm$3.5} & 0.13\tiny{$\pm$0.04} \\
- & LWF & 70.0\tiny{$\pm$5.8} & -0.31\tiny{$\pm$0.03} & 0.0\tiny{$\pm$0.0} & 1.00\tiny{$\pm$0.00} & 100.0\tiny{$\pm$0.0} & 0.02\tiny{$\pm$0.04} & 96.7\tiny{$\pm$5.4} & 0.01\tiny{$\pm$0.04} \\
- & MAS & 55.3\tiny{$\pm$6.5} & -0.26\tiny{$\pm$0.10} & 9.7\tiny{$\pm$20.9} & 0.79\tiny{$\pm$0.44} & 100.0\tiny{$\pm$0.0} & 0.02\tiny{$\pm$0.06} & 98.9\tiny{$\pm$3.5} & 0.02\tiny{$\pm$0.05} \\
- & RWalk & 71.1\tiny{$\pm$5.0} & -0.27\tiny{$\pm$0.03} & 44.7\tiny{$\pm$14.8} & 0.33\tiny{$\pm$0.40} & 100.0\tiny{$\pm$0.0} & 0.04\tiny{$\pm$0.06} & 100.0\tiny{$\pm$0.0} & 0.04\tiny{$\pm$0.04} \\
- & SI & 69.8\tiny{$\pm$4.6} & -0.28\tiny{$\pm$0.04} & 54.1\tiny{$\pm$6.9} & -0.18\tiny{$\pm$0.14} & 98.9\tiny{$\pm$3.5} & 0.01\tiny{$\pm$0.05} & 98.9\tiny{$\pm$3.5} & -0.01\tiny{$\pm$0.05} \\
+\multirow[t]{5}{*}{gradual} & EWC & 74.9\tiny{$\pm$3.5} & -0.23\tiny{$\pm$0.02} & 76.1\tiny{$\pm$3.4} & 0.18\tiny{$\pm$0.05} \\
+ & LWF & 70.0\tiny{$\pm$5.8} & -0.31\tiny{$\pm$0.03} & 0.0\tiny{$\pm$0.0} & 1.00\tiny{$\pm$0.00} \\
+ & MAS & 55.3\tiny{$\pm$6.5} & -0.26\tiny{$\pm$0.10} & 9.7\tiny{$\pm$20.9} & 0.79\tiny{$\pm$0.44} \\
+ & RWalk & 71.1\tiny{$\pm$5.0} & -0.27\tiny{$\pm$0.03} & 44.7\tiny{$\pm$14.8} & 0.33\tiny{$\pm$0.40} \\
+ & SI & 69.8\tiny{$\pm$4.6} & -0.28\tiny{$\pm$0.04} & 54.1\tiny{$\pm$6.9} & -0.18\tiny{$\pm$0.14} \\
 \midrule
-\multirow[t]{5}{*}{slow} & EWC & 83.3\tiny{$\pm$7.3} & -0.25\tiny{$\pm$0.07} & 83.3\tiny{$\pm$7.3} & -0.25\tiny{$\pm$0.07} & 96.7\tiny{$\pm$5.4} & 0.04\tiny{$\pm$0.03} & 100.0\tiny{$\pm$0.0} & 0.16\tiny{$\pm$0.07} \\
- & LWF & 72.7\tiny{$\pm$0.0} & -0.37\tiny{$\pm$0.02} & 0.0\tiny{$\pm$0.0} & 1.00\tiny{$\pm$0.00} & 88.9\tiny{$\pm$0.0} & -0.11\tiny{$\pm$0.02} & 88.9\tiny{$\pm$0.0} & -0.12\tiny{$\pm$0.03} \\
- & MAS & 76.8\tiny{$\pm$7.0} & -0.38\tiny{$\pm$0.03} & 76.8\tiny{$\pm$7.0} & -0.38\tiny{$\pm$0.03} & 100.0\tiny{$\pm$0.0} & 0.02\tiny{$\pm$0.04} & 100.0\tiny{$\pm$0.0} & 0.01\tiny{$\pm$0.04} \\
- & RWalk & 47.5\tiny{$\pm$6.2} & -0.31\tiny{$\pm$0.05} & 15.9\tiny{$\pm$22.2} & 0.75\tiny{$\pm$0.38} & 92.2\tiny{$\pm$5.4} & -0.07\tiny{$\pm$0.05} & 98.9\tiny{$\pm$3.5} & -0.02\tiny{$\pm$0.08} \\
- & SI & 66.8\tiny{$\pm$10.8} & -0.34\tiny{$\pm$0.05} & 66.8\tiny{$\pm$10.8} & -0.34\tiny{$\pm$0.05} & 98.9\tiny{$\pm$3.5} & 0.01\tiny{$\pm$0.03} & 98.9\tiny{$\pm$3.5} & 0.03\tiny{$\pm$0.06} \\
+\multirow[t]{5}{*}{slow} & EWC & 83.3\tiny{$\pm$7.3} & -0.25\tiny{$\pm$0.07} & 83.3\tiny{$\pm$7.3} & -0.25\tiny{$\pm$0.07} \\
+ & LWF & 72.7\tiny{$\pm$0.0} & -0.37\tiny{$\pm$0.02} & 0.0\tiny{$\pm$0.0} & 1.00\tiny{$\pm$0.00} \\
+ & MAS & 76.8\tiny{$\pm$7.0} & -0.38\tiny{$\pm$0.03} & 76.8\tiny{$\pm$7.0} & -0.38\tiny{$\pm$0.03} \\
+ & RWalk & 47.5\tiny{$\pm$6.2} & -0.31\tiny{$\pm$0.05} & 15.9\tiny{$\pm$22.2} & 0.75\tiny{$\pm$0.38} \\
+ & SI & 66.8\tiny{$\pm$10.8} & -0.34\tiny{$\pm$0.05} & 66.8\tiny{$\pm$10.8} & -0.34\tiny{$\pm$0.05} \\
 \bottomrule
 \end{tabular}

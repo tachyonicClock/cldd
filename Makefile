@@ -40,7 +40,7 @@ JOBS ?= 6
 run-covertype:
 	mkdir -p ${LOGDIR}/cldd/covertype
 	CLDD_DATASETS=covertype CLDD_GPUS=$(GPU) OMP_NUM_THREADS=2 MKL_NUM_THREADS=2 \
-	nohup uv run doit run -n $(JOBS) tune_strategy error_stream tune_hp_detector select_best evaluate dd_run collect_evaluate dd_collect \
+	nohup uv run doit run -n $(JOBS) tune_strategy tune_detector_strategy error_stream tune_hp_detector select_best evaluate dd_run collect_evaluate dd_collect \
 	> ${LOGDIR}/cldd/covertype/nohup.log 2>&1 &
 
 .PHONY: notify-covertype

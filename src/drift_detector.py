@@ -508,11 +508,15 @@ class ScheduleArgs(DriftDetectorArgs):
     mode ``random``: ``n_random`` alarms at uniform random instances.
     mode ``oracle``: the true drift centres shifted by ``offset`` instances, with
     ``n_miss`` of them dropped and ``n_extra`` uniform random alarms added.
+    mode ``early``: one drift width before each drift centre, so before the drift starts.
+    mode ``late``: one drift width after each drift centre, once the drift is over.
+    The drift width is the half-width of the transition plus a padding, set by
+    ``set_stream``. For abrupt drift it is only the padding.
     The randomness is seeded by ``seed`` (set to the run seed).
     """
 
     type_: ClassVar[str] = "schedule"
-    mode: Literal["periodic", "random", "oracle"] = "oracle"
+    mode: Literal["periodic", "random", "oracle", "early", "late"] = "oracle"
     period: int = 60000
     n_random: int = 4
     offset: int = 0
@@ -520,9 +524,12 @@ class ScheduleArgs(DriftDetectorArgs):
     n_extra: int = 0
     seed: int = 0
 
-    def set_stream(self, task_lengths: Sequence[int], seed: int) -> None:
+    def set_stream(
+        self, task_lengths: Sequence[int], seed: int, drift_width: int = 0
+    ) -> None:
         self._task_lengths = [int(n) for n in task_lengths]
         self.seed = seed
+        self._drift_width = int(drift_width)
 
     def alarms(self) -> list[int]:
         rng = np.random.default_rng(self.seed)
@@ -533,6 +540,9 @@ class ScheduleArgs(DriftDetectorArgs):
             out = np.arange(phase, total + 1, self.period)
         elif self.mode == "random":
             out = rng.integers(1, total + 1, size=self.n_random)
+        elif self.mode in ("early", "late"):
+            sign = -1 if self.mode == "early" else 1
+            out = np.clip(trues + sign * self._drift_width, 1, total)
         else:
             out = np.clip(trues + self.offset, 1, total)
             if self.n_miss > 0:

@@ -827,54 +827,123 @@ def contour_acc_nmdt_f1_boundary(
     return fig
 
 
-def heatmap_acc_strategy_detector_boundary(df_eval: pd.DataFrame) -> plt.Figure:
-    """Mean accuracy (%) for each strategy (rows) and detector (columns), one panel per boundary.
+DATASET_LABELS = {"rfmnist": "RFMNIST", "covertype": "Covertype"}
 
-    FT has no detector, so it has no row. Every cell shows its value, so there is no colour
-    bar. The colour scale is shared by all panels. Rows and columns are sorted from best to
-    worst by their mean over all panels, with Oracle first. The last column and row are the mean of
-    the cells in their row or column. The corner is the mean over all strategies and detectors.
+
+def heatmap_strategy_detector_boundary(
+    df_evals: dict[str, pd.DataFrame],
+    metric: str,
+    title: str,
+    reference: bool,
+) -> plt.Figure:
+    """Mean `metric` (shown x100) for each strategy (rows) and detector (columns).
+
+    With `reference` the Oracle is the first column and FT the last row. Without it
+    (drift detection metrics, which they do not have) both are left out.
+
+    One row of panels per dataset and one column per boundary. FT has no detector, so its
+    accuracy is one cell in the last row, under Oracle (it runs once per boundary). The FT
+    row is not part of any average. Every cell shows its value, so there is no colour bar. The colour scale is
+    shared by the panels of a dataset. Within a dataset, rows and columns are sorted from
+    best to worst by their mean over all panels, with Oracle first. The last column and
+    row are the mean of the cells in their row or column. The corner is the mean over all
+    strategies and detectors.
     """
-    df = df_eval.replace(rename_methods)
-    df = df[df["strategy"] != "FT"]
     strategies = [st for st in STRATEGY_PALETTE if st != "FT"]
-    others = sorted(d for d in df["detector_label"].unique() if d != "Oracle")
-    detectors = ["Oracle"] + others
-    tables = {
-        b: df[df["boundary"] == b]
-        .groupby(["strategy", "detector_label"])[ACC_METRIC]
-        .mean()
-        .unstack()
-        .reindex(index=strategies, columns=detectors)
-        for b in BOUNDARY_PALETTE
-    }
-    lo = np.floor(min(t.min().min() for t in tables.values()) * 50) / 50
-    hi = np.ceil(max(t.max().max() for t in tables.values()) * 50) / 50
-    # Same order in every panel: best first, by the mean over all panels. Oracle stays first.
-    overall = sum(tables.values()) / len(tables)
-    strategies = overall.mean(axis=1).sort_values(ascending=False).index.tolist()
-    detectors = ["Oracle"] + overall[others].mean().sort_values(
-        ascending=False
-    ).index.tolist()
-    tables = {
-        b: t.reindex(index=strategies, columns=detectors) for b, t in tables.items()
-    }
-    for t in tables.values():
-        t["Avg."] = t.mean(axis=1)
-        t.loc["Avg."] = t.mean(axis=0)
-    norm = mcolors.Normalize(lo, hi)
-    fig, axes = plt.subplots(
-        1,
-        len(BOUNDARY_PALETTE),
-        figsize=(FIGSIZE_LOSS[0], 1.47),
-        sharey=True,
-        constrained_layout=True,
+    raw: dict[str, tuple[dict[str, pd.DataFrame], pd.Series]] = {}
+    for name, df_eval in df_evals.items():
+        df = df_eval.replace(rename_methods)
+        ft = df[df["strategy"] == "FT"].groupby("boundary")[metric].mean()
+        if not reference:
+            ft = pd.Series(dtype=float)
+        raw[name] = (
+            {
+                b: df[(df["boundary"] == b) & (df["strategy"] != "FT")]
+                .pipe(lambda d: d[d["detector_label"] != "BEST"])
+                .groupby(["strategy", "detector_label"])[metric]
+                .mean()
+                .unstack()
+                for b in BOUNDARY_PALETTE
+            },
+            ft,
+        )
+    # Columns are shared by all panels: the union of the detectors, best first by the mean
+    # over all panels of all datasets. Oracle stays first.
+    others = sorted(
+        {d for tables, _ in raw.values() for t in tables.values() for d in t.columns}
+        - {"Oracle"}
     )
+    overalls = [
+        (sum(t.reindex(index=strategies, columns=others) for t in tables.values()))
+        / len(tables)
+        for tables, _ in raw.values()
+    ]
+    detectors = (["Oracle"] if reference else []) + (
+        pd.concat([o.mean() for o in overalls], axis=1)
+        .mean(axis=1)
+        .sort_values(ascending=False)
+        .index.tolist()
+    )
+    all_tables: dict[str, dict[str, pd.DataFrame]] = {}
+    norms = {}
+    for name, (tables, ft) in raw.items():
+        tables = {
+            b: t.reindex(index=strategies, columns=detectors) for b, t in tables.items()
+        }
+        lo = min([t.min().min() for t in tables.values()] + list(ft))
+        hi = max([t.max().max() for t in tables.values()] + list(ft))
+        lo, hi = np.floor(lo * 50) / 50, np.ceil(hi * 50) / 50
+        # Same row order in every panel of a dataset: best first, by the mean over all panels
+        overall = sum(tables.values()) / len(tables)
+        order = overall.mean(axis=1).sort_values(ascending=False).index.tolist()
+        tables = {b: t.reindex(index=order) for b, t in tables.items()}
+        for t in tables.values():
+            t["Avg."] = t.mean(axis=1)
+            t.loc["Avg."] = t.mean(axis=0)
+        if reference:
+            for b, t in tables.items():
+                t.loc["FT"] = np.nan
+                t.loc["FT", "Oracle"] = ft[b]
+        all_tables[name] = tables
+        norms[name] = mcolors.Normalize(lo, hi)
     gap = 0.35  # Extra space before the Avg. row and column, in cells
-    for ax, (boundary, table) in zip(axes, tables.items()):
+    # Size the figure so the equal-aspect panels fill their grid cells with no slack
+    n_rows, n_cols = next(iter(next(iter(all_tables.values())).values())).shape
+    left, right, wspace = 0.1, 0.99, 0.12
+    width = FIGSIZE_LOSS[0]
+    panel_w = width * (right - left) / (len(BOUNDARY_PALETTE) * (1 + wspace) - wspace)
+    n_gaps = 2 if reference else 1  # before the Avg. row, and before the FT row
+    panel_h = panel_w * (n_rows + n_gaps * gap) / (n_cols + gap)
+    head, foot, between = 0.45, 0.5, 0.12  # inches
+    n_data = len(df_evals)
+    height = n_data * panel_h + (n_data - 1) * between + head + foot
+    fig, axes = plt.subplots(
+        n_data,
+        len(BOUNDARY_PALETTE),
+        figsize=(width, height),
+        sharey="row",
+        squeeze=False,
+    )
+    fig.subplots_adjust(
+        left=left,
+        right=right,
+        top=1 - head / height,
+        bottom=foot / height,
+        wspace=wspace,
+        hspace=between / panel_h,
+    )
+    panels = [
+        (axes[r, c], name, boundary, table)
+        for r, (name, tables) in enumerate(all_tables.items())
+        for c, (boundary, table) in enumerate(tables.items())
+    ]
+    for ax, name, boundary, table in panels:
+        norm = norms[name]
         n_rows, n_cols = table.shape
         xs = np.arange(n_cols) + gap * (np.arange(n_cols) == n_cols - 1)
-        ys = np.arange(n_rows) + gap * (np.arange(n_rows) == n_rows - 1)
+        # Gap before the Avg. row, and another before the FT row
+        ys = np.arange(n_rows) + gap * (np.arange(n_rows) >= n_rows - n_gaps)
+        ys = ys + gap * (reference and np.arange(n_rows) == n_rows - 1)
         for i, y in enumerate(ys):
             for j, x in enumerate(xs):
                 v = table.iat[i, j]
@@ -892,35 +961,63 @@ def heatmap_acc_strategy_detector_boundary(df_eval: pd.DataFrame) -> plt.Figure:
                     )
                 )
                 # Digits have no descender, so centre them by half their height (0.72 em)
+                text = f"{100 * v:.0f}"
+                # Three digits (100) are shrunk to fit the cell
+                size = FONT_TICK if len(text) < 3 else 0.75 * FONT_TICK
                 ax.annotate(
-                    f"{100 * v:.0f}",
+                    text,
                     xy=(x, y),
-                    xytext=(0, -0.36 * FONT_TICK),
+                    xytext=(0, -0.36 * size),
                     textcoords="offset points",
                     ha="center",
                     va="baseline",
-                    fontsize=FONT_TICK,
+                    fontsize=size,
                     color="white" if np.mean(colour[:3]) < 0.5 else "black",
                 )
         ax.set_xlim(-0.5, xs[-1] + 0.5)
         ax.set_ylim(ys[-1] + 0.5, -0.5)
         ax.set_aspect("equal")
-        ax.set_xticks(xs, table.columns, rotation=90, fontsize=FONT_TICK)
+        ax.set_xticks(
+            xs,
+            table.columns if ax.get_subplotspec().is_last_row() else [],
+            rotation=90,
+            fontsize=FONT_TICK,
+        )
         ax.set_yticks(ys, table.index, fontsize=FONT_TICK)
         ax.tick_params(which="both", length=0)
-        ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
+        if ax.get_subplotspec().is_first_row():
+            ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
+        if ax.get_subplotspec().is_first_col():
+            ax.set_ylabel(DATASET_LABELS.get(name, name), fontsize=FONT_LABEL)
         for spine in ax.spines.values():
             spine.set_visible(False)
-    # One label for all cells, centred over the middle panel
+    # One label for all cells, centred over the middle column
     fig.canvas.draw()
-    middle = axes[len(axes) // 2].get_position()
+    middle = axes[0, len(BOUNDARY_PALETTE) // 2].get_position()
     fig.suptitle(
-        "Accuracy (\\%)",
+        title,
         x=(middle.x0 + middle.x1) / 2,
+        y=1.0,
         ha="center",
         fontsize=FONT_SUBTITLE,
     )
     return fig
+
+
+def heatmap_acc_strategy_detector_boundary(
+    df_evals: dict[str, pd.DataFrame],
+) -> plt.Figure:
+    return heatmap_strategy_detector_boundary(
+        df_evals, ACC_METRIC, "Accuracy (\\%)", reference=True
+    )
+
+
+def heatmap_f1_strategy_detector_boundary(
+    df_evals: dict[str, pd.DataFrame],
+) -> plt.Figure:
+    return heatmap_strategy_detector_boundary(
+        df_evals, F1_METRIC, "F1 (\\%)", reference=False
+    )
 
 
 def lineplot_acc_loss_nmdt_strategy_boundary(df_eval: pd.DataFrame):
@@ -1008,8 +1105,17 @@ if __name__ == "__main__":
         f"scatterplot_acc_nmdt_strategy_boundary: R^2={ {k: round(float(v), 3) for k, v in r2_nmdt.items()} }"
     )
 
-    fig_heat = heatmap_acc_strategy_detector_boundary(df_eval_raw)
-    save_fig(fig_heat, "heatmap_acc_strategy_detector_boundary.pdf")
+    df_eval_covertype = pd.read_csv(
+        logs_path.parent / "covertype" / "evaluate/data_frame.csv"
+    )
+    df_eval_covertype["detector_label"] = df_eval_covertype["detector_label"].replace(
+        ONE_SIDED_LABELS
+    )
+    heat_data = {"rfmnist": df_eval_raw, "covertype": df_eval_covertype}
+    fig_heat = heatmap_acc_strategy_detector_boundary(heat_data)
+    save_fig(fig_heat, "hm_acc.pdf")
+    fig_heat_f1 = heatmap_f1_strategy_detector_boundary(heat_data)
+    save_fig(fig_heat_f1, "hm_f1.pdf")
 
     fig_loss, loss_table = lineplot_acc_loss_nmdt_strategy_boundary(df_eval_raw)
     save_fig(fig_loss, "lineplot_accloss_nmdt_strategy_boundary.pdf")

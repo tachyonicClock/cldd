@@ -65,7 +65,7 @@ class Experiment:
         from src.drift_detector import ScheduleArgs
 
         if isinstance(config.drift_detector, ScheduleArgs):
-            config.drift_detector.set_stream(task_lengths, config.seed)
+            config.drift_detector.set_stream(task_lengths, config.seed, drift_width)
         self.drift_detector = config.drift_detector.build(
             self.learner,
             EvaluateDriftDetector(
