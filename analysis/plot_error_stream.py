@@ -9,7 +9,6 @@ import numpy as np
 from common import (
     DRIFT_WINDOW_COLOR,
     FONT_LABEL,
-    FONT_SUBTITLE,
     FONT_TICK,
     FONT_TITLE,
     NO_TOP_RIGHT,
@@ -181,10 +180,6 @@ BOUNDARIES = ("abrupt", "gradual", "slow")
 # Log folder of each detector name, where they differ
 RUN_DIR = {name: run for run, name in ONE_SIDED_LABELS.items()}
 
-# Two columns wide (7.16 in text width), a little under so the saved PDF fits
-FIGSIZE_TWO_COLUMN = (511 / 72, 2.7)
-
-
 def add_legend(fig: plt.Figure, ncol: int) -> None:
     """One legend under the whole figure, for the lines, the windows and the accuracy."""
     fig.legend(
@@ -237,60 +232,6 @@ def add_legend(fig: plt.Figure, ncol: int) -> None:
         handletextpad=0.4,
     )
 
-
-def plot_drift_detection_pair(
-    root: Path,
-    good: tuple[str, str] = ("LWF", "ADWIN"),
-    bad: tuple[str, str] = ("MAS", "STEPD"),
-    seed: str = "000",
-    names: tuple[str, str] = ("High F1", "Low F1"),
-) -> plt.Figure:
-    """Error streams for a left and a right run, one row per boundary.
-
-    `good` and `bad` are (strategy, detector) pairs. `names` start the column headings.
-    """
-    fig = plt.figure(figsize=FIGSIZE_TWO_COLUMN, layout="constrained")
-    subfigs = fig.subfigures(1, 2)
-    for col, (sf, name, (strategy, detector)) in enumerate(
-        zip(subfigs, names, (good, bad))
-    ):
-        axs = sf.subplots(nrows=3, sharex=True, sharey=True)
-        for row, (ax, boundary) in enumerate(zip(axs, BOUNDARIES)):
-            load_and_plot_error_stream(
-                root
-                / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/",
-                ax,
-            )
-            ax.set_title(boundary.capitalize(), loc="left", fontsize=FONT_SUBTITLE)
-            ax.minorticks_off()
-            ax.set_yticks([0, 0.5, 1])
-            ax.tick_params(labelsize=FONT_TICK)
-        sf.suptitle(f"{name}: {strategy} with {detector}", fontsize=FONT_TITLE)
-        axs[2].set_xlabel(r"Stream (\%)", fontsize=FONT_LABEL)
-        if col == 0:
-            axs[1].set_ylabel("Rate", fontsize=FONT_LABEL)
-
-    add_legend(fig, ncol=5)
-    return fig
-
-
-fig = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
-    good=("SI", "ADWIN"),
-    bad=("SI", "STEPD"),
-    seed="009",
-)
-fig.savefig("fig/plot_error_stream.pdf")
-
-# A detector that misses drifts: no alarm at all in Gradual and Slow
-fig_missed = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
-    good=("LWF", "ADWIN"),
-    bad=("LWF", "DDM"),
-    seed="005",
-    names=("Finds drifts", "Missed drifts"),
-)
-fig_missed.savefig("fig/plot_error_stream_missed.pdf")
 
 # One column wide (3.5 in), a little under so the saved PDF fits
 FIGSIZE_ONE_COLUMN_STACK = (246 / 72, 4.4)
@@ -417,4 +358,4 @@ fig_stack = plot_drift_detection_stack(
         ("Missed drifts", "LWF", "SEED", ("gradual",), "001"),
     ],
 )
-fig_stack.savefig("fig/plot_error_stream_stack.pdf")
+fig_stack.savefig("fig/error_streams.pdf")

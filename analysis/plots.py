@@ -732,7 +732,7 @@ def contour_acc_nmdt_f1_boundary(
     bandwidth: tuple[float, float] = (0.15, 0.12),
     min_weight: float = 5.0,
 ) -> plt.Figure:
-    """Accuracy over NMDT (x) and detector F1 (y), one panel per boundary.
+    """Accuracy over NMDT (x) and detector F1 (y), square panels at single-column width.
 
     Colour is the Gaussian-weighted mean accuracy of all strategies at each point, with the
     `bandwidth` (NMDT, F1). Points with less than `min_weight` runs nearby are left
@@ -749,7 +749,7 @@ def contour_acc_nmdt_f1_boundary(
     fig, axes = plt.subplots(
         1,
         len(BOUNDARY_PALETTE),
-        figsize=(FIGSIZE_LOSS[0], 2.2),
+        figsize=(240 / 72, 1.4),
         sharex=True,
         sharey=True,
         constrained_layout=True,
@@ -800,16 +800,15 @@ def contour_acc_nmdt_f1_boundary(
         ax.minorticks_off()
         ax.tick_params(labelsize=FONT_TICK, top=True, right=True)
         ax.set_xticks([-1, 0, 1])
+        ax.set_box_aspect(1)
         for side in ("top", "right"):
             ax.spines[side].set_visible(True)
     axes[0].set_ylabel("F1", fontsize=FONT_LABEL)
     axes[len(axes) // 2].set_xlabel(f"{LABEL_NMDT} (delay)", fontsize=FONT_LABEL)
     cbar = fig.colorbar(
         cs,
-        ax=axes,
+        cax=axes[-1].inset_axes([1.12, 0, 0.08, 1]),
         orientation="vertical",
-        fraction=0.09,
-        pad=0.03,
         ticks=np.round(np.arange(np.ceil(lo * 10) / 10, hi, 0.1), 1),
     )
     cbar.ax.minorticks_off()
@@ -829,7 +828,7 @@ def contour_acc_nmdt_f1_boundary(
     return fig
 
 
-DATASET_LABELS = {"rfmnist": "RFMNIST", "covertype": "Covertype"}
+DATASET_LABELS = {"rfmnist": "RFMNIST", "covertype": "ECovtype"}
 
 
 HEATMAP_BASELINES = ["early", MID_LABEL, "late"]
@@ -848,8 +847,9 @@ def heatmap_strategy_detector_boundary(
     out.
 
     One row of panels per dataset and one column per boundary. FT has no detector, so its
-    accuracy is one cell in the last row, under mid (it runs once per boundary). The FT
-    row is not part of any average. Every cell shows its value, so there is no colour bar. The colour scale is
+    accuracy spans the baseline and detector columns in the last row (it runs once per
+    boundary), stopping before the Avg. column. The FT row is not part of any average.
+    Every cell shows its value, so there is no colour bar. The colour scale is
     shared by the panels of a dataset. Within a dataset, rows and columns are sorted from
     best to worst by their mean over all panels, with the baselines first. The last column and
     row are the mean of the cells in their row or column. The corner is the mean over all
@@ -951,6 +951,31 @@ def heatmap_strategy_detector_boundary(
         ys = np.arange(n_rows) + gap * (np.arange(n_rows) >= n_rows - n_gaps)
         ys = ys + gap * (reference and np.arange(n_rows) == n_rows - 1)
         for i, y in enumerate(ys):
+            if reference and table.index[i] == "FT":
+                v = table.loc["FT", MID_LABEL]
+                colour = cm.batlow(norm(v))
+                ax.add_patch(
+                    Rectangle(
+                        (-0.5, y - 0.5),
+                        xs[-2] + 1,
+                        1,
+                        facecolor=colour,
+                        edgecolor="white",
+                        linewidth=0.8,
+                    )
+                )
+                text = f"{100 * v:.0f}"
+                ax.annotate(
+                    text,
+                    xy=(-0.4, y),
+                    xytext=(0, -0.36 * FONT_TICK),
+                    textcoords="offset points",
+                    ha="left",
+                    va="baseline",
+                    fontsize=FONT_TICK,
+                    color="white" if np.mean(colour[:3]) < 0.5 else "black",
+                )
+                continue
             for j, x in enumerate(xs):
                 v = table.iat[i, j]
                 if np.isnan(v):
@@ -987,7 +1012,12 @@ def heatmap_strategy_detector_boundary(
         ax.set_aspect("equal")
         ax.set_xticks(
             xs,
-            table.columns if ax.get_subplotspec().is_last_row() else [],
+            [
+                f"Oracle ({label})" if label in HEATMAP_BASELINES else label
+                for label in table.columns
+            ]
+            if ax.get_subplotspec().is_last_row()
+            else [],
             rotation=90,
             fontsize=FONT_TICK,
         )
@@ -1134,7 +1164,7 @@ if __name__ == "__main__":
     print(loss_table.round(3).to_string())
 
     fig_contour = contour_acc_nmdt_f1_boundary(df_eval_raw)
-    save_fig(fig_contour, "contour_acc_nmdt_f1_boundary.pdf")
+    save_fig(fig_contour, "contour_acc.pdf")
 
     fig_loss_f1, loss_f1_table = lineplot_acc_loss_f1_strategy_boundary(df_eval_raw)
     save_fig(fig_loss_f1, "lineplot_accloss_f1_strategy_boundary.pdf")

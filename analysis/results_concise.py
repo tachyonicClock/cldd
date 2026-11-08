@@ -12,6 +12,8 @@ best mean of each column is bold. `BEST` is the detector picked on the tuning se
 (see `src/select_best.py`) and is only shown as a labelled extra row.
 """
 
+import argparse
+
 import numpy as np
 import pandas as pd
 from common import (
@@ -31,7 +33,7 @@ STRATEGIES = ["EWC", "LWF", "MAS", "RWalk", "SI"]
 DETECTORS = ["ADWIN", "ADWIN*", "DDM", "PH", "SEED", "STEPD"]
 MEDIAN = "MEDIAN"
 BEST_LABEL = r"BEST$^\dagger$"
-DATASET_NAMES = {"rfmnist": "RFMNIST", "covertype": "Covertype"}
+DATASET_NAMES = {"rfmnist": "RFMNIST", "covertype": "ECovtype"}
 # name: (header, column, scale)
 METRIC = dict(zip(["acc", "f1", "bwt", "ttt"], METRICS))
 TINY = r"\tiny{{$\pm${:.1f}}}"
@@ -219,14 +221,23 @@ def build_summary(data) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    OPTION_DIR.mkdir(exist_ok=True)
-    for old in OPTION_DIR.glob("option_*"):
-        old.unlink()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--detectors-only",
+        action="store_true",
+        help="write only table/detectors_<dataset>.tex, leaving option tables untouched",
+    )
+    args = parser.parse_args()
+
     data = {name: load_runs(root) for name, root in DATASETS.items()}
-    for name, text in build(data).items():
-        path = OPTION_DIR / f"option_{name}.tex"
-        print(f"Saving {path}")
-        path.write_text(text)
+    if not args.detectors_only:
+        OPTION_DIR.mkdir(exist_ok=True)
+        for old in OPTION_DIR.glob("option_*"):
+            old.unlink()
+        for name, text in build(data).items():
+            path = OPTION_DIR / f"option_{name}.tex"
+            print(f"Saving {path}")
+            path.write_text(text)
     for name, text in build_summary(data).items():
         path = TABLE_DIR / f"detectors_{name}.tex"
         print(f"Saving {path}")

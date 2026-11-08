@@ -26,4 +26,4 @@ for i, (ax, path) in enumerate(zip(axes, panels), start=1):
     ax.set_title(f"Distribution {i}", fontsize=FONT_SUBTITLE)
     ax.axis("off")
 FIG_DIR.mkdir(exist_ok=True)
-fig.savefig(FIG_DIR / "rotated_fashion_mnist_tasks.pdf")
+fig.savefig(FIG_DIR / "rfmnist.pdf")
