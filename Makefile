@@ -58,9 +58,13 @@ plots:
 	uv run analysis/plot_error_stream.py
 
 
-fig-to-jpg:
-# 	Convert all .pdf figures in fig/ to .jpg
+fig-to-png:
+	# Convert all .pdf figures in fig/ to .png
 	magick mogrify -format png -density 150 -quality 80 fig/*.pdf
+
+tab-to-png: table/detectors_covertype.tex table/detectors_rfmnist.tex table/triggers.tex
+	uv run script/render_tables.py --table-dir table --output-dir table --pattern 'detectors_*.tex'
+	uv run script/render_tables.py --table-dir table --output-dir table --pattern 'triggers.tex'
 
 .PHONY: table
 table: table/detectors_covertype.tex table/detectors_rfmnist.tex table/triggers.tex

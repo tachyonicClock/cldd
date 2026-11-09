@@ -7,9 +7,12 @@ Run with `uv run analysis/results_concise.py`. Reads
 Every cell is mean and standard deviation (%) over the evaluation seeds. The evaluation
 seeds are shared by all strategies, detectors and boundaries, so a cell that averages
 over strategies or boundaries first averages each seed, then takes the standard
-deviation across seeds. No table picks a winner after seeing the evaluation runs. The
-best mean of each column is bold. `BEST` is the detector picked on the tuning seeds
-(see `src/select_best.py`) and is only shown as a labelled extra row.
+deviation across seeds. No table picks a winner after seeing the evaluation runs. Among
+the six real detectors (ADWIN, ADWIN*, DDM, PH, SEED, STEPD), the best mean of each
+column is bold and the second best is underlined. The baselines, FT and the extra rows
+are not marked. `BEST` is the detector picked on the tuning seeds
+(see `src/select_best.py`) and is only shown as a labelled extra row. On abrupt drift
+early, mid and late are equivalent, so the early and late cells are blank there.
 """
 
 import argparse
@@ -70,6 +73,9 @@ def per_seed(df, boundaries, strategies, detector, metric) -> pd.Series:
 
 
 def cell(df, boundaries, strategies, detector, metric) -> tuple[float, float]:
+    # On abrupt drift early, mid and late are equivalent: only mid is shown
+    if boundaries == ["abrupt"] and detector in EARLY_LATE_RAW:
+        return np.nan, np.nan
     values = per_seed(df, boundaries, strategies, detector, metric).dropna()
     if values.empty:
         return np.nan, np.nan
@@ -94,7 +100,19 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
         for _, strats, det, _ in rows
     ]
     means = np.array([[s[0] for s in r] for r in stats])
-    best = np.nanmax(means, axis=0)
+    # Rank only the real detectors, within each group of rows and each column: the best
+    # mean is bold and the second best is underlined. Ties share a rank. The baselines,
+    # FT and the extra rows are never marked.
+    groups = [g for _, _, _, g in rows]
+    rank = np.full(means.shape, np.inf)
+    for g in set(groups):
+        idx = [i for i, (_, _, det, x) in enumerate(rows) if x == g and det in DETECTORS]
+        for c in range(means.shape[1]):
+            values = np.round(means[idx, c], 1)
+            distinct = sorted({v for v in values if not np.isnan(v)}, reverse=True)
+            for i, v in zip(idx, values):
+                if not np.isnan(v):
+                    rank[i, c] = distinct.index(v)
     n_label = len(label_heads)
     lines = [
         r"\begin{tabular}{" + "l" * n_label + "r" * len(cols) + "}",
@@ -126,8 +144,10 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
                 text.append("")
                 continue
             body = f"{mean:.1f}" + TINY.format(std)
-            if round(mean, 1) == round(best[c], 1):
+            if rank[r, c] == 0:
                 body = rf"\textbf{{{body}}}"
+            elif rank[r, c] == 1:
+                body = rf"\underline{{{body}}}"
             text.append(body)
         lines.append(" & ".join([*labels, *text]) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
@@ -207,12 +227,18 @@ def build(data) -> dict[str, str]:
 
 
 def build_summary(data) -> dict[str, str]:
-    """Option A with one table per dataset, and BWT next to CL accuracy and F1."""
+    """Option A with one table per dataset, and BWT and test-then-train accuracy next to
+    CL accuracy and F1."""
     per_boundary = [(b.capitalize(), [b]) for b in BOUNDARIES]
     return {
         name: render(
             detector_rows(DETECTORS),
-            columns(["acc", "f1", "bwt"], per_boundary, [name], dataset_level=False),
+            columns(
+                ["acc", "f1", "bwt", "ttt"],
+                per_boundary,
+                [name],
+                dataset_level=False,
+            ),
             data,
             ["Detector"],
         )

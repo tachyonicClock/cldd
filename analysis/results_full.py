@@ -7,7 +7,9 @@ Run with `uv run analysis/results_full.py`. Reads
 One row per strategy and detector (FT has no detector; early, mid and late are the baselines that alarm before, at and after the drift). One group of columns per
 boundary: CL accuracy, drift detection F1, backward transfer and test-then-train
 accuracy, as mean and standard deviation over the evaluation seeds. The best mean of
-each column is bold. A detector that did not run on a dataset is left blank.
+each column is bold. A detector that did not run on a dataset is left blank. On abrupt
+drift early, mid and late are equivalent, so only mid is shown and early and late are
+blank.
 """
 
 import pandas as pd
@@ -65,6 +67,10 @@ def format_cells(stats: pd.DataFrame) -> dict[tuple[str, str], list[str]]:
                 },
                 index=pd.MultiIndex.from_tuples(keys),
             )
+            if boundary == "abrupt":
+                values.loc[
+                    [k for k in keys if k[1] in EARLY_LATE_RAW], ["mean", "std"]
+                ] = float("nan")
             formatted = format_column(values, max_style="textbf", ndigits=1, nan_str="")
             for k, text in zip(keys, formatted):
                 cells[k].append(text)

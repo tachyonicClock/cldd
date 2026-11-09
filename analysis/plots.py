@@ -143,10 +143,14 @@ def prepare_best_detector_data(
     return df_ev.reset_index(drop=True)
 
 
-def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> float:
+def add_linear_fit_and_r_value(
+    ax, df: pd.DataFrame, x_col: str, y_col: str, ci: float | None = None
+) -> float:
     """
-    Fits a linear regression to all runs in `df`, plots the line (no confidence band) on
-    the provided axes, and prints r and N on the axes. Returns the R-squared value.
+    Fits a linear regression to all runs in `df`, plots the line on the provided axes,
+    and prints r and N on the axes. Returns the R-squared value.
+    With `ci` (for example 0.95), the line has a confidence band of that level for the
+    mean of y (analytic, from the t distribution).
     """
     data = df[[x_col, y_col]].dropna()
     x = data[x_col]
@@ -159,6 +163,17 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
     x_range = np.array([df[x_col].min(), df[x_col].max()])
     line = slope * x_range + intercept
 
+    if ci is not None:
+        xs = np.linspace(x_range[0], x_range[1], 100)
+        n = len(x)
+        resid = y - (slope * x + intercept)
+        s_err = np.sqrt((resid**2).sum() / (n - 2))
+        se = s_err * np.sqrt(1 / n + (xs - x.mean()) ** 2 / ((x - x.mean()) ** 2).sum())
+        half = stats.t.ppf(0.5 + ci / 2, n - 2) * se
+        mid = slope * xs + intercept
+        ax.fill_between(
+            xs, mid - half, mid + half, color="black", alpha=0.25, linewidth=0
+        )
     ax.plot(x_range, line, color="black", linewidth=0.8)
 
     # 3. Add the correlation and the number of runs to the plot
@@ -181,72 +196,99 @@ def add_linear_fit_and_r_value(ax, df: pd.DataFrame, x_col: str, y_col: str) -> 
 
 
 def barplot_f1_detector_strategy(
-    df_true: pd.DataFrame, df_sim: pd.DataFrame
+    df_true: pd.DataFrame | dict[str, pd.DataFrame],
+    df_sim: pd.DataFrame | dict[str, pd.DataFrame],
 ) -> plt.Figure:
-    """Creates a side-by-side barplot comparing true and estimated F1 scores."""
+    """Creates a side-by-side barplot comparing true and estimated F1 scores.
+
+    Each argument is one frame, or a dict of frames by dataset name (the same names in
+    both): one row of panels per dataset, with the name in the y label.
+    """
     ignore_labels = ["oracle", "ADWIN_JOINT"]
-    df_true = df_true[~df_true["detector_label"].isin(ignore_labels)]
-    df_sim = df_sim[~df_sim["detector_label"].isin(ignore_labels)]
+    if not isinstance(df_true, dict):
+        df_true, df_sim = {"": df_true}, {"": df_sim}
+    n_rows = len(df_true)
 
-    fig, (ax_true, ax_sim) = plt.subplots(
-        1, 2, figsize=(FIGSIZE_LOSS[0], 1.9), sharey=True, constrained_layout=True
+    fig, axes = plt.subplots(
+        n_rows,
+        2,
+        figsize=(FIGSIZE_LOSS[0], 1.9 if n_rows == 1 else 1.55 * n_rows + 0.4),
+        sharey=True,
+        constrained_layout=True,
+        squeeze=False,
     )
+    for row, name in enumerate(df_true):
+        ax_true, ax_sim = axes[row]
+        d_true = df_true[name]
+        d_sim = df_sim[name]
+        d_true = d_true[~d_true["detector_label"].isin(ignore_labels)]
+        d_sim = d_sim[~d_sim["detector_label"].isin(ignore_labels)]
 
-    # Same detector order in both panels, best detector first
-    order = (
-        df_true.groupby("detector_label")[F1_METRIC]
-        .mean()
-        .sort_values(ascending=False)
-        .index.tolist()
-    )
+        # Same detector order in both panels, best detector first
+        order = (
+            d_true.groupby("detector_label")[F1_METRIC]
+            .mean()
+            .sort_values(ascending=False)
+            .index.tolist()
+        )
 
-    # An Avg. group at the end: each strategy pooled over all detectors
-    df_true = pd.concat([df_true, df_true.assign(detector_label="Avg.")])
-    df_sim = pd.concat([df_sim, df_sim.assign(detector_label="Avg.")])
-    order = order + ["Avg."]
+        # An Avg. group at the end: each strategy pooled over all detectors
+        d_true = pd.concat([d_true, d_true.assign(detector_label="Avg.")])
+        d_sim = pd.concat([d_sim, d_sim.assign(detector_label="Avg.")])
+        order = order + ["Avg."]
 
-    plot_kwargs = {
-        "hue": "strategy",
-        "y": F1_METRIC,
-        "x": "detector_label",
-        "order": order,
-        "palette": STRATEGY_PALETTE,
-        "hue_order": list(STRATEGY_PALETTE.keys()),
-        "linewidth": 0,
-        "errorbar": "se",
-        "capsize": 0.25,
-        "err_kws": {"linewidth": 0.6, "color": "black"},
-    }
+        plot_kwargs = {
+            "hue": "strategy",
+            "y": F1_METRIC,
+            "x": "detector_label",
+            "order": order,
+            "palette": STRATEGY_PALETTE,
+            "hue_order": list(STRATEGY_PALETTE.keys()),
+            "linewidth": 0,
+            "errorbar": "se",
+            "capsize": 0.25,
+            "err_kws": {"linewidth": 0.6, "color": "black"},
+        }
 
-    sns.barplot(data=df_true, ax=ax_true, legend=False, **plot_kwargs)
-    sns.barplot(data=df_sim, ax=ax_sim, legend=True, **plot_kwargs)
+        sns.barplot(data=d_true, ax=ax_true, legend=False, **plot_kwargs)
+        sns.barplot(data=d_sim, ax=ax_sim, legend=row == 0, **plot_kwargs)
+        if row == 0:
+            legend_ax = ax_sim
 
-    # FT has no bar in (a) but keeps its slot, so move the labels to the centre of the
-    # bars that are drawn: half a slot (the group is 0.8 wide) to the right
-    shift = 0.8 / len(STRATEGY_PALETTE) / 2
-    labels = [t.get_text() for t in ax_true.get_xticklabels()]
-    ax_true.set_xticks(np.arange(len(labels)) + shift, labels)
+        # FT has no bar in (a) but keeps its slot, so move the labels to the centre of
+        # the bars that are drawn: half a slot (the group is 0.8 wide) to the right
+        shift = 0.8 / len(STRATEGY_PALETTE) / 2
+        labels = [t.get_text() for t in ax_true.get_xticklabels()]
+        ax_true.set_xticks(np.arange(len(labels)) + shift, labels)
 
-    ax_true.set_title("(a) Active detector", fontsize=FONT_SUBTITLE)
-    ax_sim.set_title("(b) Replayed error stream", fontsize=FONT_SUBTITLE)
-    ax_true.set_ylabel("F1", fontsize=FONT_LABEL)
-    ax_sim.set_ylabel("")
-    for ax in (ax_true, ax_sim):
-        ax.set_xlabel("")
-        ax.set_ylim(0, 1)
-        ax.set_axisbelow(True)
-        ax.yaxis.grid(True, color="lightgrey", linewidth=0.32)
-        sns.despine(ax=ax)
-        ax.minorticks_off()
-        ax.tick_params(axis="x", labelsize=FONT_TICK - 0.5, bottom=False, top=False)
-        ax.tick_params(axis="y", labelsize=FONT_TICK, right=False)
-    # (b) shares the y axis: no ticks and no edge, the grid carries the scale
-    ax_sim.tick_params(axis="y", left=False)
-    ax_sim.spines["left"].set_visible(False)
+        if row == 0:
+            ax_true.set_title("(a) Closed-loop Detection", fontsize=FONT_SUBTITLE)
+            ax_sim.set_title("(b) Open-loop Detection", fontsize=FONT_SUBTITLE)
+        ylabel = "F1" if n_rows == 1 else f"{DATASET_LABELS[name]}\nF1"
+        ax_true.set_ylabel(ylabel, fontsize=FONT_LABEL)
+        ax_sim.set_ylabel("")
+        for ax in (ax_true, ax_sim):
+            ax.set_xlabel("")
+            ax.set_ylim(0, 1)
+            ax.set_axisbelow(True)
+            ax.yaxis.grid(True, color="lightgrey", linewidth=0.32)
+            sns.despine(ax=ax)
+            ax.minorticks_off()
+            ax.tick_params(
+                axis="x", labelsize=FONT_TICK - 0.5, bottom=False, top=False
+            )
+            ax.tick_params(axis="y", labelsize=FONT_TICK, right=False)
+            # Slanted so that neighbouring detector names do not touch
+            plt.setp(
+                ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+            )
+        # (b) shares the y axis: no ticks and no edge, the grid carries the scale
+        ax_sim.tick_params(axis="y", left=False)
+        ax_sim.spines["left"].set_visible(False)
 
     put_legend(
         fig,
-        ax_sim,
+        legend_ax,
         ncol=6,
         fontsize=FONT_LABEL,
         handlelength=0.9,
@@ -288,40 +330,11 @@ def boxplot_detector(df: pd.DataFrame, metric: str, metric_label: str) -> plt.Fi
     return fig
 
 
-def scatter_by_boundary(
-    df: pd.DataFrame,
-    x_col: str,
-    x_label: str,
-    ylim: tuple[float, float],
-    share_x: bool = True,
-    xlim: tuple[float, float] | None = None,
-    window: dict[str, float] | None = None,
-    strategy_fits: bool = False,
-    references: bool = False,
-    top_quantile: float | None = None,
-    min_run_f1: float | None = None,
-) -> tuple[plt.Figure, dict[str, float]]:
-    """Scatterplot of accuracy against `x_col`, one panel per boundary.
-
-    Colour shows the strategy. Each panel has a linear fit with its own r and N. With `strategy_fits`, each panel instead has one thin linear fit
-    per strategy (no band), so a flat line shows robustness for that strategy.
-    With `references`, mid detector and the FT strategy, which are left out of
-    the points and fits, are drawn as horizontal lines at their mean accuracy: one
-    dashed line per strategy for mid (perfect detection), and one solid grey
-    line for FT (no detector).
-    With `top_quantile` (for example 0.75), only detectors whose mean F1 score (over all
-    strategies and boundaries) is at or above that quantile of the detector means are
-    kept. The others are left out of the points and fits. The mid and FT lines stay.
-    With `min_run_f1`, only runs with an F1 score above it are kept.
-    `window` maps each boundary to the half-width of the acceptable window in units
-    of `x_col`. It is drawn as a grey band. Points are solid dots with a small horizontal jitter so
-    that stacked points stay visible (the fit uses the unjittered data).
-
-    The y axis is zoomed to `ylim`, and the x axis to `xlim` if given. With `share_x=False` each panel zooms its own x axis
-    to the 1st to 99th percentile of its data (values of 1.0, which mean
-    "undefined" for NMDT, are left out of that range). Points outside are cut off but still
-    count in the fit. The number of cut-off points is printed.
-    """
+def _prepare_scatter(
+    df: pd.DataFrame, top_quantile: float | None, min_run_f1: float | None
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Rename the detectors, then keep the runs that `scatter_by_boundary` plots.
+    Also returns the mean accuracy of the mid runs by (boundary, strategy)."""
     df = df.copy()
     df["detector_label"] = df["detector_label"].replace(
         {"ADWIN_JOINT": "ADWIN*", "oracle": MID_LABEL}
@@ -351,22 +364,79 @@ def scatter_by_boundary(
         df = df[df[F1_METRIC] > min_run_f1]
         print(f"Runs with F1 > {min_run_f1}: {len(df)} of {n_before}")
         print(df.groupby("detector_label").size().to_dict())
+    return df, oracle_acc
+
+
+def scatter_by_boundary(
+    df: pd.DataFrame | dict[str, pd.DataFrame],
+    x_col: str,
+    x_label: str,
+    ylim: tuple[float, float],
+    share_x: bool = True,
+    xlim: tuple[float, float] | None = None,
+    window: dict[str, float] | None = None,
+    strategy_fits: bool = False,
+    references: bool = False,
+    top_quantile: float | None = None,
+    min_run_f1: float | None = None,
+    ci: float | None = None,
+) -> tuple[plt.Figure, dict[str, float]]:
+    """Scatterplot of accuracy against `x_col`, one panel per boundary.
+
+    With `ci`, the linear fit of each panel has a confidence band of that level.
+
+    `df` is one frame, or a dict of frames by dataset name: one row of panels per
+    dataset, with the name in the y label. The keys of the R-squared dict are then
+    "dataset/boundary".
+
+    Colour shows the strategy. Each panel has a linear fit with its own r and N. With `strategy_fits`, each panel instead has one thin linear fit
+    per strategy (no band), so a flat line shows robustness for that strategy.
+    With `references`, mid detector and the FT strategy, which are left out of
+    the points and fits, are drawn as horizontal lines at their mean accuracy: one
+    dashed line per strategy for mid (perfect detection), and one solid grey
+    line for FT (no detector).
+    With `top_quantile` (for example 0.75), only detectors whose mean F1 score (over all
+    strategies and boundaries) is at or above that quantile of the detector means are
+    kept. The others are left out of the points and fits. The mid and FT lines stay.
+    With `min_run_f1`, only runs with an F1 score above it are kept.
+    `window` maps each boundary to the half-width of the acceptable window in units
+    of `x_col`. It is drawn as a grey band. Points are solid dots with a small horizontal jitter so
+    that stacked points stay visible (the fit uses the unjittered data).
+
+    The y axis is zoomed to `ylim`, and the x axis to `xlim` if given. With `share_x=False` each panel zooms its own x axis
+    to the 1st to 99th percentile of its data (values of 1.0, which mean
+    "undefined" for NMDT, are left out of that range). Points outside are cut off but still
+    count in the fit. The number of cut-off points is printed.
+    """
+    dfs = df if isinstance(df, dict) else {"": df}
+    prepared = {
+        name: _prepare_scatter(d, top_quantile, min_run_f1) for name, d in dfs.items()
+    }
 
     boundaries = list(BOUNDARY_PALETTE.keys())
+    n_rows = len(prepared)
     fig, axes = plt.subplots(
-        1,
+        n_rows,
         len(boundaries),
-        figsize=(FIGSIZE_LOSS[0], 2.0),
+        figsize=(FIGSIZE_LOSS[0], 2.0 if n_rows == 1 else 1.25 * n_rows + 0.55),
         sharex=share_x,
         sharey=True,
         constrained_layout=True,
+        squeeze=False,
     )
 
     rng = np.random.default_rng(0)
-    x_span = df[x_col].max() - df[x_col].min()
     r_squared = {}
     n_out = 0
-    for idx, (ax, boundary) in enumerate(zip(axes, boundaries)):
+    panels = [
+        (row, name, idx, axes[row, idx], boundary)
+        for row, name in enumerate(prepared)
+        for idx, boundary in enumerate(boundaries)
+    ]
+    for row, name, idx, ax, boundary in panels:
+        df, oracle_acc = prepared[name]
+        x_span = df[x_col].max() - df[x_col].min()
+        key = boundary if n_rows == 1 else f"{name}/{boundary}"
         df_b = df[df["boundary"] == boundary].copy()
         df_b["x_jitter"] = df_b[x_col] + rng.uniform(
             -0.015 * x_span, 0.015 * x_span, len(df_b)
@@ -387,7 +457,7 @@ def scatter_by_boundary(
             marker="o",
             s=4 if strategy_fits else 6,
             linewidth=0,
-            legend="auto" if idx == len(axes) - 1 else False,
+            legend="auto" if row == 0 and idx == len(boundaries) - 1 else False,
             ax=ax,
         )
         if references:
@@ -420,7 +490,7 @@ def scatter_by_boundary(
             )
         if strategy_fits:
             valid = df_b[df_b[x_col] < 1.0]  # NMDT is 1.0 when undefined
-            r_squared[boundary] = (
+            r_squared[key] = (
                 stats.linregress(valid[x_col], valid[ACC_METRIC])[2] ** 2
             )
             for strategy, color in STRATEGY_PALETTE.items():
@@ -442,8 +512,8 @@ def scatter_by_boundary(
                     f"{boundary} {strategy}: slope={res.slope:.3f} p={res.pvalue:.2f}"
                 )
         else:
-            r_squared[boundary] = add_linear_fit_and_r_value(
-                ax, df_b, x_col, ACC_METRIC
+            r_squared[key] = add_linear_fit_and_r_value(
+                ax, df_b, x_col, ACC_METRIC, ci=ci
             )
         if not share_x:
             # NMDT is set to 1.0 when it is undefined, so leave those out of the range
@@ -451,20 +521,26 @@ def scatter_by_boundary(
             pad = 0.08 * (hi - lo)
             ax.set_xlim(lo - pad, hi + pad)
             n_out += int(((df_b[x_col] < lo - pad) | (df_b[x_col] > hi + pad)).sum())
-        ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
+        if row == 0:
+            ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
         ax.set_xlabel("")
-        ax.set_ylabel(LABEL_ACC if idx == 0 else "", fontsize=FONT_LABEL)
+        ylabel = LABEL_ACC if n_rows == 1 else f"{DATASET_LABELS[name]}\n{LABEL_ACC}"
+        ax.set_ylabel(ylabel if idx == 0 else "", fontsize=FONT_LABEL)
         ax.minorticks_off()
         ax.tick_params(labelsize=FONT_TICK)
 
-    axes[len(axes) // 2].set_xlabel(x_label, fontsize=FONT_LABEL)
-    axes[0].set_ylim(*ylim)  # shared y axis
-    out = (df[ACC_METRIC] < ylim[0]) | (df[ACC_METRIC] > ylim[1])
-    print(f"{x_col}: {int(out.sum())} of {len(df)} points below or above the y range")
+    axes[-1, len(boundaries) // 2].set_xlabel(x_label, fontsize=FONT_LABEL)
+    axes[0, 0].set_ylim(*ylim)  # shared y axis
     if xlim is not None:
-        axes[0].set_xlim(*xlim)  # shared x axis
-        n_x = int(((df[x_col] < xlim[0]) | (df[x_col] > xlim[1])).sum())
-        print(f"{x_col}: {n_x} of {len(df)} points outside the x range")
+        axes[0, 0].set_xlim(*xlim)  # shared x axis
+    for name, (df, _) in prepared.items():
+        out = (df[ACC_METRIC] < ylim[0]) | (df[ACC_METRIC] > ylim[1])
+        print(
+            f"{name} {x_col}: {int(out.sum())} of {len(df)} points below or above the y range"
+        )
+        if xlim is not None:
+            n_x = int(((df[x_col] < xlim[0]) | (df[x_col] > xlim[1])).sum())
+            print(f"{name} {x_col}: {n_x} of {len(df)} points outside the x range")
     if not share_x:
         print(f"{x_col}: {n_out} points outside the x range of their panel")
     extra = []
@@ -484,7 +560,7 @@ def scatter_by_boundary(
         )
     put_legend(
         fig,
-        axes[-1],
+        axes[0, -1],
         ncol=4 if extra else 5,
         extra=extra,
         fontsize=FONT_LABEL,
@@ -496,10 +572,10 @@ def scatter_by_boundary(
 
 
 def scatterplot_acc_f1_strategy_boundary(
-    df_true: pd.DataFrame,
+    df_true: pd.DataFrame | dict[str, pd.DataFrame],
 ) -> tuple[plt.Figure, dict[str, float]]:
     """Creates a scatterplot comparing Accuracy vs. F1 score."""
-    return scatter_by_boundary(df_true, F1_METRIC, "F1", ylim=(0.45, 0.76))
+    return scatter_by_boundary(df_true, F1_METRIC, "F1", ylim=(0.45, 0.76), ci=0.95)
 
 
 def scatterplot_acc_nmdt_strategy_boundary(
@@ -719,7 +795,11 @@ def lineplot_acc_loss_strategy_boundary(
     return fig, pd.concat(tables, ignore_index=True)
 
 
-# Letters that the caption refers to: (letter, NMDT, F1) in each panel
+# Height over width of a contour panel: square.
+CONTOUR_ASPECT = 1.0
+
+# Letters that the caption refers to: (letter, NMDT, F1) in each panel of the first row.
+# The caption refers to the later rows as a group, so they have no letters.
 CONTOUR_LETTERS = {
     "abrupt": ("(a)", -0.55, 0.5),
     "gradual": ("(b)", 0.3, 0.62),
@@ -727,17 +807,10 @@ CONTOUR_LETTERS = {
 }
 
 
-def contour_acc_nmdt_f1_boundary(
-    df_eval: pd.DataFrame,
-    bandwidth: tuple[float, float] = (0.15, 0.12),
-    min_weight: float = 5.0,
-) -> plt.Figure:
-    """Accuracy over NMDT (x) and detector F1 (y), square panels at single-column width.
-
-    Colour is the Gaussian-weighted mean accuracy of all strategies at each point, with the
-    `bandwidth` (NMDT, F1). Points with less than `min_weight` runs nearby are left
-    blank. Black dots are the single runs.
-    """
+def _contour_means(
+    df_eval: pd.DataFrame, bandwidth: tuple[float, float], min_weight: float, grid
+) -> tuple[dict, dict]:
+    """Runs (NMDT, F1) and Gaussian-weighted mean accuracy on `grid`, by boundary."""
     df = add_acc_loss(df_eval)
     df = df[
         (~df["detector_label"].isin(["oracle", "ADWIN*"]))
@@ -745,15 +818,7 @@ def contour_acc_nmdt_f1_boundary(
         & df["dd.mdt"].notna()
         & (df["dd.my_tp"] + df["dd.my_fp"] > 0)
     ]
-    gx, gy = np.meshgrid(np.linspace(-1, 1, 300), np.linspace(0, 1, 300))
-    fig, axes = plt.subplots(
-        1,
-        len(BOUNDARY_PALETTE),
-        figsize=(240 / 72, 1.4),
-        sharex=True,
-        sharey=True,
-        constrained_layout=True,
-    )
+    gx, gy = grid
     runs, means = {}, {}
     for boundary in BOUNDARY_PALETTE:
         g = df[df["boundary"] == boundary]
@@ -774,57 +839,117 @@ def contour_acc_nmdt_f1_boundary(
         means[boundary] = np.ma.masked_where(
             weight < min_weight, (w * z).sum(-1) / weight
         )
-    # One scale for all panels, from the lowest to the highest value drawn, in steps of 0.02
-    lo = np.floor(min(m.min() for m in means.values()) * 50) / 50
-    hi = np.ceil(max(m.max() for m in means.values()) * 50) / 50
-    levels = np.linspace(lo, hi, round((hi - lo) * 50) + 1)
-    for letter, ax, boundary in zip("abc", axes, BOUNDARY_PALETTE):
-        cs = ax.contourf(gx, gy, means[boundary], levels=levels, cmap=cm.batlow)
-        # Draw each band edge in its own colour so no white seams show between bands
-        cs.set_edgecolor("face")
-        cs.set_linewidth(0.3)
-        ax.scatter(*runs[boundary], s=2.5, color="black", linewidth=0, zorder=3)
-        letter, lx, ly = CONTOUR_LETTERS[boundary]
-        ax.text(
-            lx,
-            ly,
-            rf"\textbf{{{letter}}}",
-            color=PANEL_LABEL_COLOR,
-            fontsize=FONT_LABEL,
-            ha="center",
-            va="center",
-            zorder=4,
-            path_effects=[withStroke(linewidth=1.5, foreground="white")],
+    return runs, means
+
+
+def contour_acc_nmdt_f1_boundary(
+    df_eval: pd.DataFrame | dict[str, pd.DataFrame],
+    bandwidth: tuple[float, float] = (0.15, 0.12),
+    min_weight: float = 5.0,
+) -> plt.Figure:
+    """Accuracy over NMDT (x) and detector F1 (y), square panels at single-column width.
+
+    `df_eval` is one frame, or a dict of frames by dataset name: one row of panels per
+    dataset, each with its own colour bar.
+    Colour is the Gaussian-weighted mean accuracy of all strategies at each point, with the
+    `bandwidth` (NMDT, F1). Points with less than `min_weight` runs nearby are left
+    blank. Black dots are the single runs.
+    """
+    dfs = df_eval if isinstance(df_eval, dict) else {"": df_eval}
+    grid = np.meshgrid(np.linspace(-1, 1, 300), np.linspace(0, 1, 300))
+    gx, gy = grid
+    n_rows = len(dfs)
+    fig, axes = plt.subplots(
+        n_rows,
+        len(BOUNDARY_PALETTE),
+        figsize=(240 / 72, 0.8 * n_rows + 0.45),
+        sharex=True,
+        sharey=True,
+        constrained_layout=True,
+        squeeze=False,
+    )
+    for row, (name, df) in enumerate(dfs.items()):
+        runs, means = _contour_means(df, bandwidth, min_weight, grid)
+        # One scale for the panels of a row, from the lowest to the highest value drawn.
+        # Steps are 0.02, or 0.01 if the values span less than 0.12.
+        lo_raw = min(m.min() for m in means.values())
+        hi_raw = max(m.max() for m in means.values())
+        step = 0.02 if hi_raw - lo_raw >= 0.12 else 0.01
+        lo = np.floor(lo_raw / step) * step
+        hi = np.ceil(hi_raw / step) * step
+        levels = np.linspace(lo, hi, round((hi - lo) / step) + 1)
+        for ax, boundary in zip(axes[row], BOUNDARY_PALETTE):
+            cs = ax.contourf(gx, gy, means[boundary], levels=levels, cmap=cm.batlow)
+            # Draw each band edge in its own colour so no white seams show between bands
+            cs.set_edgecolor("face")
+            cs.set_linewidth(0.3)
+            ax.scatter(*runs[boundary], s=2.5, color="black", linewidth=0, zorder=3)
+            letter, lx, ly = CONTOUR_LETTERS[boundary]
+            ax.text(
+                lx,
+                ly,
+                rf"\textbf{{{letter}}}",
+                visible=row == 0,
+                color=PANEL_LABEL_COLOR,
+                fontsize=FONT_LABEL,
+                ha="center",
+                va="center",
+                zorder=4,
+                path_effects=[withStroke(linewidth=1.5, foreground="white")],
+            )
+            if row == 0:
+                ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
+            ax.minorticks_off()
+            ax.tick_params(labelsize=FONT_TICK, top=True, right=True)
+            ax.set_xticks([-1, 0, 1])
+            ax.set_box_aspect(CONTOUR_ASPECT)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(True)
+        ylabel = "F1" if n_rows == 1 else f"{DATASET_LABELS[name]}\nF1"
+        axes[row, 0].set_ylabel(ylabel, fontsize=FONT_LABEL)
+        # The coarsest tick step that gives the scale at least two ticks
+        for tick in (0.1, 0.05, 0.02, 0.01):
+            ticks = np.round(np.arange(np.ceil(lo / tick) * tick, hi + 1e-9, tick), 2)
+            if len(ticks) >= 2:
+                break
+        cbar = fig.colorbar(
+            cs,
+            cax=axes[row, -1].inset_axes([1.12, 0, 0.08, 1]),
+            orientation="vertical",
+            ticks=ticks,
         )
-        ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
-        ax.minorticks_off()
-        ax.tick_params(labelsize=FONT_TICK, top=True, right=True)
-        ax.set_xticks([-1, 0, 1])
-        ax.set_box_aspect(1)
-        for side in ("top", "right"):
-            ax.spines[side].set_visible(True)
-    axes[0].set_ylabel("F1", fontsize=FONT_LABEL)
-    axes[len(axes) // 2].set_xlabel(f"{LABEL_NMDT} (delay)", fontsize=FONT_LABEL)
-    cbar = fig.colorbar(
-        cs,
-        cax=axes[-1].inset_axes([1.12, 0, 0.08, 1]),
-        orientation="vertical",
-        ticks=np.round(np.arange(np.ceil(lo * 10) / 10, hi, 0.1), 1),
+        cbar.ax.minorticks_off()
+        cbar.ax.tick_params(labelsize=FONT_TICK)
+        # Vertical label beside the bar, between the first two ticks (or in the middle)
+        y_label = (ticks[0] + ticks[1]) / 2 if len(ticks) > 1 else (lo + hi) / 2
+        cbar.ax.annotate(
+            "Acc.",
+            xy=(1, y_label),
+            xycoords=cbar.ax.get_yaxis_transform(),
+            xytext=(6, 0),
+            textcoords="offset points",
+            ha="left",
+            va="center",
+            rotation=90,
+            fontsize=FONT_LABEL,
+        )
+    axes[-1, len(BOUNDARY_PALETTE) // 2].set_xlabel(
+        f"{LABEL_NMDT} (delay)", fontsize=FONT_LABEL
     )
-    cbar.ax.minorticks_off()
-    cbar.ax.tick_params(labelsize=FONT_TICK)
-    # Vertical label beside the bar, between the 0.5 and 0.6 ticks
-    cbar.ax.annotate(
-        "Acc.",
-        xy=(1, 0.55),
-        xycoords=cbar.ax.get_yaxis_transform(),
-        xytext=(6, 0),
-        textcoords="offset points",
-        ha="left",
-        va="center",
-        rotation=90,
-        fontsize=FONT_LABEL,
-    )
+    # The panels are fixed in shape and the layout fits them to the figure, so a figure
+    # that is too tall leaves gaps between rows. Resize it to the height the panels need.
+    row_gap = 0.2  # inches, between rows
+    for _ in range(2):
+        fig.canvas.draw()
+        dpi = fig.dpi
+        boxes = [axes[r, 0].get_window_extent() for r in range(n_rows)]
+        width_in, height_in = fig.get_size_inches()
+        top = height_in - boxes[0].y1 / dpi
+        bottom = boxes[-1].y0 / dpi
+        panels_in = sum(box.height for box in boxes) / dpi
+        fig.set_size_inches(
+            width_in, top + bottom + panels_in + (n_rows - 1) * row_gap
+        )
     return fig
 
 
@@ -839,12 +964,15 @@ def heatmap_strategy_detector_boundary(
     metric: str,
     title: str,
     reference: bool,
+    wspace: float = 0.12,
+    gap: float = 0.35,
 ) -> plt.Figure:
     """Mean `metric` (shown x100) for each strategy (rows) and detector (columns).
 
     With `reference` the early, mid and late baselines are the first columns and FT the
     last row. Without it (drift detection metrics, which they do not have) they are left
-    out.
+    out. On abrupt drift early, mid and late are equivalent, so only one "Oracle" column
+    is shown and the Abrupt panel is narrower.
 
     One row of panels per dataset and one column per boundary. FT has no detector, so its
     accuracy spans the baseline and detector columns in the last row (it runs once per
@@ -854,6 +982,9 @@ def heatmap_strategy_detector_boundary(
     best to worst by their mean over all panels, with the baselines first. The last column and
     row are the mean of the cells in their row or column. The corner is the mean over all
     strategies and detectors.
+
+    `wspace` is the space between panels (fraction of a panel's width) and `gap` the extra
+    space before the Avg. row and column (in cells). Cell values are sized to fit the cells.
     """
     strategies = [st for st in STRATEGY_PALETTE if st != "FT"]
     raw: dict[str, tuple[dict[str, pd.DataFrame], pd.Series]] = {}
@@ -896,6 +1027,11 @@ def heatmap_strategy_detector_boundary(
         tables = {
             b: t.reindex(index=strategies, columns=detectors) for b, t in tables.items()
         }
+        # On abrupt drift early, mid and late are equivalent: keep only mid
+        if "abrupt" in tables:
+            tables["abrupt"] = tables["abrupt"].drop(
+                columns=list(EARLY_LATE_RAW), errors="ignore"
+            )
         lo = min([t.min().min() for t in tables.values()] + list(ft))
         hi = max([t.max().max() for t in tables.values()] + list(ft))
         lo, hi = np.floor(lo * 50) / 50, np.ceil(hi * 50) / 50
@@ -912,12 +1048,27 @@ def heatmap_strategy_detector_boundary(
                 t.loc["FT", MID_LABEL] = ft[b]
         all_tables[name] = tables
         norms[name] = mcolors.Normalize(lo, hi)
-    gap = 0.35  # Extra space before the Avg. row and column, in cells
     # Size the figure so the equal-aspect panels fill their grid cells with no slack
-    n_rows, n_cols = next(iter(next(iter(all_tables.values())).values())).shape
-    left, right, wspace = 0.1, 0.99, 0.12
+    shapes = [t.shape for tables in all_tables.values() for t in tables.values()]
+    n_rows = shapes[0][0]
+    n_cols = max(c for _, c in shapes)
+    # Panels with fewer columns (abrupt) are narrower, so cells keep the same size
+    width_ratios = [
+        (next(iter(all_tables.values()))[b].shape[1] + gap) / (n_cols + gap)
+        for b in BOUNDARY_PALETTE
+    ]
+    left, right = 0.1, 0.99
     width = FIGSIZE_LOSS[0]
-    panel_w = width * (right - left) / (len(BOUNDARY_PALETTE) * (1 + wspace) - wspace)
+    # Width of the widest panel. Matplotlib sizes the panels by `width_ratios` and puts
+    # `wspace` times their mean width between them.
+    mean_ratio = sum(width_ratios) / len(width_ratios)
+    panel_w = (
+        width
+        * (right - left)
+        / (sum(width_ratios) + wspace * mean_ratio * (len(width_ratios) - 1))
+    )
+    # Cell side in points, for the size of the cell values
+    cell_pt = 72 * panel_w / (n_cols + gap)
     n_gaps = 2 if reference else 1  # before the Avg. row, and before the FT row
     panel_h = panel_w * (n_rows + n_gaps * gap) / (n_cols + gap)
     head, foot, between = 0.45, 0.5, 0.12  # inches
@@ -929,6 +1080,7 @@ def heatmap_strategy_detector_boundary(
         figsize=(width, height),
         sharey="row",
         squeeze=False,
+        gridspec_kw={"width_ratios": width_ratios},
     )
     fig.subplots_adjust(
         left=left,
@@ -945,8 +1097,8 @@ def heatmap_strategy_detector_boundary(
     ]
     for ax, name, boundary, table in panels:
         norm = norms[name]
-        n_rows, n_cols = table.shape
-        xs = np.arange(n_cols) + gap * (np.arange(n_cols) == n_cols - 1)
+        n_rows, table_cols = table.shape
+        xs = np.arange(table_cols) + gap * (np.arange(table_cols) == table_cols - 1)
         # Gap before the Avg. row, and another before the FT row
         ys = np.arange(n_rows) + gap * (np.arange(n_rows) >= n_rows - n_gaps)
         ys = ys + gap * (reference and np.arange(n_rows) == n_rows - 1)
@@ -993,8 +1145,8 @@ def heatmap_strategy_detector_boundary(
                 )
                 # Digits have no descender, so centre them by half their height (0.72 em)
                 text = f"{100 * v:.0f}"
-                # Three digits (100) are shrunk to fit the cell
-                size = FONT_TICK * min(1.0, 8 / n_cols)
+                # Two digits fill at most 70% of the cell; three digits (100) are shrunk
+                size = min(FONT_TICK, 0.7 * cell_pt)
                 if len(text) == 3:
                     size *= 0.75
                 ax.annotate(
@@ -1013,7 +1165,9 @@ def heatmap_strategy_detector_boundary(
         ax.set_xticks(
             xs,
             [
-                f"Oracle ({label})" if label in HEATMAP_BASELINES else label
+                ("Oracle" if boundary == "abrupt" else f"Oracle ({label})")
+                if label in HEATMAP_BASELINES
+                else label
                 for label in table.columns
             ]
             if ax.get_subplotspec().is_last_row()
@@ -1045,8 +1199,9 @@ def heatmap_strategy_detector_boundary(
 def heatmap_acc_strategy_detector_boundary(
     df_evals: dict[str, pd.DataFrame],
 ) -> plt.Figure:
+    # Ten columns per panel, so the panels sit closer to give the cells more room
     return heatmap_strategy_detector_boundary(
-        df_evals, ACC_METRIC, "Accuracy (\\%)", reference=True
+        df_evals, ACC_METRIC, "Accuracy (\\%)", reference=True, wspace=0.05, gap=0.25
     )
 
 

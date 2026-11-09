@@ -1,6 +1,6 @@
 \begin{tabular}{lrrrrrrrr}
 \toprule
- & \multicolumn{4}{c}{RFMNIST} & \multicolumn{4}{c}{Covertype} \\
+ & \multicolumn{4}{c}{RFMNIST} & \multicolumn{4}{c}{ECovtype} \\
 \cmidrule(lr){2-5}\cmidrule(lr){6-9}
 Detector & Acc. & F1 & BWT & Acc$_{ttt}$ & Acc. & F1 & BWT & Acc$_{ttt}$ \\
 \midrule
@@ -11,7 +11,9 @@ PH & 57.0\tiny{$\pm$1.0} & 48.4\tiny{$\pm$3.6} & -46.6\tiny{$\pm$2.0} & 76.7\tin
 SEED & 59.4\tiny{$\pm$0.9} & 70.5\tiny{$\pm$1.8} & -40.2\tiny{$\pm$2.5} & 73.5\tiny{$\pm$1.7} & 62.0\tiny{$\pm$0.7} & 65.9\tiny{$\pm$7.1} & -20.2\tiny{$\pm$2.2} & 69.5\tiny{$\pm$1.0} \\
 STEPD & 62.4\tiny{$\pm$1.0} & 64.2\tiny{$\pm$2.7} & -31.7\tiny{$\pm$2.5} & 69.7\tiny{$\pm$1.8} & 62.5\tiny{$\pm$0.5} & 65.5\tiny{$\pm$4.1} & -18.4\tiny{$\pm$1.3} & 68.2\tiny{$\pm$0.6} \\
 \midrule
-Oracle & \textbf{63.5\tiny{$\pm$0.9}} &  & -25.5\tiny{$\pm$3.2} & 66.4\tiny{$\pm$2.2} & \textbf{67.1\tiny{$\pm$0.4}} &  & \textbf{-4.8\tiny{$\pm$0.6}} & 63.1\tiny{$\pm$0.4} \\
+early & 60.6\tiny{$\pm$1.0} &  & -30.4\tiny{$\pm$2.1} & 62.5\tiny{$\pm$1.5} & 66.3\tiny{$\pm$0.4} &  & -6.8\tiny{$\pm$0.9} & 62.4\tiny{$\pm$0.4} \\
+mid & \textbf{63.5\tiny{$\pm$0.9}} &  & -25.5\tiny{$\pm$3.2} & 66.4\tiny{$\pm$2.2} & \textbf{67.1\tiny{$\pm$0.4}} &  & \textbf{-4.8\tiny{$\pm$0.6}} & 63.1\tiny{$\pm$0.4} \\
+late & 62.3\tiny{$\pm$0.7} &  & -32.7\tiny{$\pm$1.8} & 70.2\tiny{$\pm$1.4} & 65.9\tiny{$\pm$0.5} &  & -9.2\tiny{$\pm$1.0} & 65.1\tiny{$\pm$0.4} \\
 \midrule
 FT & 54.0\tiny{$\pm$0.5} &  & -44.7\tiny{$\pm$0.9} & 72.1\tiny{$\pm$0.5} & 60.2\tiny{$\pm$0.4} &  & -29.2\tiny{$\pm$0.9} & \textbf{75.4\tiny{$\pm$0.1}} \\
 \bottomrule
