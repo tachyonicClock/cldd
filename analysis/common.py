@@ -4,6 +4,7 @@ from cycler import cycler
 from matplotlib.colors import ListedColormap
 
 if TYPE_CHECKING:
+    import numpy as np
     import pandas as pd
 
 # The "science" then "nature" styles of SciencePlots, copied here to drop the package.
@@ -106,6 +107,9 @@ FIGSIZE_SR = (width * scale, width * scale / 1.618)
 # Tall plots with stacked panels
 FIGSIZE_TALL = (width * scale, width * scale * 1.1)
 
+# Both columns (figure*) are 516 pt (7.17 in) wide.
+TEXTWIDTH = 516 * scale
+
 
 # --- Colours (Okabe-Ito, safe for colour-blind readers) ---
 # Every figure takes its colours from here so one meaning has one colour.
@@ -182,3 +186,21 @@ def load_best_detectors(dataset_root) -> "pd.DataFrame":
     if not rows:
         raise FileNotFoundError(f"No select_best outputs under {dataset_root}")
     return pd.DataFrame(rows)
+
+
+# --- Significance ---
+ALPHA = 0.05
+"""Significance level after Holm's correction."""
+
+
+def holm(p) -> "np.ndarray":
+    """Holm-adjusted p-values, in the order given."""
+    import numpy as np
+
+    p = np.asarray(p, float)
+    order = np.argsort(p)
+    m = len(p)
+    adjusted = np.maximum.accumulate((m - np.arange(m)) * p[order])
+    out = np.empty(m)
+    out[order] = np.minimum(adjusted, 1.0)
+    return out

@@ -274,9 +274,7 @@ def barplot_f1_detector_strategy(
             ax.yaxis.grid(True, color="lightgrey", linewidth=0.32)
             sns.despine(ax=ax)
             ax.minorticks_off()
-            ax.tick_params(
-                axis="x", labelsize=FONT_TICK - 0.5, bottom=False, top=False
-            )
+            ax.tick_params(axis="x", labelsize=FONT_TICK - 0.5, bottom=False, top=False)
             ax.tick_params(axis="y", labelsize=FONT_TICK, right=False)
             # Slanted so that neighbouring detector names do not touch
             plt.setp(
@@ -296,6 +294,103 @@ def barplot_f1_detector_strategy(
         handletextpad=0.3,
     )
 
+    return fig
+
+
+GAP_KEY = ["strategy", "boundary", "detector_label", "seed"]
+
+
+def open_loop_gap(closed: pd.DataFrame, open_: pd.DataFrame) -> pd.DataFrame:
+    """Open-loop minus closed-loop F1 of each detector run, paired by seed.
+
+    `open_` may hold several streams per run (one per recorder on CLDD-B): they are
+    averaged first. Runs without a closed-loop counterpart (FT) drop out.
+    """
+    o = open_.groupby(GAP_KEY, as_index=False)[F1_METRIC].mean()
+    c = closed[GAP_KEY + [F1_METRIC]]
+    m = o.merge(c, on=GAP_KEY, suffixes=("_open", "_closed"))
+    return m.assign(**{F1_METRIC: m[f"{F1_METRIC}_open"] - m[f"{F1_METRIC}_closed"]})
+
+
+def barplot_simulation_gap(
+    df_closed: dict[str, pd.DataFrame],
+    df_open: dict[str, dict[str, pd.DataFrame]],
+) -> plt.Figure:
+    """The simulation gap: open-loop minus closed-loop F1, by detector and strategy.
+
+    `df_closed` maps a dataset to its closed-loop runs. `df_open` maps a panel title to
+    the open-loop replays of each dataset. One row of panels per dataset, one column per
+    replay source. Each bar is the mean gap of a strategy over drift speeds and seeds,
+    with standard error bars; Avg. pools the detectors. Above zero the replay gives a higher F1 than
+    the closed-loop F1.
+    """
+    names = list(df_closed)
+    titles = list(df_open)
+    fig, axes = plt.subplots(
+        len(names),
+        len(titles),
+        figsize=(FIGSIZE_LOSS[0], 1.55 * len(names) + 0.4),
+        sharey=True,
+        constrained_layout=True,
+        squeeze=False,
+    )
+    strategies = [s for s in STRATEGY_PALETTE if s != "FT"]
+    for row, name in enumerate(names):
+        closed = df_closed[name]
+        # Same detector order in every panel: best closed-loop F1 first
+        order = (
+            closed.groupby("detector_label")[F1_METRIC]
+            .mean()
+            .sort_values(ascending=False)
+            .index.tolist()
+        ) + ["Avg."]
+        for col, title in enumerate(titles):
+            ax = axes[row, col]
+            gap = open_loop_gap(closed, df_open[title][name])
+            gap = pd.concat([gap, gap.assign(detector_label="Avg.")])
+            sns.barplot(
+                data=gap,
+                ax=ax,
+                x="detector_label",
+                y=F1_METRIC,
+                hue="strategy",
+                order=order,
+                hue_order=strategies,
+                palette=STRATEGY_PALETTE,
+                linewidth=0,
+                errorbar="se",
+                capsize=0.25,
+                err_kws={"linewidth": 0.6, "color": "black"},
+                legend=row == 0 and col == 0,
+            )
+            ax.axhline(0, color="black", linewidth=0.6)
+            if row == 0:
+                ax.set_title(title, fontsize=FONT_SUBTITLE)
+            ax.set_xlabel("")
+            ylabel = f"{DATASET_LABELS[name]}\n$\\Delta$F1" if col == 0 else ""
+            ax.set_ylabel(ylabel, fontsize=FONT_LABEL)
+            ax.set_axisbelow(True)
+            ax.yaxis.grid(True, color="lightgrey", linewidth=0.32)
+            sns.despine(ax=ax)
+            ax.minorticks_off()
+            ax.tick_params(axis="x", labelsize=FONT_TICK - 0.5, bottom=False, top=False)
+            ax.tick_params(axis="y", labelsize=FONT_TICK, right=False)
+            plt.setp(
+                ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor"
+            )
+            if col > 0:
+                # Shares the y axis: no ticks and no edge, the grid carries the scale
+                ax.tick_params(axis="y", left=False)
+                ax.spines["left"].set_visible(False)
+    put_legend(
+        fig,
+        axes[0, 0],
+        ncol=5,
+        fontsize=FONT_LABEL,
+        handlelength=0.9,
+        columnspacing=0.6,
+        handletextpad=0.3,
+    )
     return fig
 
 
@@ -490,9 +585,7 @@ def scatter_by_boundary(
             )
         if strategy_fits:
             valid = df_b[df_b[x_col] < 1.0]  # NMDT is 1.0 when undefined
-            r_squared[key] = (
-                stats.linregress(valid[x_col], valid[ACC_METRIC])[2] ** 2
-            )
+            r_squared[key] = stats.linregress(valid[x_col], valid[ACC_METRIC])[2] ** 2
             for strategy, color in STRATEGY_PALETTE.items():
                 d = valid[valid["strategy"] == strategy]
                 if len(d) < 3:
@@ -947,9 +1040,7 @@ def contour_acc_nmdt_f1_boundary(
         top = height_in - boxes[0].y1 / dpi
         bottom = boxes[-1].y0 / dpi
         panels_in = sum(box.height for box in boxes) / dpi
-        fig.set_size_inches(
-            width_in, top + bottom + panels_in + (n_rows - 1) * row_gap
-        )
+        fig.set_size_inches(width_in, top + bottom + panels_in + (n_rows - 1) * row_gap)
     return fig
 
 
@@ -966,6 +1057,9 @@ def heatmap_strategy_detector_boundary(
     reference: bool,
     wspace: float = 0.12,
     gap: float = 0.35,
+    width: float | None = None,
+    font: float = FONT_TICK,
+    aspect: float = 1.0,
 ) -> plt.Figure:
     """Mean `metric` (shown x100) for each strategy (rows) and detector (columns).
 
@@ -985,6 +1079,9 @@ def heatmap_strategy_detector_boundary(
 
     `wspace` is the space between panels (fraction of a panel's width) and `gap` the extra
     space before the Avg. row and column (in cells). Cell values are sized to fit the cells.
+    `width` is the figure width in inches (one column by default) and `font` the size of
+    the cell values and tick labels; titles and labels grow with it. `aspect` is the
+    height of a cell over its width.
     """
     strategies = [st for st in STRATEGY_PALETTE if st != "FT"]
     raw: dict[str, tuple[dict[str, pd.DataFrame], pd.Series]] = {}
@@ -1058,7 +1155,11 @@ def heatmap_strategy_detector_boundary(
         for b in BOUNDARY_PALETTE
     ]
     left, right = 0.1, 0.99
-    width = FIGSIZE_LOSS[0]
+    if width is None:
+        width = FIGSIZE_LOSS[0]
+    # Titles and labels keep their size relative to the tick labels
+    font_label = FONT_LABEL + font - FONT_TICK
+    font_subtitle = FONT_SUBTITLE + font - FONT_TICK
     # Width of the widest panel. Matplotlib sizes the panels by `width_ratios` and puts
     # `wspace` times their mean width between them.
     mean_ratio = sum(width_ratios) / len(width_ratios)
@@ -1070,7 +1171,7 @@ def heatmap_strategy_detector_boundary(
     # Cell side in points, for the size of the cell values
     cell_pt = 72 * panel_w / (n_cols + gap)
     n_gaps = 2 if reference else 1  # before the Avg. row, and before the FT row
-    panel_h = panel_w * (n_rows + n_gaps * gap) / (n_cols + gap)
+    panel_h = aspect * panel_w * (n_rows + n_gaps * gap) / (n_cols + gap)
     head, foot, between = 0.45, 0.5, 0.12  # inches
     n_data = len(df_evals)
     height = n_data * panel_h + (n_data - 1) * between + head + foot
@@ -1120,11 +1221,11 @@ def heatmap_strategy_detector_boundary(
                 ax.annotate(
                     text,
                     xy=(-0.4, y),
-                    xytext=(0, -0.36 * FONT_TICK),
+                    xytext=(0, -0.36 * font),
                     textcoords="offset points",
                     ha="left",
                     va="baseline",
-                    fontsize=FONT_TICK,
+                    fontsize=font,
                     color="white" if np.mean(colour[:3]) < 0.5 else "black",
                 )
                 continue
@@ -1146,9 +1247,12 @@ def heatmap_strategy_detector_boundary(
                 # Digits have no descender, so centre them by half their height (0.72 em)
                 text = f"{100 * v:.0f}"
                 # Two digits fill at most 70% of the cell; three digits (100) are shrunk
-                size = min(FONT_TICK, 0.7 * cell_pt)
-                if len(text) == 3:
-                    size *= 0.75
+                # only when they would not fit
+                size = min(
+                    font,
+                    0.7 * cell_pt * (0.75 if len(text) == 3 else 1),
+                    0.7 * cell_pt * aspect,
+                )
                 ax.annotate(
                     text,
                     xy=(x, y),
@@ -1161,7 +1265,7 @@ def heatmap_strategy_detector_boundary(
                 )
         ax.set_xlim(-0.5, xs[-1] + 0.5)
         ax.set_ylim(ys[-1] + 0.5, -0.5)
-        ax.set_aspect("equal")
+        ax.set_aspect(aspect)
         ax.set_xticks(
             xs,
             [
@@ -1173,14 +1277,14 @@ def heatmap_strategy_detector_boundary(
             if ax.get_subplotspec().is_last_row()
             else [],
             rotation=90,
-            fontsize=FONT_TICK,
+            fontsize=font,
         )
-        ax.set_yticks(ys, table.index, fontsize=FONT_TICK)
+        ax.set_yticks(ys, table.index, fontsize=font)
         ax.tick_params(which="both", length=0)
         if ax.get_subplotspec().is_first_row():
-            ax.set_title(boundary.capitalize(), fontsize=FONT_SUBTITLE)
+            ax.set_title(boundary.capitalize(), fontsize=font_subtitle)
         if ax.get_subplotspec().is_first_col():
-            ax.set_ylabel(DATASET_LABELS.get(name, name), fontsize=FONT_LABEL)
+            ax.set_ylabel(DATASET_LABELS.get(name, name), fontsize=font_label)
         for spine in ax.spines.values():
             spine.set_visible(False)
     # One label for all cells, centred over the middle column
@@ -1191,25 +1295,33 @@ def heatmap_strategy_detector_boundary(
         x=(middle.x0 + middle.x1) / 2,
         y=1.0,
         ha="center",
-        fontsize=FONT_SUBTITLE,
+        fontsize=font_subtitle,
     )
     return fig
 
 
 def heatmap_acc_strategy_detector_boundary(
     df_evals: dict[str, pd.DataFrame],
+    **kwargs,
 ) -> plt.Figure:
     # Ten columns per panel, so the panels sit closer to give the cells more room
     return heatmap_strategy_detector_boundary(
-        df_evals, ACC_METRIC, "Accuracy (\\%)", reference=True, wspace=0.05, gap=0.25
+        df_evals,
+        ACC_METRIC,
+        "Accuracy (\\%)",
+        reference=True,
+        wspace=0.05,
+        gap=0.25,
+        **kwargs,
     )
 
 
 def heatmap_f1_strategy_detector_boundary(
     df_evals: dict[str, pd.DataFrame],
+    **kwargs,
 ) -> plt.Figure:
     return heatmap_strategy_detector_boundary(
-        df_evals, F1_METRIC, "F1 (\\%)", reference=False
+        df_evals, F1_METRIC, "F1 (\\%)", reference=False, **kwargs
     )
 
 

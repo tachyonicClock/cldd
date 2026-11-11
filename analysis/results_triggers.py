@@ -12,9 +12,15 @@ has the same seeds.
 * Delta Oracle: mean over the pairs of the paired accuracy difference to the Oracle run
   of the same seed, in points.
 * Delta ADWIN: the same, to the ADWIN run of the same seed.
+* The small number after each Delta is its standard deviation over the seeds: the
+  difference of each seed is averaged over the pairs, then the SD is taken across seeds.
 * Kept: the mean gain of the trigger over FT divided by the mean gain of the Oracle over
   FT. Both means are over the pairs, of the accuracies averaged over seeds. It is how
   much of the continual learner's improvement the trigger keeps.
+
+An arrow marks a Delta that differs significantly from 0: a two-sided paired t-test over the
+seeds of the difference averaged over the pairs, Holm-corrected over the rows of the column
+(see `results_significance.py`).
 
 The Oracle and ADWIN are references and have no row. On these seeds ADWIN is 0.04 points
 below the Oracle. The Oracle is the one of the evaluate runs, which fires when a task
@@ -27,6 +33,9 @@ import pickle
 import numpy as np
 import pandas as pd
 import yaml
+from scipy import stats
+
+from common import ALPHA, holm
 from results_strategy import LOGS, TABLE_DIR
 
 STRATEGIES = ["EWC", "LWF", "MAS", "RWalk", "SI"]
@@ -42,7 +51,8 @@ GROUPS = [
         ("Triggers $20$ times at equal intervals", "periodic15k"),
         ("Triggers $10$ times at equal intervals", "periodic30k"),
         ("Triggers $5$ times at equal intervals", "periodic60k"),
-        ("Triggers $2$--$3$ times at equal intervals", "periodic120k"),
+        # 2 or 3 triggers by the random offset; shown as 3 to keep the label simple
+        ("Triggers $3$ times at equal intervals", "periodic120k"),
         ("Random, ADWIN's trigger count", "random_adwin"),
     ],
     [
@@ -93,9 +103,17 @@ def cell_means(runs, seeds) -> pd.Series:
     return pd.Series({k: s.loc[seeds].mean() for k, s in runs.items()})
 
 
-def fmt_delta(x: float) -> str:
+def fmt_delta(x: float, sd: float, significant: bool = False) -> str:
+    """The mean difference and its SD over seeds, as in the detector tables."""
     x = round(x, 1) + 0.0  # no negative zero
-    return f"${x:+.1f}$".replace("+-", "-") if x else "$0.0$"
+    text = f"${x:+.1f}$".replace("+-", "-") if x else "$0.0$"
+    # Pad a one-digit SD so the decimal points of the column align
+    pad = r"\phantom{0}" if round(sd, 1) < 10 else ""
+    text += rf"{{\tiny{pad}$\pm${sd:.1f}}}"
+    if significant:
+        # Zero width, so the arrow does not shift the decimal point of its column
+        text += r"\rlap{$^{\downarrow}$}" if x < 0 else r"\rlap{$^{\uparrow}$}"
+    return text
 
 
 def fmt_kept(x: float) -> str:
@@ -110,6 +128,17 @@ def paired_delta(runs, reference, seeds: list[int]) -> float:
     )
 
 
+def seed_stats(runs, reference, seeds: list[int]) -> tuple[float, float]:
+    """SD over seeds (points) and paired t-test p-value of the difference averaged over
+    the pairs."""
+    per_seed = 100 * np.mean(
+        [(runs[k].loc[seeds] - reference[k].loc[seeds]) for k in runs], axis=0
+    )
+    return float(np.std(per_seed, ddof=1)), float(
+        stats.ttest_1samp(per_seed, 0.0).pvalue
+    )
+
+
 def summarise(runs, oracle, adwin, ft) -> dict:
     seeds = common_seeds(runs)
     ft_seeds = [s for s in seeds if s in set(ft[BOUNDARIES[0]].index)]
@@ -121,6 +150,8 @@ def summarise(runs, oracle, adwin, ft) -> dict:
     return {
         "delta_oracle": paired_delta(runs, oracle, seeds),
         "delta_adwin": paired_delta(runs, adwin, seeds),
+        **dict(zip(("sd_oracle", "p_oracle"), seed_stats(runs, oracle, seeds))),
+        **dict(zip(("sd_adwin", "p_adwin"), seed_stats(runs, adwin, seeds))),
         "kept": float(np.mean(trigger_gain) / np.mean(oracle_gain)),
     }
 
@@ -136,15 +167,22 @@ def build() -> str:
 
     lines = [r"\begin{tabular}{@{}lrrr@{}}", r"\toprule"]
     lines.append(r"Trigger & $\Delta$ Oracle & $\Delta$ ADWIN & Kept \\")
-    for group in rows:
+    summaries = [
+        [(label, summarise(runs, oracle, adwin, ft)) for label, runs in group]
+        for group in rows
+    ]
+    flat = [s for group in summaries for _, s in group]
+    for ref in ("oracle", "adwin"):
+        for s, p in zip(flat, holm([s[f"p_{ref}"] for s in flat])):
+            s[f"sig_{ref}"] = p < ALPHA
+    for group in summaries:
         lines.append(r"\midrule")
-        for label, runs in group:
-            s = summarise(runs, oracle, adwin, ft)
+        for label, s in group:
             lines.append(
-                f"{label} & {fmt_delta(s['delta_oracle'])} & "
-                f"{fmt_delta(s['delta_adwin'])} & {fmt_kept(s['kept'])} \\\\"
+                f"{label} & {fmt_delta(s['delta_oracle'], s['sd_oracle'], s['sig_oracle'])} & "
+                f"{fmt_delta(s['delta_adwin'], s['sd_adwin'], s['sig_adwin'])} & {fmt_kept(s['kept'])} \\\\"
             )
-            print(label, s, len(common_seeds(runs)), "seeds")
+            print(label, s)
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     return "\n".join(lines)
 

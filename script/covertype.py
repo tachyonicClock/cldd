@@ -2,6 +2,9 @@
 
 `Covertype` in `src/scenario.py` reads this file. The label is the cover type (7 classes).
 The partitioning column(s) are removed from the features; numerics are standardized.
+Without the partitioning column, both P(x) and P(y|x) of the remaining features change
+between domains: a mix of covariate and concept drift. Keeping the column gives pure
+covariate drift, but then FT forgets little and comes within one point of the Oracle.
 Each domain is subsampled to at most `--per-domain` rows and split 80/20 with a fixed seed.
 `--select` ranks candidate attributes by cross-domain concept shift: one logistic
 regression per domain, scored by the mean drop in test accuracy on other domains relative

@@ -8,13 +8,20 @@ fault, paired by seed and averaged over the five strategies (EWC, LwF, MAS, RWal
 FT is left out: it has no detector, so there are no faults to inject. The shaded band
 is the mean plus and minus one standard deviation over the seeds. The Oracle is the one of the
 evaluate runs. At 0 faults the point is the `oracle_off0` run, which replays the
-Oracle's alarms with the schedule detector. Panels: (a) drifts dropped, (b) random alarms added, (c) alarms shifted.
+Oracle's alarms with the schedule detector. Panels: (a) drifts dropped, (b) random alarms added, (c) alarms shifted. In (c) the dashed
+lines mark the start and end of each drift, in the colour of its drift speed: the
+transition spans `gradual * DISTRIBUTION_K` thousand instances on each side of the drift
+centre (an abrupt drift starts and ends at the centre).
 """
+
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import yaml
 from cmcrameri import cm
+
 from common import (
     FONT_LABEL,
     FONT_SUBTITLE,
@@ -31,6 +38,17 @@ from results_triggers import (
     from_evaluate,
     load_synthetic,
 )
+
+# RFMNIST distributions have 60,000 instances, so the transition of a drift with width w
+# spans w * 60 thousand instances on each side of its centre (Sec. III-A of the paper)
+DISTRIBUTION_K = 60
+
+
+def drift_half_width(boundary: str) -> float:
+    """Half the width of a drift's transition, in thousands of instances."""
+    with open(Path("config") / "boundary" / f"{boundary}.yml") as f:
+        return yaml.safe_load(f)["scenario"]["gradual"] * DISTRIBUTION_K
+
 
 # Number of seeds used (the first trials). None uses all of them.
 N_SEEDS = None
@@ -109,6 +127,13 @@ def main() -> None:
         ax.tick_params(labelsize=FONT_TICK)
         ax.grid(axis="y", color="#DDDDDD", linewidth=0.5)
         ax.set_axisbelow(True)
+    # (c): the start and end of each drift
+    for boundary in BOUNDARIES:
+        half = drift_half_width(boundary)
+        for x in sorted({-half, half}):
+            axes[2].axvline(
+                x, color=COLORS[boundary], linestyle="--", linewidth=0.7, zorder=0
+            )
     axes[0].set_ylabel("Acc gap to Oracle", fontsize=FONT_LABEL)
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(

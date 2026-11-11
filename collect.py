@@ -15,6 +15,11 @@ from loguru import logger
 
 from src.config import Config, converter
 
+CLDD_DETECTOR_NAMES = {"SEED_ONE_SIDED": "SEED", "STEPD_ONE_SIDED": "STEPD"}
+"""Names of the one-sided detectors in the released CLDD files. The runs use the one-sided
+SEED and STEPD under these internal names; the paper and the datasheet call them SEED and
+STEPD."""
+
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
     "accuracy_final",
@@ -147,7 +152,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
     dataset_array = pa.array(df["dataset"], pa.string())
     seed_array = pa.array(df["seed"], pa.int32())
     strategy_array = pa.array(df["strategy"], pa.string())
-    detector_array = pa.array(df["detector"], pa.string())
+    detector_array = pa.array(df["detector"].replace(CLDD_DETECTOR_NAMES), pa.string())
     boundary_array = pa.array(df["boundary"], pa.string())
     # ce_stream_array = pa.array(ce_stream, pa.large_list(pa.float16()))
     error_stream_array = pa.array(error_stream, pa.large_list(pa.bool_()))

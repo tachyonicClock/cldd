@@ -13,17 +13,27 @@ column is bold and the second best is underlined. The baselines, FT and the extr
 are not marked. `BEST` is the detector picked on the tuning seeds
 (see `src/select_best.py`) and is only shown as a labelled extra row. On abrupt drift
 early, mid and late are equivalent, so the early and late cells are blank there.
+
+In the `detectors_<dataset>.tex` tables, an arrow after a detector's accuracy marks a
+significant difference from the mid Oracle, a dagger a cell that is not significantly
+above FT and a double dagger one significantly below FT. Each is a two-sided paired t-test
+over the seeds of the strategy-averaged accuracy, Holm-corrected over the detector cells
+of the table, separately for the Oracle and FT (see `results_significance.py`).
 """
 
 import argparse
 
 import numpy as np
 import pandas as pd
+from scipy import stats as sps
+
 from common import (
+    ALPHA,
     EARLY_LATE_RAW,
     MID_LABEL,
     ONE_SIDED_LABELS,
     ORACLE_RAW,
+    holm,
     load_best_detectors,
 )
 from results_check import BEST, select_runs
@@ -39,7 +49,19 @@ BEST_LABEL = r"BEST$^\dagger$"
 DATASET_NAMES = {"rfmnist": "RFMNIST", "covertype": "ECovtype"}
 # name: (header, column, scale)
 METRIC = dict(zip(["acc", "f1", "bwt", "ttt"], METRICS))
-TINY = r"\tiny{{$\pm${:.1f}}}"
+# NMDT: mean detection delay over the half-width of the detection window (1 for a run
+# without a detected drift), as in `plots.compute_nmdt`
+METRIC["nmdt"] = ("NMDT", "nmdt", 1)
+DIGITS = {"nmdt": 2}
+"""Decimals of a metric, 1 if not listed."""
+UNRANKED = {"nmdt"}
+"""Metrics with no best value (earlier detection is not always better), so not marked."""
+TINY = r"{{\tiny{}$\pm${:.{}f}}}"  # \tiny is a switch, so the braces scope it
+
+
+def tiny_std(std: float, digits: int = 1) -> str:
+    """The standard deviation, padded to two digits so means align on the decimal point."""
+    return TINY.format(r"\phantom{0}" if round(std, digits) < 10 else "", std, digits)
 
 
 def load_runs(root) -> pd.DataFrame:
@@ -52,8 +74,10 @@ def load_runs(root) -> pd.DataFrame:
         .replace(ONE_SIDED_LABELS)
         .replace({"ADWIN_JOINT": "ADWIN*", ORACLE_RAW: MID_LABEL})
     )
+    df["nmdt"] = (df["dd.mdt"] / df["dd.max_delay"]).fillna(1.0)
     # The baselines have no drift detector to score
-    df.loc[df["detector_label"].isin([MID_LABEL, *EARLY_LATE_RAW]), "dd.my_f1"] = np.nan
+    baselines = df["detector_label"].isin([MID_LABEL, *EARLY_LATE_RAW])
+    df.loc[baselines, ["dd.my_f1", "nmdt"]] = np.nan
     return df
 
 
@@ -92,9 +116,24 @@ def spans(labels: list[str]) -> list[tuple[str, int]]:
     return out
 
 
-def render(rows, cols, data, label_heads: list[str]) -> str:
+def render(
+    rows,
+    cols,
+    data,
+    label_heads: list[str],
+    marks=None,
+    underline: bool = True,
+    group_heads=None,
+    space_after=(),
+) -> str:
     """`rows`: (label cells, strategies, detector, group); `cols`: (header levels,
-    dataset, boundaries, metric)."""
+    dataset, boundaries, metric). `marks` maps (row, column) to text after the cell.
+    With `underline` the second best of each column is underlined. `group_heads` maps a
+    group to a heading row above it; its rows are then indented. Columns whose metric is in
+    `space_after` get extra space on their right, for marks that would touch the next
+    column."""
+    group_heads = group_heads or {}
+    marks = marks or {}
     stats = [
         [cell(data[ds], bds, strats, det, m) for _, ds, bds, m in cols]
         for _, strats, det, _ in rows
@@ -106,8 +145,12 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
     groups = [g for _, _, _, g in rows]
     rank = np.full(means.shape, np.inf)
     for g in set(groups):
-        idx = [i for i, (_, _, det, x) in enumerate(rows) if x == g and det in DETECTORS]
+        idx = [
+            i for i, (_, _, det, x) in enumerate(rows) if x == g and det in DETECTORS
+        ]
         for c in range(means.shape[1]):
+            if cols[c][3] in UNRANKED:
+                continue
             values = np.round(means[idx, c], 1)
             distinct = sorted({v for v in values if not np.isnan(v)}, reverse=True)
             for i, v in zip(idx, values):
@@ -115,7 +158,15 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
                     rank[i, c] = distinct.index(v)
     n_label = len(label_heads)
     lines = [
-        r"\begin{tabular}{" + "l" * n_label + "r" * len(cols) + "}",
+        r"\begin{tabular}{"
+        + "l" * n_label
+        + "".join(
+            r"r@{\hspace{\dimexpr2\tabcolsep+4pt\relax}}"
+            if m in space_after and c < len(cols) - 1
+            else "r"
+            for c, (_, _, _, m) in enumerate(cols)
+        )
+        + "}",
         r"\toprule",
     ]
     n_levels = len(cols[0][0])
@@ -136,6 +187,11 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
     for r, (labels, _, _, group) in enumerate(rows):
         if previous is not None and group != previous:
             lines.append(r"\midrule")
+        if group in group_heads and group != previous:
+            width = n_label + len(cols)
+            lines.append(rf"\multicolumn{{{width}}}{{l}}{{{group_heads[group]}}} \\")
+        if group in group_heads:
+            labels = [r"\hspace{0.8em}" + labels[0], *labels[1:]]
         previous = group
         text = []
         for c in range(len(cols)):
@@ -143,12 +199,13 @@ def render(rows, cols, data, label_heads: list[str]) -> str:
             if np.isnan(mean):
                 text.append("")
                 continue
-            body = f"{mean:.1f}" + TINY.format(std)
+            digits = DIGITS.get(cols[c][3], 1)
+            body = f"{mean:.{digits}f}" + tiny_std(std, digits)
             if rank[r, c] == 0:
                 body = rf"\textbf{{{body}}}"
-            elif rank[r, c] == 1:
+            elif underline and rank[r, c] == 1:
                 body = rf"\underline{{{body}}}"
-            text.append(body)
+            text.append(body + marks.get((r, c), ""))
         lines.append(" & ".join([*labels, *text]) + r" \\")
     lines += [r"\bottomrule", r"\end{tabular}", ""]
     return "\n".join(lines)
@@ -226,24 +283,79 @@ def build(data) -> dict[str, str]:
     }
 
 
+def significance(rows, cols, data, strategies, metric="acc") -> dict:
+    """Test each detector `metric` cell against a reference, Holm-corrected over the cells
+    of that metric.
+
+    `strategies` picks the reference: None compares with the mid Oracle on the same
+    strategies, ["FT"] with FT. Returns (row, column) -> (mean difference, significant).
+    """
+    tests = []
+    for r, (_, strats, det, _) in enumerate(rows):
+        if det not in DETECTORS:
+            continue
+        for c, (_, ds, bds, m) in enumerate(cols):
+            if m != metric:
+                continue
+            a = per_seed(data[ds], bds, strats, det, metric)
+            b = per_seed(data[ds], bds, strategies or strats, MID_LABEL, metric)
+            diff = (a - b).dropna()
+            tests.append((r, c, diff.mean(), sps.ttest_1samp(diff, 0.0).pvalue))
+    adjusted = holm([p for *_, p in tests])
+    return {(r, c): (mean, p < ALPHA) for (r, c, mean, _), p in zip(tests, adjusted)}
+
+
+def detector_marks(rows, cols, data, metrics=("acc", "bwt")) -> dict:
+    """Marks after a detector's accuracy and BWT: an arrow for a significant difference from
+    the mid Oracle, a dagger when the cell is not significantly above FT (double dagger:
+    below). Each metric is its own Holm family. The header arrow gives the better direction.
+
+    The marks have zero width, so they do not shift the decimal point of their column.
+    """
+    oracle, ft = {}, {}
+    for metric in metrics:
+        oracle |= significance(rows, cols, data, None, metric)
+        ft |= significance(rows, cols, data, ["FT"], metric)
+    marks = {}
+    for key, (mean, sig) in oracle.items():
+        text = (r"\uparrow" if mean > 0 else r"\downarrow") if sig else ""
+        ft_mean, ft_sig = ft[key]
+        if not ft_sig:
+            text += r"\dagger"
+        elif ft_mean < 0:
+            text += r"\ddagger"
+        if text:
+            marks[key] = rf"\rlap{{$^{{{text}}}$}}"
+    return marks
+
+
 def build_summary(data) -> dict[str, str]:
     """Option A with one table per dataset, and BWT and test-then-train accuracy next to
     CL accuracy and F1."""
     per_boundary = [(b.capitalize(), [b]) for b in BOUNDARIES]
-    return {
-        name: render(
-            detector_rows(DETECTORS),
-            columns(
-                ["acc", "f1", "bwt", "ttt"],
-                per_boundary,
-                [name],
-                dataset_level=False,
-            ),
+    tables = {}
+    for name in DATASETS:
+        rows = detector_rows(DETECTORS)
+        cols = columns(
+            ["acc", "bwt", "f1", "nmdt"], per_boundary, [name], dataset_level=False
+        )
+        # Higher is better for these. NMDT has no better direction, so no arrow.
+        cols = [
+            ([*h[:-1], h[-1] + r"$\uparrow$"] if m in ("acc", "bwt", "f1") else h, ds, bds, m)
+            for h, ds, bds, m in cols
+        ]
+        marks = detector_marks(rows, cols, data)
+        tables[name] = render(
+            rows,
+            cols,
             data,
             ["Detector"],
+            marks,
+            underline=False,
+            group_heads={"control": r"\textit{Oracle}"},
+            space_after=("acc", "bwt"),
         )
-        for name in DATASETS
-    }
+    return tables
 
 
 if __name__ == "__main__":

@@ -111,6 +111,10 @@ the strategy HP tuned for the oracle, no tuning of their own."""
 
 LOG_ROOT = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
 
+DATA_FILES = {"covertype": [Path("data") / "covertype_Elevation.pt"]}
+"""Data files a check dataset reads, made by `script/covertype.py`. They are file
+dependencies of the tasks that train on the data, so remaking the data reruns them."""
+
 
 @dataclass
 class Unit:
@@ -161,6 +165,10 @@ class Unit:
             configs.append(r / "debug.yml")
         return configs
 
+    @property
+    def data_deps(self) -> list[Path]:
+        return DATA_FILES.get(self.dataset, [])
+
     def logdir(self, label: str) -> Path:
         return (
             LOG_ROOT
@@ -209,7 +217,7 @@ class Unit:
         return {
             "name": self.identifier,
             "actions": [(tune_strategy, (configs, self.identifier))],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.tune_strategy_hp],
         }
 
@@ -218,7 +226,7 @@ class Unit:
         return {
             "name": self.identifier,
             "actions": [(error_stream, (configs, seed, self.trial, self.identifier))],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.error_stream],
         }
 
@@ -269,7 +277,7 @@ class Unit:
                     (configs, seed, self.trial, self.detector, self.identifier),
                 )
             ],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.ocl_metrics, self.evaluate_dd_metrics],
         }
 
@@ -501,7 +509,7 @@ def task_collect_evaluate():
 def task_CLDD_A():
     """Generate continual learners as a drift detection dataset.
 
-    CLDD-A contains the `oracle` drift detector which perflectly predicts drifts controling
+    CLDD-A contains the `oracle` drift detector, which perfectly predicts drifts, controlling
     a continual learning algorithm. It holds every dataset, told apart by its
     `dataset` column.
     """
@@ -537,17 +545,20 @@ def task_CLDD_A():
 def task_CLDD_B():
     """Generate continual learners as a drift detection dataset.
 
-    CLDD-B contains non-oracle drift detectors that imperfectly controlling a
-    continual learning algorithm. Main dataset only."""
+    CLDD-B contains the real drift detectors (`DETECTOR`) that imperfectly control a
+    continual learning algorithm. It holds every dataset, told apart by its `dataset`
+    column. The Oracle, its early and late baselines, the jointly tuned ADWIN* and the
+    picked `BEST` detector (a repeat of one of the others) are left out."""
     directories: list[Path] = []
     dependencies: list[Path] = []
 
-    for unit, _, _ in iter_evaluate_specs():
-        if unit.detector == ORACLE_DETECTOR or unit.detector == JOINT_HP_DETECTOR:
-            continue
+    for dataset in DATASETS:
+        for unit, _, _ in iter_evaluate_specs(dataset):
+            if unit.detector not in DETECTOR:
+                continue
 
-        directories.append(unit.logdir(evaluate.__name__))
-        dependencies.append(unit.ocl_metrics)
+            directories.append(unit.logdir(evaluate.__name__))
+            dependencies.append(unit.ocl_metrics)
 
     target = LOG_ROOT / "CLDD_B.parquet"
     return {
@@ -555,6 +566,40 @@ def task_CLDD_B():
         "file_dep": dependencies + ["collect.py"],
         "targets": [target],
     }
+
+
+def task_replay_cldd_b():
+    """Replay each tuned detector on the CLDD-B streams of the other detectors.
+
+    The open-loop score on detector-controlled streams (see `script/replay_cldd_b.py`).
+    Writes `<dataset>/replay_cldd_b/data_frame.csv`, one row per replayed stream.
+    """
+    for dataset in DATASETS:
+        file_deps: list[Path] = [Path("script/replay_cldd_b.py")]
+        for strategy, boundary, detector in product(STRATEGY, BOUNDARY, DETECTOR):
+            if strategy in DETECTOR_AGNOSTIC:
+                continue
+            file_deps.append(
+                Unit(strategy, detector, boundary, dataset=dataset).tune_detector_hp
+            )
+            for trial, _ in enumerate(EVALUATION_SEEDS):
+                file_deps.append(
+                    Unit(
+                        strategy, detector, boundary, trial, dataset
+                    ).evaluate_dd_metrics
+                )
+        target = dataset_root(dataset) / "replay_cldd_b" / "data_frame.csv"
+        yield {
+            "name": dataset,
+            "actions": [
+                (
+                    f"uv run python -P script/replay_cldd_b.py --dataset {dataset}"
+                    f" --out {target} --workers 4"
+                )
+            ],
+            "file_dep": file_deps,
+            "targets": [target],
+        }
 
 
 def task_dd_collect():
