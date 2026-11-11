@@ -1,19 +1,25 @@
 import os
+import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Optional, Sequence
-from omegaconf import OmegaConf
 from pathlib import Path
+from typing import Literal
+
 import cattrs
+import torch
 from cattrs.strategies import configure_tagged_union
-from src.scenario import ScenarioArgs
+from omegaconf import OmegaConf
+
 from src.drift_detector import AnyDriftDetector
-from src.strategy import AnyLearner
+from src.hpsearch_config import HPSearchConfig, SuggestAny
 from src.model import AnyModel
 from src.optimizer import AnyOptimizer
+from src.scenario import ScenarioArgs
 from src.scheduler import AnyScheduler
-from src.hpsearch_config import HPSearchConfig, SuggestAny
-import torch
-import time
+from src.strategy import AnyLearner
+
+DEFAULT_DATASET_LABEL = "rfmnist"
+"""Dataset name used in results when `Config.dataset_label` is None."""
 
 
 @dataclass
@@ -23,21 +29,39 @@ class Config:
     learner: AnyLearner
     model: AnyModel
     optimizer: AnyOptimizer
-    scheduler: Optional[AnyScheduler] = None
+    scheduler: AnyScheduler | None = None
 
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
     mb_train: int = 64
+    train_repeats: int = 1
+    """Training steps on each mini-batch. Values above 1 help single-pass convergence."""
+    augment_repeats: bool = False
+    """Augment the batch on the extra steps."""
+    repeat_augment: Literal["autoaugment", "flipcrop"] = "autoaugment"
+    """AutoAugment (CIFAR-10 policy, includes rotations; needs scenario mean/std) or
+    random flip and crop (no rotation)."""
     mb_test: int = 256
     disable_progress_bar: bool = False
 
     seed: int = 0
     label: str = "noname"
     """Optional top level name for the experiment."""
-    trial: Optional[int] = None
-    hpsearch: Optional[HPSearchConfig] = None
+    dataset_label: str | None = None
+    """Adds a dataset level to study names. Log paths always have a dataset level.
+    None is RotatedFashionMNIST, whose study names have no dataset level."""
+    trial: int | None = None
+    hpsearch: HPSearchConfig | None = None
 
     include: Sequence[Path] | None = None
     """List of config files to include. NOT RECURSIVE."""
+
+    @property
+    def dataset_name(self) -> str:
+        return self.dataset_label or DEFAULT_DATASET_LABEL
+
+    @property
+    def dataset_root(self) -> Path:
+        return Path(os.environ.get("LOGDIR", "logs")) / "cldd" / self.dataset_name
 
     @property
     def scenario_label(self) -> str:
@@ -51,8 +75,7 @@ class Config:
             trial_id = f"{self.trial:03d}"
 
         return (
-            Path(os.environ.get("LOGDIR", "logs"))
-            / "cldd"
+            self.dataset_root
             / self.label
             / self.scenario_label
             / self.learner.type_
@@ -67,6 +90,7 @@ class Config:
         return "/".join(
             [
                 self.hpsearch.study_prefix,
+                *([self.dataset_label] if self.dataset_label else []),
                 self.label,
                 self.scenario_label,
                 self.learner.type_,

@@ -1,27 +1,28 @@
 import os
+
 # Run with `uv run notebook/plot_error_stream.py`
 import pickle
-from typing import Sequence
+from collections.abc import Sequence
+from pathlib import Path
+
+import numpy as np
+from common import (
+    DRIFT_WINDOW_COLOR,
+    FONT_LABEL,
+    FONT_TICK,
+    FONT_TITLE,
+    NO_TOP_RIGHT,
+    ONE_SIDED_LABELS,
+    PANEL_LABEL_COLOR,
+    PAPER_STYLE,
+    PRED_DRIFT_COLOR,
+    TRUE_DRIFT_COLOR,
+)
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.path import Path as MplPath
 from matplotlib.patheffects import withStroke
-import numpy as np
-from pathlib import Path
-from common import (
-    PANEL_LABEL_COLOR,
-    PAPER_STYLE,
-    ONE_SIDED_LABELS,
-    DRIFT_WINDOW_COLOR,
-    FONT_LABEL,
-    FONT_SUBTITLE,
-    FONT_TICK,
-    FONT_TITLE,
-    NO_TOP_RIGHT,
-    PRED_DRIFT_COLOR,
-    TRUE_DRIFT_COLOR,
-)
 
 plt.style.use(PAPER_STYLE)
 plt.rcParams.update(NO_TOP_RIGHT)
@@ -85,40 +86,72 @@ def plot_error_stream(metrics, ax: plt.Axes, ocl_metrics, summary: bool = True):
     ax.plot(xs, ys, color=ERROR_RATE_COLOR, linewidth=0.6)
 
     # Accuracy on all distributions seen so far, measured at the end of each distribution
-    dist_ends = np.asarray(ocl_metrics.boundaries)[1:] / ocl_metrics.boundaries[-1] * 100
+    dist_ends = (
+        np.asarray(ocl_metrics.boundaries)[1:] / ocl_metrics.boundaries[-1] * 100
+    )
     ax.plot(
-        dist_ends, ocl_metrics.accuracy_seen, color=ACCURACY_SEEN_COLOR, linewidth=0.6,
-        marker="s", markersize=2.5, markeredgewidth=0, zorder=4, clip_on=False,
+        dist_ends,
+        ocl_metrics.accuracy_seen,
+        color=ACCURACY_SEEN_COLOR,
+        linewidth=0.6,
+        marker="s",
+        markersize=2.5,
+        markeredgewidth=0,
+        zorder=4,
+        clip_on=False,
     )
     for i, (x, v) in enumerate(zip(dist_ends, ocl_metrics.accuracy_seen)):
         # The markers sit on drift lines, so put the numbers to the right of the line.
         # The last one has no line, so it is centred.
         last = i == len(dist_ends) - 1
         ax.annotate(
-            f"{100 * v:.0f}", xy=(x, v), xytext=(0 if last else 3, 2.5),
+            f"{100 * v:.0f}",
+            xy=(x, v),
+            xytext=(0 if last else 3, 2.5),
             textcoords="offset points",
-            ha="center" if last else "left", va="bottom", fontsize=FONT_TICK,
+            ha="center" if last else "left",
+            va="bottom",
+            fontsize=FONT_TICK,
             color=ACCURACY_SEEN_TEXT_COLOR,
-            zorder=5, path_effects=[withStroke(linewidth=1.5, foreground="white")],
+            zorder=5,
+            path_effects=[withStroke(linewidth=1.5, foreground="white")],
         )
 
     # True drifts: a chevron hanging from the top spine, tip pointing down
     ax.plot(
-        trues, np.ones(len(trues)), linestyle="none", marker=CHEVRON, color=TRUE_DRIFT_COLOR,
-        markersize=5, markeredgewidth=1.0, fillstyle="none", clip_on=False, zorder=5,
+        trues,
+        np.ones(len(trues)),
+        linestyle="none",
+        marker=CHEVRON,
+        color=TRUE_DRIFT_COLOR,
+        markersize=5,
+        markeredgewidth=1.0,
+        fillstyle="none",
+        clip_on=False,
+        zorder=5,
     )
     # Predicted drifts: a chevron standing just above the bottom spine, tip pointing up.
     # They are clipped to the axes (the layout breaks if they stick out).
     ax.set_ylim(Y_MIN, 1.05)
     ax.plot(
-        preds, np.full(len(preds), PRED_CHEVRON_Y), linestyle="none", marker=CHEVRON_UP,
-        color=PRED_DRIFT_COLOR, markersize=5, markeredgewidth=1.0, fillstyle="none",
+        preds,
+        np.full(len(preds), PRED_CHEVRON_Y),
+        linestyle="none",
+        marker=CHEVRON_UP,
+        color=PRED_DRIFT_COLOR,
+        markersize=5,
+        markeredgewidth=1.0,
+        fillstyle="none",
         zorder=5,
     )
     # Fill between the trues - max_early and trues + max_delay
     for true in trues:
         ax.fill_betweenx(
-            [0, 1], true - max_early, true + max_delay, color=DRIFT_WINDOW_COLOR, alpha=1
+            [0, 1],
+            true - max_early,
+            true + max_delay,
+            color=DRIFT_WINDOW_COLOR,
+            alpha=1,
         )
 
     # The metrics go in the title row, so they hide none of the stream
@@ -126,7 +159,8 @@ def plot_error_stream(metrics, ax: plt.Axes, ocl_metrics, summary: bool = True):
         ax.set_title(
             rf"Acc. {accuracy_seen_avg * 100:.1f}\%~~F1 {f1 * 100:.1f}\%~~BWT ${backward_transfer:.2f}$"
             rf"~~TP/FP/FN {tp}/{fp}/{fn}",
-            loc="right", fontsize=METRIC_FONTSIZE,
+            loc="right",
+            fontsize=METRIC_FONTSIZE,
         )
 
 
@@ -134,8 +168,10 @@ def load_and_plot_error_stream(
     metrics_path: Path | str, ax: plt.Axes, summary: bool = True
 ):
     metrics_path = Path(metrics_path)
-    dd_metrics = pickle.load(open(metrics_path / "dd_metrics.pkl", "rb"))
-    ocl_metrics = pickle.load(open(metrics_path / "ocl_metrics.pkl", "rb"))
+    with (metrics_path / "dd_metrics.pkl").open("rb") as file:
+        dd_metrics = pickle.load(file)
+    with (metrics_path / "ocl_metrics.pkl").open("rb") as file:
+        ocl_metrics = pickle.load(file)
     plot_error_stream(dd_metrics, ax, ocl_metrics, summary=summary)
 
 
@@ -144,89 +180,58 @@ BOUNDARIES = ("abrupt", "gradual", "slow")
 # Log folder of each detector name, where they differ
 RUN_DIR = {name: run for run, name in ONE_SIDED_LABELS.items()}
 
-# Two columns wide (7.16 in text width), a little under so the saved PDF fits
-FIGSIZE_TWO_COLUMN = (511 / 72, 2.7)
-
-
 def add_legend(fig: plt.Figure, ncol: int) -> None:
     """One legend under the whole figure, for the lines, the windows and the accuracy."""
     fig.legend(
         [
             Line2D([], [], color=ERROR_RATE_COLOR, linewidth=0.6),
             Line2D(
-                [], [], color=ACCURACY_SEEN_COLOR, linewidth=0.6, marker="s",
-                markersize=2.5, markeredgewidth=0,
+                [],
+                [],
+                color=ACCURACY_SEEN_COLOR,
+                linewidth=0.6,
+                marker="s",
+                markersize=2.5,
+                markeredgewidth=0,
             ),
             Line2D(
-                [], [], linestyle="none", marker=CHEVRON, color=TRUE_DRIFT_COLOR,
-                markersize=5, markeredgewidth=1.0, fillstyle="none",
+                [],
+                [],
+                linestyle="none",
+                marker=CHEVRON,
+                color=TRUE_DRIFT_COLOR,
+                markersize=5,
+                markeredgewidth=1.0,
+                fillstyle="none",
             ),
             Line2D(
-                [], [], linestyle="none", marker=CHEVRON_UP, color=PRED_DRIFT_COLOR,
-                markersize=5, markeredgewidth=1.0, fillstyle="none",
+                [],
+                [],
+                linestyle="none",
+                marker=CHEVRON_UP,
+                color=PRED_DRIFT_COLOR,
+                markersize=5,
+                markeredgewidth=1.0,
+                fillstyle="none",
             ),
             Patch(facecolor=DRIFT_WINDOW_COLOR),
         ],
-        ["Error rate", "Acc. on seen distributions", "True drift", "Predicted drift",
-         "Detection window"],
-        loc="outside lower center", ncol=ncol, frameon=False, fontsize=FONT_LABEL,
-        handlelength=1.2, columnspacing=1.0, handletextpad=0.4,
+        [
+            "Error rate",
+            "Acc. on seen distributions",
+            "True drift",
+            "Predicted drift",
+            "Detection window",
+        ],
+        loc="outside lower center",
+        ncol=ncol,
+        frameon=False,
+        fontsize=FONT_LABEL,
+        handlelength=1.2,
+        columnspacing=1.0,
+        handletextpad=0.4,
     )
 
-
-def plot_drift_detection_pair(
-    root: Path,
-    good: tuple[str, str] = ("LWF", "ADWIN"),
-    bad: tuple[str, str] = ("MAS", "STEPD"),
-    seed: str = "000",
-    names: tuple[str, str] = ("High F1", "Low F1"),
-) -> plt.Figure:
-    """Error streams for a left and a right run, one row per boundary.
-
-    `good` and `bad` are (strategy, detector) pairs. `names` start the column headings.
-    """
-    fig = plt.figure(figsize=FIGSIZE_TWO_COLUMN, layout="constrained")
-    subfigs = fig.subfigures(1, 2)
-    for col, (sf, name, (strategy, detector)) in enumerate(
-        zip(subfigs, names, (good, bad))
-    ):
-        axs = sf.subplots(nrows=3, sharex=True, sharey=True)
-        for row, (ax, boundary) in enumerate(zip(axs, BOUNDARIES)):
-            load_and_plot_error_stream(
-                root / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/", ax
-            )
-            ax.set_title(boundary.capitalize(), loc="left", fontsize=FONT_SUBTITLE)
-            ax.minorticks_off()
-            ax.set_yticks([0, 0.5, 1])
-            ax.tick_params(labelsize=FONT_TICK)
-        sf.suptitle(
-            f"{name}: {strategy} with {detector}", fontsize=FONT_TITLE
-        )
-        axs[2].set_xlabel(r"Stream (\%)", fontsize=FONT_LABEL)
-        if col == 0:
-            axs[1].set_ylabel("Rate", fontsize=FONT_LABEL)
-
-    add_legend(fig, ncol=5)
-    return fig
-
-
-fig = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
-    good=("SI", "ADWIN"),
-    bad=("SI", "STEPD"),
-    seed="009",
-)
-fig.savefig("fig/plot_error_stream.pdf")
-
-# A detector that misses drifts: no alarm at all in Gradual and Slow
-fig_missed = plot_drift_detection_pair(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
-    good=("LWF", "ADWIN"),
-    bad=("LWF", "DDM"),
-    seed="005",
-    names=("Finds drifts", "Missed drifts"),
-)
-fig_missed.savefig("fig/plot_error_stream_missed.pdf")
 
 # One column wide (3.5 in), a little under so the saved PDF fits
 FIGSIZE_ONE_COLUMN_STACK = (246 / 72, 4.4)
@@ -236,8 +241,20 @@ FIGSIZE_ONE_COLUMN_STACK = (246 / 72, 4.4)
 # Data coordinates are (stream %, rate).
 STACK_LABELS = [
     (0, "(a)", 30, 0.5, False),  # ADWIN abrupt: the error jumps and the detector fires
-    (0, "(b)", 0.87, 0.89, True),  # mean accuracy on seen distributions (the big number)
-    (1, "(c)", 50, 0.5, False),  # ADWIN gradual and slow: small error rise, harder to detect
+    (
+        0,
+        "(b)",
+        0.87,
+        0.89,
+        True,
+    ),  # mean accuracy on seen distributions (the big number)
+    (
+        1,
+        "(c)",
+        50,
+        0.5,
+        False,
+    ),  # ADWIN gradual and slow: small error rise, harder to detect
     (2, "(d)", 41, 0.55, False),  # ADWIN slow: some false alarms are tolerated
     (3, "(e)", 39, 0.5, False),  # STEPD: many false alarms cause forgetting
     (4, "(f)", 21, 0.45, False),  # SEED: missed drifts cause forgetting
@@ -255,8 +272,12 @@ def plot_drift_detection_stack(
     """
     n_rows = sum(len(run[3]) for run in runs)
     fig, axs = plt.subplots(
-        n_rows, 1, figsize=FIGSIZE_ONE_COLUMN_STACK, layout="constrained",
-        sharex=True, sharey=True,
+        n_rows,
+        1,
+        figsize=FIGSIZE_ONE_COLUMN_STACK,
+        layout="constrained",
+        sharex=True,
+        sharey=True,
     )
     row = 0
     for name, strategy, detector, boundaries, seed in runs:
@@ -264,20 +285,39 @@ def plot_drift_detection_stack(
             ax = axs[row]
             row += 1
             load_and_plot_error_stream(
-                root / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/", ax, summary=False
+                root
+                / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/",
+                ax,
+                summary=False,
             )
             # The mean accuracy on seen distributions of the run, as a big number at the top right
-            ocl_metrics = pickle.load(open(
-                root / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/ocl_metrics.pkl", "rb"))
+            metrics_file = (
+                root
+                / f"evaluate/{boundary}/{strategy}/{RUN_DIR.get(detector, detector)}/{seed}/ocl_metrics.pkl"
+            )
+            with metrics_file.open("rb") as file:
+                ocl_metrics = pickle.load(file)
             ax.text(
-                0.995, 1.0, rf"{ocl_metrics.accuracy_seen_avg * 100:.0f}\%",
-                transform=ax.transAxes, ha="right", va="top", fontsize=FONT_TITLE + 1,
-                fontweight="bold", zorder=6,
+                0.995,
+                1.0,
+                rf"{ocl_metrics.accuracy_seen_avg * 100:.0f}\%",
+                transform=ax.transAxes,
+                ha="right",
+                va="top",
+                fontsize=FONT_TITLE + 1,
+                fontweight="bold",
+                zorder=6,
             )
             # The boundary is a label inside the plot, at the top left by the y axis
             ax.text(
-                0.055, 0.97, boundary.capitalize(), transform=ax.transAxes,
-                ha="left", va="top", fontsize=FONT_LABEL, zorder=6,
+                0.055,
+                0.97,
+                boundary.capitalize(),
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=FONT_LABEL,
+                zorder=6,
             )
             ax.minorticks_off()
             # Head room above the true drift markers, so the accuracy number has margin
@@ -291,8 +331,14 @@ def plot_drift_detection_stack(
     # Red labels mark the regions the caption talks about
     for row, label, x, y, axes_coords in STACK_LABELS:
         axs[row].text(
-            x, y, rf"\textbf{{{label}}}", color=PANEL_LABEL_COLOR, fontsize=FONT_LABEL,
-            ha="center", va="center", zorder=7,
+            x,
+            y,
+            rf"\textbf{{{label}}}",
+            color=PANEL_LABEL_COLOR,
+            fontsize=FONT_LABEL,
+            ha="center",
+            va="center",
+            zorder=7,
             transform=axs[row].transAxes if axes_coords else axs[row].transData,
             path_effects=[withStroke(linewidth=1.5, foreground="white")],
         )
@@ -305,11 +351,11 @@ def plot_drift_detection_stack(
 
 # Each run is picked to tell its part of the story (they differ in strategy and seed)
 fig_stack = plot_drift_detection_stack(
-    Path(os.environ.get("LOGDIR", "logs")) / "cldd",
+    Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "rfmnist",
     runs=[
         ("High F1", "LWF", "ADWIN", BOUNDARIES, "001"),
         ("False alarms", "RWalk", "STEPD", ("gradual",), "007"),
         ("Missed drifts", "LWF", "SEED", ("gradual",), "001"),
     ],
 )
-fig_stack.savefig("fig/plot_error_stream_stack.pdf")
+fig_stack.savefig("fig/error_streams.pdf")

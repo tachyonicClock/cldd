@@ -1,10 +1,12 @@
-from src.config import Config
-import optuna
-from typing import Callable
-from src.experiment import Experiment
-from loguru import logger
-from src.util import obj_dot_notation_set
+from collections.abc import Callable
 from copy import deepcopy
+
+import optuna
+from loguru import logger
+
+from src.config import Config
+from src.experiment import Experiment
+from src.util import obj_dot_notation_set
 
 
 def optimize_with_max_trials(
@@ -12,7 +14,7 @@ def optimize_with_max_trials(
     objective: Callable[[optuna.trial.Trial], tuple[float, ...] | float],
     n_trials: int,
     states: tuple[optuna.trial.TrialState, ...] = (optuna.trial.TrialState.COMPLETE,),
-    callbacks=[],
+    callbacks=None,
     **kwargs,
 ):
     """
@@ -34,6 +36,8 @@ def optimize_with_max_trials(
     Source: https://github.com/optuna/optuna/issues/1883#issuecomment-702688136
     """
 
+    if callbacks is None:
+        callbacks = []
     trials = study.get_trials(deepcopy=False, states=states)
     n_complete = len(trials)
 
@@ -59,13 +63,18 @@ class HPSearch:
         if self.hpsearch.args is None:
             logger.warning("Running only 1 trial since the search space is empty.")
             self.hpsearch.n_trials = 1
-        self.study = self.hpsearch.new_study(config.study_name)
+        self.study = self.hpsearch.new_study(config.study_name, config.dataset_root)
 
     def optimize(self) -> None:
+        states = (optuna.trial.TrialState.COMPLETE,)
+        if self.hpsearch.pruner != "none":
+            # Pruned trials count toward the budget too
+            states += (optuna.trial.TrialState.PRUNED,)
         optimize_with_max_trials(
             self.study,
             self._objective,
             n_trials=self.hpsearch.n_trials,
+            states=states,
             n_jobs=self.hpsearch.n_jobs,
         )
 
@@ -80,7 +89,12 @@ class HPSearch:
         config.trial = trial.number
         config.seed = trial.number
         experiment = Experiment(config)
-        metrics = experiment.run()
+        handlers = []
+        if self.hpsearch.pruner != "none":
+            from src.pruning import PruneOnSeenAccuracy
+
+            handlers.append(PruneOnSeenAccuracy(trial))
+        metrics = experiment.run(handlers=handlers)
 
         trial.set_user_attr("accuracy_seen_avg", float(metrics["accuracy_seen_avg"]))
         trial.set_user_attr("accuracy_all_avg", float(metrics["accuracy_all_avg"]))

@@ -10,24 +10,29 @@ The current constants in this file select a reduced subset of strategies,
 detectors, boundaries, and seeds suitable for iterative experimentation.
 """
 
+import os
+import random
+from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
-from dataclasses import dataclass
+
+from loguru import logger
+
 from actions import (
-    tune_strategy,
-    error_stream,
-    tune_detector,
-    dd_run,
-    evaluate,
-    collect_evaluate_records,
     collect_dd_run_records,
+    collect_evaluate_records,
+    dd_run,
+    error_stream,
+    evaluate,
+    select_best,
+    synthetic,
+    tune_detector,
+    tune_strategy,
 )
 from collect import collect_dataset
-import os
-from loguru import logger
-import random
+from src.config import DEFAULT_DATASET_LABEL
 
-DEBUG_MODE = bool(os.environ.get("DEBUG_BOCL", False))
+DEBUG_MODE = os.environ.get("DEBUG_BOCL", "False").lower() in ("1", "true")
 if DEBUG_MODE:
     logger.warning(
         "Running in DEBUG MODE: reduced strategies/detectors/boundaries/seeds."
@@ -62,6 +67,23 @@ BOUNDARY = [
 JOINT_HP_DETECTOR = "ADWIN_JOINT"
 """The detector used for joint tuning of strategy and detector HP."""
 
+BEST_DETECTOR = "BEST"
+"""Label of runs that use the detector picked by `task_select_best`."""
+
+DEFAULT_DATASET = DEFAULT_DATASET_LABEL
+"""Main case study (RotatedFashionMNIST). Its log paths have no dataset level."""
+CHECK_DATASETS = ["covertype"]
+"""Datasets for the smaller check. Phase 3 runs the oracle, the best detector, every
+detector with its own phase-2 HP and the jointly tuned ADWIN*. Each has a
+`config/dataset/<name>.yml`."""
+FIXED_DETECTOR = "ADWIN"
+"""Detector picked on the main dataset, run live on check datasets with its phase-2
+HP from that dataset."""
+DATASETS = [DEFAULT_DATASET, *CHECK_DATASETS]
+if os.environ.get("CLDD_DATASETS"):
+    # Comma-separated subset, e.g. CLDD_DATASETS=covertype
+    DATASETS = [d for d in DATASETS if d in os.environ["CLDD_DATASETS"].split(",")]
+
 N_TRIALS = 10
 rng = random.Random(0)
 rng2 = random.Random(1)
@@ -75,9 +97,23 @@ if DEBUG_MODE:
     DETECTOR = ["ADWIN"]
     BOUNDARY = ["abrupt"]
 
+EXTRA_EVALUATION_SEEDS = [1774, 7603, 1303, 222, 5283, 6653, 3006, 6533, 2950, 5697]
+"""Ten more held-out seeds for the extra runs of ADWIN and the oracle in `synthetic`.
+Their trials follow the evaluation trials."""
+if DEBUG_MODE:
+    EXTRA_EVALUATION_SEEDS = []
+
 ORACLE_DETECTOR = "oracle"
+"""Alarms at the drift centre. Shown as `mid` in tables and figures."""
+BASELINE_DETECTORS = ["early", "late"]
+"""Alarms one drift width before the drift starts and after it is over. Evaluated with
+the strategy HP tuned for the oracle, no tuning of their own."""
 
 LOG_ROOT = Path(os.environ.get("LOGDIR", "logs")) / "cldd"
+
+DATA_FILES = {"covertype": [Path("data") / "covertype_Elevation.pt"]}
+"""Data files a check dataset reads, made by `script/covertype.py`. They are file
+dependencies of the tasks that train on the data, so remaking the data reruns them."""
 
 
 @dataclass
@@ -92,14 +128,21 @@ class Unit:
     detector: Detector
     boundary: Boundary
     trial: int = 0
+    dataset: str = DEFAULT_DATASET
 
     @property
     def trial_str(self) -> str:
         return f"{self.trial:03d}"
 
     @property
+    def is_default_dataset(self) -> bool:
+        return self.dataset == DEFAULT_DATASET
+
+    @property
     def identifier(self) -> str:
         _id_path = [self.strategy, self.detector, self.boundary, self.trial_str]
+        if not self.is_default_dataset:
+            _id_path.insert(0, self.dataset)
         return ".".join(_id_path)
 
     def configs(self, hp: str | None = None) -> list[Path]:
@@ -110,15 +153,26 @@ class Unit:
             r / "detector" / f"{self.detector}.yml",
             r / "boundary" / f"{self.boundary}.yml",
         ]
+        if not self.is_default_dataset:
+            configs.append(r / "dataset" / f"{self.dataset}.yml")
         if hp is not None:
             configs.append(r / "hp" / f"{hp}.yml")
+            # Optional search-space changes for one dataset, e.g. a learning-rate floor
+            dataset_hp = r / "hp" / f"{hp}_{self.dataset}.yml"
+            if dataset_hp.exists():
+                configs.append(dataset_hp)
         if DEBUG_MODE:
             configs.append(r / "debug.yml")
         return configs
 
+    @property
+    def data_deps(self) -> list[Path]:
+        return DATA_FILES.get(self.dataset, [])
+
     def logdir(self, label: str) -> Path:
         return (
             LOG_ROOT
+            / self.dataset
             / label
             / self.boundary
             / self.strategy
@@ -137,6 +191,10 @@ class Unit:
     @property
     def tune_detector_metrics(self) -> Path:
         return self.logdir(tune_detector.__name__).parent / "best_trial.yml"
+
+    @property
+    def best_detector(self) -> Path:
+        return self.logdir(select_best.__name__).parent / "best_detector.yml"
 
     @property
     def error_stream(self) -> Path:
@@ -159,7 +217,7 @@ class Unit:
         return {
             "name": self.identifier,
             "actions": [(tune_strategy, (configs, self.identifier))],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.tune_strategy_hp],
         }
 
@@ -168,7 +226,7 @@ class Unit:
         return {
             "name": self.identifier,
             "actions": [(error_stream, (configs, seed, self.trial, self.identifier))],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.error_stream],
         }
 
@@ -181,6 +239,34 @@ class Unit:
             "targets": [self.tune_detector_hp, self.tune_detector_metrics],
         }
 
+    def task_select_best(self) -> dict:
+        best_trials = {
+            d: Unit(
+                self.strategy, d, self.boundary, dataset=self.dataset
+            ).tune_detector_metrics
+            for d in DETECTOR
+        }
+        detector_configs = {
+            d: Path("config") / "detector" / f"{d}.yml" for d in DETECTOR
+        }
+        return {
+            "name": self.identifier,
+            "actions": [
+                (
+                    select_best,
+                    (
+                        best_trials,
+                        detector_configs,
+                        DETECTOR,
+                        BEST_DETECTOR,
+                        self.best_detector,
+                    ),
+                )
+            ],
+            "file_dep": [*best_trials.values(), *detector_configs.values()],
+            "targets": [self.best_detector],
+        }
+
     def task_evaluate(self, seed: int, configs: list[Path]):
         configs = self.configs() + configs
         return {
@@ -191,7 +277,7 @@ class Unit:
                     (configs, seed, self.trial, self.detector, self.identifier),
                 )
             ],
-            "file_dep": configs,
+            "file_dep": configs + self.data_deps,
             "targets": [self.ocl_metrics, self.evaluate_dd_metrics],
         }
 
@@ -223,147 +309,228 @@ class Unit:
 def task_tune_strategy():
     """Phase 1: tune strategy HP using the oracle detector for each boundary."""
 
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
-        yield Unit(strategy, ORACLE_DETECTOR, boundary).task_tune_strategy()
+    for dataset, strategy, boundary in product(DATASETS, STRATEGY, BOUNDARY):
+        yield Unit(
+            strategy, ORACLE_DETECTOR, boundary, dataset=dataset
+        ).task_tune_strategy()
 
 
 def task_tune_detector_strategy():
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
+    for dataset, strategy, boundary in product(DATASETS, STRATEGY, BOUNDARY):
         if strategy in DETECTOR_AGNOSTIC:
             continue
-        yield Unit(strategy, JOINT_HP_DETECTOR, boundary).task_tune_strategy()
+        yield Unit(
+            strategy, JOINT_HP_DETECTOR, boundary, dataset=dataset
+        ).task_tune_strategy()
 
 
 def task_error_stream():
     """Phase 1 output: create per-seed error streams using tuned strategy HP."""
 
-    for strategy, boundary, (trial, seed) in product(
-        STRATEGY, BOUNDARY, enumerate(ERROR_STREAM_SEEDS)
+    for dataset, strategy, boundary, (trial, seed) in product(
+        DATASETS, STRATEGY, BOUNDARY, enumerate(ERROR_STREAM_SEEDS)
     ):
-        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial).task_error_stream(seed)
+        yield Unit(
+            strategy, ORACLE_DETECTOR, boundary, trial, dataset
+        ).task_error_stream(seed)
 
 
 def task_tune_hp_detector():
     """Phase 2: tune detector HP from all error streams of a strategy/boundary."""
 
-    for strategy, boundary, detector in product(STRATEGY, BOUNDARY, DETECTOR):
+    for dataset, strategy, boundary, detector in product(
+        DATASETS, STRATEGY, BOUNDARY, DETECTOR
+    ):
         # Collect error streams for all trials of this strategy and boundary, which will
         # be used for tuning the detector.
         error_streams = []
         for trial, _ in enumerate(ERROR_STREAM_SEEDS):
             error_streams.append(
-                Unit(strategy, ORACLE_DETECTOR, boundary, trial).error_stream
+                Unit(strategy, ORACLE_DETECTOR, boundary, trial, dataset).error_stream
             )
 
-        yield Unit(strategy, detector, boundary).task_tune_hp_detector(error_streams)
+        yield Unit(strategy, detector, boundary, dataset=dataset).task_tune_hp_detector(
+            error_streams
+        )
 
 
-def iter_evaluate_specs():
+def task_select_best():
+    """Pick the best phase-2 detector for each strategy/boundary (see src/select_best.py)."""
+
+    for dataset, strategy, boundary in product(DATASETS, STRATEGY, BOUNDARY):
+        if strategy in DETECTOR_AGNOSTIC:
+            continue
+        yield Unit(
+            strategy, BEST_DETECTOR, boundary, dataset=dataset
+        ).task_select_best()
+
+
+def iter_evaluate_specs(dataset: str = DEFAULT_DATASET):
     """Yield evaluate unit, seed, and extra config dependencies."""
 
     for strategy, boundary, (trial, seed) in product(
         STRATEGY, BOUNDARY, enumerate(EVALUATION_SEEDS)
     ):
-        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        strategy_hp = Unit(
+            strategy, ORACLE_DETECTOR, boundary, dataset=dataset
+        ).tune_strategy_hp
 
-        yield Unit(strategy, ORACLE_DETECTOR, boundary, trial), seed, [strategy_hp]
-        if strategy not in DETECTOR_AGNOSTIC:
+        yield (
+            Unit(strategy, ORACLE_DETECTOR, boundary, trial, dataset),
+            seed,
+            [strategy_hp],
+        )
+        if strategy in DETECTOR_AGNOSTIC:
+            continue
+
+        for baseline in BASELINE_DETECTORS:
+            yield (
+                Unit(strategy, baseline, boundary, trial, dataset),
+                seed,
+                [strategy_hp],
+            )
+
+        if dataset != DEFAULT_DATASET:
+            fixed_hp = Unit(
+                strategy, FIXED_DETECTOR, boundary, dataset=dataset
+            ).tune_detector_hp
+            yield (
+                Unit(strategy, FIXED_DETECTOR, boundary, trial, dataset),
+                seed,
+                [strategy_hp, fixed_hp],
+            )
+            best_hp = Unit(strategy, BEST_DETECTOR, boundary, dataset=dataset)
+            yield (
+                Unit(strategy, BEST_DETECTOR, boundary, trial, dataset),
+                seed,
+                [strategy_hp, best_hp.best_detector],
+            )
             for detector in DETECTOR:
-                detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
+                if detector == FIXED_DETECTOR:
+                    continue
+                detector_hp = Unit(
+                    strategy, detector, boundary, dataset=dataset
+                ).tune_detector_hp
                 yield (
-                    Unit(strategy, detector, boundary, trial),
+                    Unit(strategy, detector, boundary, trial, dataset),
                     seed,
                     [strategy_hp, detector_hp],
                 )
-
-            joint_detector_hp = Unit(
-                strategy, JOINT_HP_DETECTOR, boundary
+            joint_hp = Unit(
+                strategy, JOINT_HP_DETECTOR, boundary, dataset=dataset
             ).tune_strategy_hp
             yield (
-                Unit(strategy, JOINT_HP_DETECTOR, boundary, trial),
+                Unit(strategy, JOINT_HP_DETECTOR, boundary, trial, dataset),
                 seed,
-                [joint_detector_hp],
+                [joint_hp],
             )
+            continue
+
+        for detector in DETECTOR:
+            detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
+            yield (
+                Unit(strategy, detector, boundary, trial),
+                seed,
+                [strategy_hp, detector_hp],
+            )
+
+        joint_detector_hp = Unit(strategy, JOINT_HP_DETECTOR, boundary).tune_strategy_hp
+        yield (
+            Unit(strategy, JOINT_HP_DETECTOR, boundary, trial),
+            seed,
+            [joint_detector_hp],
+        )
 
 
 def task_evaluate():
     """Phase 3: evaluate tuned configurations on held-out evaluation seeds.
 
     Detector-agnostic strategies are evaluated once with the oracle boundary
-    setting, while boundary-aware strategies are evaluated with the selected
-    best detector as well.
+    setting. The other strategies also run the early and late baselines. On the main dataset, boundary-aware strategies are evaluated with every
+    detector. On check datasets, only with the fixed and the best detector.
     """
 
-    for unit, seed, configs in iter_evaluate_specs():
-        yield unit.task_evaluate(seed, configs)
+    for dataset in DATASETS:
+        for unit, seed, configs in iter_evaluate_specs(dataset):
+            yield unit.task_evaluate(seed, configs)
+
+
+def iter_dd_run_units():
+    """Yield units that replay each tuned detector on an oracle evaluate stream."""
+
+    for dataset, strategy, boundary, detector, (trial, _) in product(
+        DATASETS, STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
+    ):
+        yield Unit(strategy, detector, boundary, trial, dataset)
 
 
 def task_dd_run():
     """Replay tuned detector configs on oracle evaluate error streams."""
 
-    for strategy, boundary, detector, (trial, _) in product(
-        STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
-    ):
-        detector_hp = Unit(strategy, detector, boundary).tune_detector_hp
+    for unit in iter_dd_run_units():
+        detector_hp = Unit(
+            unit.strategy, unit.detector, unit.boundary, dataset=unit.dataset
+        ).tune_detector_hp
         oracle_metrics = Unit(
-            strategy,
-            ORACLE_DETECTOR,
-            boundary,
-            trial,
+            unit.strategy, ORACLE_DETECTOR, unit.boundary, unit.trial, unit.dataset
         ).evaluate_dd_metrics
+        yield unit.task_dd_run(oracle_metrics, [detector_hp])
 
-        yield Unit(strategy, detector, boundary, trial).task_dd_run(
-            oracle_metrics,
-            [detector_hp],
-        )
+
+def dataset_root(dataset: str) -> Path:
+    return LOG_ROOT / dataset
 
 
 def task_collect_evaluate():
-    """Collect all evaluate outputs into one CSV for analysis."""
+    """Collect all evaluate outputs into one CSV per dataset for analysis."""
 
-    evaluate_dirs: list[Path] = []
-    file_deps: list[Path] = []
+    for dataset in DATASETS:
+        evaluate_dirs: list[Path] = []
+        file_deps: list[Path] = []
 
-    for unit, _, _ in iter_evaluate_specs():
-        evaluate_dirs.append(unit.logdir(evaluate.__name__))
-        file_deps.append(unit.ocl_metrics)
+        for unit, _, _ in iter_evaluate_specs(dataset):
+            evaluate_dirs.append(unit.logdir(evaluate.__name__))
+            file_deps.append(unit.ocl_metrics)
 
-    target = LOG_ROOT / evaluate.__name__ / "data_frame.csv"
-    output_html = LOG_ROOT / "profile" / "evaluate.html"
-    return {
-        "actions": [
-            (collect_evaluate_records, (evaluate_dirs, target)),
-            f"uv run script/profile.py 'Evaluation Report' {target} {output_html}",
-        ],
-        "file_dep": file_deps + ["collect.py", "script/profile.py"],
-        "targets": [target, output_html],
-    }
+        root = dataset_root(dataset)
+        target = root / evaluate.__name__ / "data_frame.csv"
+        output_html = root / "profile" / "evaluate.html"
+        yield {
+            "name": dataset,
+            "actions": [
+                (collect_evaluate_records, (evaluate_dirs, target)),
+                f"uv run script/profile.py 'Evaluation Report' {target} {output_html}",
+            ],
+            "file_dep": file_deps + ["collect.py", "script/profile.py"],
+            "targets": [target, output_html],
+        }
 
 
 def task_CLDD_A():
     """Generate continual learners as a drift detection dataset.
 
-    CLDD-A contains the `oracle` drift detector which perflectly predicts drifts controling
-    a continual learning algorithm.
+    CLDD-A contains the `oracle` drift detector, which perfectly predicts drifts, controlling
+    a continual learning algorithm. It holds every dataset, told apart by its
+    `dataset` column.
     """
     directories: list[Path] = []
     dependencies: list[Path] = []
 
-    for unit, _, _ in iter_evaluate_specs():
-        if unit.detector != ORACLE_DETECTOR:
-            continue
+    for dataset in DATASETS:
+        for unit, _, _ in iter_evaluate_specs(dataset):
+            if unit.detector != ORACLE_DETECTOR:
+                continue
 
-        directories.append(unit.logdir(evaluate.__name__))
-        dependencies.append(unit.ocl_metrics)
+            directories.append(unit.logdir(evaluate.__name__))
+            dependencies.append(unit.ocl_metrics)
 
-    # error_streams = []
-    for strategy, boundary in product(STRATEGY, BOUNDARY):
-        # Collect error streams for all trials of this strategy and boundary, which will
-        # be used for tuning the detector.
-        for trial, _ in enumerate(ERROR_STREAM_SEEDS):
-            unit = Unit(strategy, ORACLE_DETECTOR, boundary, trial)
-            directories.append(unit.error_stream.parent)
-            dependencies.append(unit.error_stream)
+        for strategy, boundary in product(STRATEGY, BOUNDARY):
+            # Collect error streams for all trials of this strategy and boundary, which
+            # will be used for tuning the detector.
+            for trial, _ in enumerate(ERROR_STREAM_SEEDS):
+                unit = Unit(strategy, ORACLE_DETECTOR, boundary, trial, dataset)
+                directories.append(unit.error_stream.parent)
+                dependencies.append(unit.error_stream)
 
     target = LOG_ROOT / "CLDD_A.parquet"
     return {
@@ -378,17 +545,20 @@ def task_CLDD_A():
 def task_CLDD_B():
     """Generate continual learners as a drift detection dataset.
 
-    CLDD-B contains non-oracle drift detectors that imperfectly controlling a
-    continual learning algorithm."""
+    CLDD-B contains the real drift detectors (`DETECTOR`) that imperfectly control a
+    continual learning algorithm. It holds every dataset, told apart by its `dataset`
+    column. The Oracle, its early and late baselines, the jointly tuned ADWIN* and the
+    picked `BEST` detector (a repeat of one of the others) are left out."""
     directories: list[Path] = []
     dependencies: list[Path] = []
 
-    for unit, _, _ in iter_evaluate_specs():
-        if unit.detector == ORACLE_DETECTOR or unit.detector == JOINT_HP_DETECTOR:
-            continue
+    for dataset in DATASETS:
+        for unit, _, _ in iter_evaluate_specs(dataset):
+            if unit.detector not in DETECTOR:
+                continue
 
-        directories.append(unit.logdir(evaluate.__name__))
-        dependencies.append(unit.ocl_metrics)
+            directories.append(unit.logdir(evaluate.__name__))
+            dependencies.append(unit.ocl_metrics)
 
     target = LOG_ROOT / "CLDD_B.parquet"
     return {
@@ -398,26 +568,158 @@ def task_CLDD_B():
     }
 
 
+def task_replay_cldd_b():
+    """Replay each tuned detector on the CLDD-B streams of the other detectors.
+
+    The open-loop score on detector-controlled streams (see `script/replay_cldd_b.py`).
+    Writes `<dataset>/replay_cldd_b/data_frame.csv`, one row per replayed stream.
+    """
+    for dataset in DATASETS:
+        file_deps: list[Path] = [Path("script/replay_cldd_b.py")]
+        for strategy, boundary, detector in product(STRATEGY, BOUNDARY, DETECTOR):
+            if strategy in DETECTOR_AGNOSTIC:
+                continue
+            file_deps.append(
+                Unit(strategy, detector, boundary, dataset=dataset).tune_detector_hp
+            )
+            for trial, _ in enumerate(EVALUATION_SEEDS):
+                file_deps.append(
+                    Unit(
+                        strategy, detector, boundary, trial, dataset
+                    ).evaluate_dd_metrics
+                )
+        target = dataset_root(dataset) / "replay_cldd_b" / "data_frame.csv"
+        yield {
+            "name": dataset,
+            "actions": [
+                (
+                    f"uv run python -P script/replay_cldd_b.py --dataset {dataset}"
+                    f" --out {target} --workers 4"
+                )
+            ],
+            "file_dep": file_deps,
+            "targets": [target],
+        }
+
+
 def task_dd_collect():
-    """Collect all dd_run outputs into one CSV for analysis."""
+    """Collect all dd_run outputs into one CSV per dataset for analysis."""
 
-    dd_run_dirs: list[Path] = []
-    file_deps: list[Path] = []
+    for dataset in DATASETS:
+        units = [u for u in iter_dd_run_units() if u.dataset == dataset]
+        dd_run_dirs = [u.logdir(dd_run.__name__) for u in units]
+        file_deps = [u.dd_run_metrics for u in units]
 
-    for strategy, boundary, detector, (trial, _) in product(
-        STRATEGY, BOUNDARY, DETECTOR, enumerate(EVALUATION_SEEDS)
-    ):
-        unit = Unit(strategy, detector, boundary, trial)
-        dd_run_dirs.append(unit.logdir(dd_run.__name__))
-        file_deps.append(unit.dd_run_metrics)
+        root = dataset_root(dataset)
+        target = root / dd_run.__name__ / "data_frame.csv"
+        output_html = root / "profile" / "dd.html"
+        yield {
+            "name": dataset,
+            "actions": [
+                (collect_dd_run_records, (dd_run_dirs, target)),
+                f"uv run script/profile.py 'Drift Detection Report' {target} {output_html}",
+            ],
+            "file_dep": file_deps + ["collect.py", "script/profile.py"],
+            "targets": [target, output_html],
+        }
 
-    target = LOG_ROOT / dd_run.__name__ / "data_frame.csv"
-    output_html = LOG_ROOT / "profile" / "dd.html"
-    return {
-        "actions": [
-            (collect_dd_run_records, (dd_run_dirs, target)),
-            f"uv run script/profile.py 'Drift Detection Report' {target} {output_html}",
-        ],
-        "file_dep": file_deps + ["collect.py", "script/profile.py"],
-        "targets": [target, output_html],
-    }
+
+def _synthetic_variants() -> dict[str, dict[str, object]]:
+    """Config overrides of each blind trigger and controlled fault of the schedule
+    detector (see `ScheduleArgs`), by the label the runs are saved under."""
+
+    def kilo(offset: int) -> str:
+        return f"{offset // 1000:+d}k" if offset else "0"
+
+    variants: dict[str, dict[str, object]] = {}
+    for period in (15_000, 30_000, 60_000, 120_000):
+        variants[f"periodic{period // 1000}k"] = {"mode": "periodic", "period": period}
+    # The number of alarms is set from ADWIN's alarm counts by `synthetic`.
+    variants["random_adwin"] = {"mode": "random"}
+    for offset in (0, -6_000, 6_000, -18_000, 18_000):
+        variants[f"oracle_off{kilo(offset)}"] = {"mode": "oracle", "offset": offset}
+    for n in (1, 2, 3, 4):
+        variants[f"oracle_miss{n}"] = {"mode": "oracle", "n_miss": n}
+    for n in (3, 10, 20):
+        variants[f"oracle_extra{n}"] = {"mode": "oracle", "n_extra": n}
+    # Every alarm dropped, with the learning rate tuned for FT: no consolidation at all
+    variants[SILENT_FT_LR] = {"mode": "oracle", "n_miss": 4}
+    return variants
+
+
+SILENT_FT_LR = "silent_ftlr"
+"""Variant that also takes the optimizer HP tuned for FT."""
+SYNTHETIC_VARIANTS = _synthetic_variants()
+
+
+def task_synthetic():
+    """Blind triggers and controlled faults on the main dataset.
+
+    Each tuned strategy is rerun with a `schedule` detector that ignores the error
+    stream: periodic and random alarms, and the oracle with shifted, dropped or extra
+    alarms. ADWIN and the oracle are also run on ten more seeds. Outputs go to
+    `<dataset>/synthetic/<boundary>/<strategy>/<variant>/<trial>`.
+    """
+    if DEFAULT_DATASET not in DATASETS:
+        return
+
+    n_eval = len(EVALUATION_SEEDS)
+    extra_trials = range(n_eval, n_eval + len(EXTRA_EVALUATION_SEEDS))
+    seeds = EVALUATION_SEEDS + EXTRA_EVALUATION_SEEDS
+
+    def task(unit: Unit, configs, file_dep=(), dotlist=None, counts_from=()):
+        logdir = unit.logdir(synthetic.__name__)
+        return {
+            "name": unit.identifier,
+            "actions": [
+                (
+                    synthetic,
+                    (configs, seeds[unit.trial], unit.trial, unit.detector),
+                    {
+                        "identifier": unit.identifier,
+                        "dotlist": dotlist,
+                        "alarm_counts_from": list(counts_from),
+                    },
+                )
+            ],
+            "file_dep": [*configs, *file_dep],
+            "targets": [logdir / "ocl_metrics.pkl", logdir / "dd_metrics.pkl"],
+        }
+
+    for strategy, boundary in product(STRATEGY, BOUNDARY):
+        if strategy in DETECTOR_AGNOSTIC:
+            continue
+        strategy_hp = Unit(strategy, ORACLE_DETECTOR, boundary).tune_strategy_hp
+        ft_hp = Unit("FT", ORACLE_DETECTOR, boundary).tune_strategy_hp
+        adwin_hp = Unit(strategy, FIXED_DETECTOR, boundary).tune_detector_hp
+        adwin_metrics = [
+            Unit(strategy, FIXED_DETECTOR, boundary, trial).evaluate_dd_metrics
+            for trial in range(n_eval)
+        ]
+        schedule_configs = Unit(strategy, "schedule", boundary).configs()
+
+        for trial, (variant, overrides) in product(
+            range(n_eval), SYNTHETIC_VARIANTS.items()
+        ):
+            configs = schedule_configs + [strategy_hp]
+            if variant == SILENT_FT_LR:
+                configs.append(ft_hp)
+            counts_from = adwin_metrics if variant == "random_adwin" else []
+            yield task(
+                Unit(strategy, variant, boundary, trial),
+                configs,
+                file_dep=counts_from,
+                dotlist={f"drift_detector.{k}": v for k, v in overrides.items()},
+                counts_from=counts_from,
+            )
+
+        for trial in extra_trials:
+            yield task(
+                Unit(strategy, f"{FIXED_DETECTOR}_more", boundary, trial),
+                Unit(strategy, FIXED_DETECTOR, boundary).configs()
+                + [strategy_hp, adwin_hp],
+            )
+            yield task(
+                Unit(strategy, f"{ORACLE_DETECTOR}_more", boundary, trial),
+                Unit(strategy, ORACLE_DETECTOR, boundary).configs() + [strategy_hp],
+            )

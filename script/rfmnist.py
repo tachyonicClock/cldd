@@ -1,9 +1,9 @@
 from argparse import ArgumentParser
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
-from capymoa.ocl import datasets
 import torch
+from capymoa.ocl import datasets
 from tqdm import tqdm
 
 

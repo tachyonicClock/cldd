@@ -1,16 +1,24 @@
 """Script to collect result files into a single CSV for analysis."""
 
-from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
-from src.config import converter, Config
 import pickle
-import yaml
+from collections.abc import Sequence
 from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import tqdm
+import yaml
 from loguru import logger
+
+from src.config import Config, converter
+
+CLDD_DETECTOR_NAMES = {"SEED_ONE_SIDED": "SEED", "STEPD_ONE_SIDED": "STEPD"}
+"""Names of the one-sided detectors in the released CLDD files. The runs use the one-sided
+SEED and STEPD under these internal names; the paper and the datasheet call them SEED and
+STEPD."""
 
 # See: https://capymoa.org/api/modules/capymoa.ocl.evaluation.OCLMetrics.html
 ocl_metric_keys = [
@@ -31,13 +39,20 @@ dd_metric_keys = [
     "my_fp",
     "my_tp",
     "my_fn",
+    "max_delay",
 ]
 
 ttt_metric_keys = ["accuracy"]
 
+balanced_metric_keys = [
+    "balanced_accuracy_final",
+    "balanced_accuracy_seen_avg",
+    "balanced_backward_transfer",
+]
+
 
 def copy_keys(
-    dst: dict, src: dict, prefix: str, keys: Sequence[Tuple[str, str] | str]
+    dst: dict, src: dict, prefix: str, keys: Sequence[tuple[str, str] | str]
 ) -> dict:
     for key in keys:
         if key not in src:
@@ -49,7 +64,7 @@ def copy_keys(
     return dst
 
 
-def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
+def load_record(dirname: Path | str) -> dict[str, int | str | float | bool]:
     """Load the results from a directory."""
     logger.info(f"Loading record from {dirname}")
 
@@ -65,6 +80,7 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
 
     record = {}
     # Index
+    record["dataset"] = config.dataset_name
     record["strategy"] = config.learner.type_
     record["detector"] = config.drift_detector.type_
     record["detector_label"] = config.drift_detector.label
@@ -74,17 +90,22 @@ def load_record(dirname: Path | str) -> Dict[str, int | str | float | bool]:
     # Drift Detection Metrics
     record = copy_keys(record, dd_metrics, "dd", dd_metric_keys)
     record = copy_keys(record, ocl_metrics, "ocl", ocl_metric_keys)
+    balanced_pkl = dirname / "balanced_metrics.pkl"
+    if balanced_pkl.exists():
+        with open(balanced_pkl, "rb") as f:
+            record = copy_keys(record, pickle.load(f), "ocl", balanced_metric_keys)
     record = copy_keys(record, ttt_metrics["cumulative"], "ttt", ttt_metric_keys)
     return record
 
 
-def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def load_dd_run_record(dirname: Path | str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Load drift-detector replay results from one dd_run directory."""
     dirname = Path(dirname)
     with open(dirname / "dd_metrics.pkl", "rb") as f:
         dd_metrics = pickle.load(f)
 
-    # Expected layout: logs/??/<boundary>/<strategy>/<detector>/<trial>
+    # Expected layout: cldd/<dataset>/<label>/<boundary>/<strategy>/<detector>/<trial>
+    dataset = dirname.parents[4].name
     detector = dirname.parent.name
     strategy = dirname.parent.parent.name
     boundary = dirname.parent.parent.parent.name
@@ -96,7 +117,8 @@ def load_dd_run_record(dirname: Path | str) -> Tuple[Dict[str, Any], Dict[str, A
             config = converter.structure(yaml.safe_load(f), Config)
             seed = config.seed
 
-    record: Dict[str, int | str | float | bool] = {
+    record: dict[str, int | str | float | bool] = {
+        "dataset": dataset,
         "strategy": strategy,
         "detector": detector,
         "detector_label": detector,
@@ -127,9 +149,10 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
 
     df = pd.DataFrame(metadata)
 
+    dataset_array = pa.array(df["dataset"], pa.string())
     seed_array = pa.array(df["seed"], pa.int32())
     strategy_array = pa.array(df["strategy"], pa.string())
-    detector_array = pa.array(df["detector"], pa.string())
+    detector_array = pa.array(df["detector"].replace(CLDD_DETECTOR_NAMES), pa.string())
     boundary_array = pa.array(df["boundary"], pa.string())
     # ce_stream_array = pa.array(ce_stream, pa.large_list(pa.float16()))
     error_stream_array = pa.array(error_stream, pa.large_list(pa.bool_()))
@@ -141,6 +164,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
 
     table = pa.Table.from_arrays(
         [
+            dataset_array,
             boundary_array,
             strategy_array,
             detector_array,
@@ -153,6 +177,7 @@ def collect_dataset(dirs: Sequence[Path | str], output_file: Path | str) -> None
             max_early_array,
         ],
         names=[
+            "dataset",
             "boundary",
             "strategy",
             "detector",

@@ -1,5 +1,7 @@
 from typing import Any
+
 from capymoa.drift.eval_detector import EvaluateDriftDetector
+
 from src.drift_detector import DriftDetectorArgs, ErrorStreamType, build_dd_metrics
 
 

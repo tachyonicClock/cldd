@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, Literal
-from torch import nn
-from capymoa.stream import Schema
-from capymoa.core.torch.ann import Perceptron, resnet20_32x32
-from torch import manual_seed
+
 import torch
+from capymoa.core.torch.ann import Perceptron, resnet20_32x32
+from capymoa.stream import Schema
+from torch import manual_seed, nn
 
 file = Path(__file__).resolve()
 
@@ -21,10 +21,11 @@ class ModelArgs:
 @dataclass
 class PerceptronArgs(ModelArgs):
     type_: ClassVar[str] = "MLP"
+    hidden_size: int = 50
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         manual_seed(seed)
-        return Perceptron(schema)
+        return Perceptron(schema, hidden_size=self.hidden_size)
 
 
 @dataclass
@@ -65,6 +66,8 @@ class ConvNeXtArgs(ModelArgs):
 class AirbenchCNNArgs(ModelArgs):
     type_: ClassVar[str] = "AirbenchCNN"
     channels_per_group: int = 16
+    width: int = 1
+    """Multiplies the channels of every block."""
 
     def build(self, seed: int, schema: Schema) -> nn.Module:
         from .models.airbench import AirbenchCNN
@@ -73,6 +76,20 @@ class AirbenchCNNArgs(ModelArgs):
         return AirbenchCNN(
             num_classes=schema.get_num_classes(),
             channels_per_group=self.channels_per_group,
+            width=self.width,
+        )
+
+
+@dataclass
+class IncrementalCNNArgs(ModelArgs):
+    type_: ClassVar[str] = "IncrementalCNN"
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.incremental_cnn import IncrementalCNN
+
+        manual_seed(seed)
+        return IncrementalCNN(
+            num_classes=schema.get_num_classes(),
         )
 
 
@@ -98,11 +115,43 @@ class FashionCNNArgs(ModelArgs):
         return FashionCNN(num_classes=schema.get_num_classes())
 
 
+@dataclass
+class PretrainedResNet18Args(ModelArgs):
+    type_: ClassVar[str] = "ResNet18"
+    image_size: int = 64
+    """Inputs are upsampled to this size before the network."""
+    pretrained: bool = True
+    freeze_bn_stats: bool = True
+    """Keep ImageNet BatchNorm statistics; scale and shift still train."""
+    norm: Literal["batch", "group"] = "batch"
+    """GroupNorm (from scratch only) has no running statistics to drift between domains."""
+    cifar_stem: bool = False
+    """3x3 stride-1 stem without max pooling, for 32x32 inputs at image_size 32."""
+    base_width: int = 64
+    """Channels of the first stage; 20 gives the reduced ResNet-18 of GEM."""
+
+    def build(self, seed: int, schema: Schema) -> nn.Module:
+        from .models.resnet import PretrainedResNet18
+
+        manual_seed(seed)
+        return PretrainedResNet18(
+            num_classes=schema.get_num_classes(),
+            image_size=self.image_size,
+            pretrained=self.pretrained,
+            freeze_bn_stats=self.freeze_bn_stats,
+            norm=self.norm,
+            cifar_stem=self.cifar_stem,
+            base_width=self.base_width,
+        )
+
+
 AnyModel = (
     PerceptronArgs
     | ResNet_32x32Args
     | ConvNeXtArgs
     | AirbenchCNNArgs
+    | IncrementalCNNArgs
     | DeepLightweightMLPArgs
     | FashionCNNArgs
+    | PretrainedResNet18Args
 )

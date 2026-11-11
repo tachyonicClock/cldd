@@ -1,7 +1,8 @@
-from data_profiling import ProfileReport
-import pandas as pd
-import click
 from pathlib import Path
+
+import click
+import pandas as pd
+from data_profiling import ProfileReport
 
 
 @click.command()

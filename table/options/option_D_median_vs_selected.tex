@@ -1,0 +1,21 @@
+\begin{tabular}{lrrrrrrrrrrrrrrrrrr}
+\toprule
+ & \multicolumn{9}{c}{RFMNIST} & \multicolumn{9}{c}{ECovtype} \\
+\cmidrule(lr){2-10}\cmidrule(lr){11-19}
+ & \multicolumn{3}{c}{Abrupt} & \multicolumn{3}{c}{Gradual} & \multicolumn{3}{c}{Slow} & \multicolumn{3}{c}{Abrupt} & \multicolumn{3}{c}{Gradual} & \multicolumn{3}{c}{Slow} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}\cmidrule(lr){8-10}\cmidrule(lr){11-13}\cmidrule(lr){14-16}\cmidrule(lr){17-19}
+Detector & Acc. & F1 & BWT & Acc. & F1 & BWT & Acc. & F1 & BWT & Acc. & F1 & BWT & Acc. & F1 & BWT & Acc. & F1 & BWT \\
+\midrule
+ADWIN & 62.5\tiny{$\pm$1.4} & \textbf{100.0\tiny{$\pm$0.0}} & -34.9\tiny{$\pm$3.5} & 63.7\tiny{$\pm$1.1} & \textbf{68.2\tiny{$\pm$2.0}} & -19.9\tiny{$\pm$4.2} & \textbf{64.3\tiny{$\pm$1.3}} & \textbf{69.4\tiny{$\pm$2.5}} & \textbf{-25.6\tiny{$\pm$4.2}} & 62.8\tiny{$\pm$0.7} & \textbf{82.1\tiny{$\pm$4.1}} & -16.9\tiny{$\pm$1.5} & 63.5\tiny{$\pm$0.8} & \textbf{79.1\tiny{$\pm$5.8}} & -15.1\tiny{$\pm$2.4} & 64.4\tiny{$\pm$0.5} & \textbf{80.8\tiny{$\pm$3.8}} & -13.5\tiny{$\pm$1.2} \\
+ADWIN* & \textbf{63.4\tiny{$\pm$1.2}} & 89.1\tiny{$\pm$3.8} & \textbf{-21.7\tiny{$\pm$4.1}} & 63.0\tiny{$\pm$1.3} & 54.3\tiny{$\pm$2.4} & \textbf{-14.2\tiny{$\pm$2.3}} & 62.4\tiny{$\pm$1.8} & 51.3\tiny{$\pm$3.5} & \textbf{-25.6\tiny{$\pm$7.7}} & 62.4\tiny{$\pm$2.8} & 61.0\tiny{$\pm$2.8} & -12.7\tiny{$\pm$2.4} & 64.5\tiny{$\pm$0.6} & 61.8\tiny{$\pm$4.2} & -11.0\tiny{$\pm$0.9} & 64.5\tiny{$\pm$0.4} & 73.2\tiny{$\pm$3.0} & -13.1\tiny{$\pm$0.9} \\
+\midrule
+early & 61.5\tiny{$\pm$1.2} &  & -39.0\tiny{$\pm$2.5} & 58.8\tiny{$\pm$1.3} &  & -22.4\tiny{$\pm$3.3} & 61.5\tiny{$\pm$1.4} &  & -29.7\tiny{$\pm$3.4} & 66.2\tiny{$\pm$0.7} &  & -7.7\tiny{$\pm$1.8} & 66.2\tiny{$\pm$0.7} &  & -6.3\tiny{$\pm$1.3} & 66.5\tiny{$\pm$0.4} &  & -6.3\tiny{$\pm$0.9} \\
+mid & 62.6\tiny{$\pm$1.1} &  & -34.4\tiny{$\pm$3.4} & \textbf{63.8\tiny{$\pm$1.1}} &  & -14.6\tiny{$\pm$5.3} & 64.2\tiny{$\pm$1.5} &  & -27.7\tiny{$\pm$3.6} & \textbf{67.0\tiny{$\pm$0.5}} &  & \textbf{-5.0\tiny{$\pm$0.9}} & \textbf{67.1\tiny{$\pm$0.6}} &  & \textbf{-4.6\tiny{$\pm$1.0}} & \textbf{67.3\tiny{$\pm$0.5}} &  & \textbf{-4.7\tiny{$\pm$0.8}} \\
+late & 59.7\tiny{$\pm$0.9} &  & -44.2\tiny{$\pm$2.4} & 63.2\tiny{$\pm$1.5} &  & -23.4\tiny{$\pm$4.8} & 64.1\tiny{$\pm$1.1} &  & -30.6\tiny{$\pm$3.2} & 65.5\tiny{$\pm$0.7} &  & -9.7\tiny{$\pm$1.3} & 65.9\tiny{$\pm$0.7} &  & -8.9\tiny{$\pm$1.4} & 66.3\tiny{$\pm$0.6} &  & -8.9\tiny{$\pm$1.0} \\
+\midrule
+Median detector & 63.1\tiny{$\pm$0.8} & 99.5\tiny{$\pm$0.8} & -34.3\tiny{$\pm$1.8} & 60.8\tiny{$\pm$1.5} & 55.4\tiny{$\pm$1.4} & -30.3\tiny{$\pm$4.5} & 57.0\tiny{$\pm$1.0} & 45.8\tiny{$\pm$4.4} & -46.8\tiny{$\pm$2.7} & 62.4\tiny{$\pm$0.7} & 69.4\tiny{$\pm$6.5} & -18.0\tiny{$\pm$1.8} & 62.4\tiny{$\pm$0.8} & 63.4\tiny{$\pm$5.8} & -19.3\tiny{$\pm$2.4} & 62.7\tiny{$\pm$0.6} & 61.4\tiny{$\pm$3.7} & -18.8\tiny{$\pm$1.4} \\
+BEST$^\dagger$ & 63.1\tiny{$\pm$0.7} & 99.8\tiny{$\pm$0.7} & -33.6\tiny{$\pm$1.7} & 54.9\tiny{$\pm$1.2} & 36.9\tiny{$\pm$5.7} & -48.2\tiny{$\pm$3.6} & 59.0\tiny{$\pm$1.3} & 48.6\tiny{$\pm$4.2} & -42.3\tiny{$\pm$3.7} & 62.3\tiny{$\pm$0.9} & 75.7\tiny{$\pm$7.7} & -18.2\tiny{$\pm$2.1} & 63.3\tiny{$\pm$0.6} & 78.8\tiny{$\pm$4.3} & -16.1\tiny{$\pm$2.5} & 63.5\tiny{$\pm$0.7} & 69.9\tiny{$\pm$7.2} & -16.2\tiny{$\pm$1.5} \\
+\midrule
+FT & 53.7\tiny{$\pm$0.7} &  & -51.8\tiny{$\pm$1.3} & 53.7\tiny{$\pm$0.7} &  & -44.5\tiny{$\pm$1.3} & 54.5\tiny{$\pm$0.5} &  & -37.8\tiny{$\pm$0.7} & 60.6\tiny{$\pm$0.6} &  & -29.5\tiny{$\pm$1.1} & 59.6\tiny{$\pm$0.6} &  & -29.9\tiny{$\pm$1.3} & 60.4\tiny{$\pm$0.8} &  & -28.3\tiny{$\pm$1.4} \\
+\bottomrule
+\end{tabular}

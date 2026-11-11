@@ -1,18 +1,18 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from capymoa.stream import Schema
 from typing import ClassVar, Literal, cast, override
+
+import torch
+import torchvision.transforms as T
 from capymoa.base import BatchClassifier
-from torch import nn
 from capymoa.classifier import Finetune
 from capymoa.ocl.datasets import DomainCIFAR100
-from capymoa.ocl.strategy import EWC, LWF, SI, RWalk, MAS
 from capymoa.ocl.evaluation.events import TrainTaskBegin
+from capymoa.ocl.strategy import EWC, LWF, MAS, SI, RWalk
 from capymoa.ocl.util._optim import reset_optimizer_state
+from capymoa.stream import Schema
+from torch import nn
 from torch.optim import Optimizer
-from abc import ABC, abstractmethod
-import torchvision.transforms as T
-import torch
-
 
 AugmentTypes = Literal["Dropout", "AutoAugCIFAR10"]
 
@@ -220,30 +220,6 @@ class LWFArgs(LearnerArgs):
 
 
 @dataclass
-class DERArgs(LearnerArgs):
-    """Dark Experience Replay"""
-
-    type_: ClassVar[str] = "DER"
-    capacity: int = DEFAULT_BUFFER_CAPACITY
-    """Capacity of the experience replay buffer."""
-    alpha: float = 0.5
-    """Weight of the DER replay-logit loss term."""
-
-    augment: AugmentTypes = "AutoAugCIFAR10"
-
-    @override
-    def build(
-        self,
-        seed: int,
-        schema: Schema,
-        device: str,
-        model: nn.Module,
-        optimizer: Optimizer,
-    ) -> BatchClassifier:
-        raise NotImplementedError("DER is not in CapyMOA 0.15.1.")
-
-
-@dataclass
 class RWalkArgs(LearnerArgs):
     """Riemannian Walk"""
 
@@ -310,4 +286,4 @@ class MASArgs(LearnerArgs):
         )
 
 
-AnyLearner = FTArgs | EWCArgs | LWFArgs | DERArgs | SIArgs | RWalkArgs | MASArgs
+AnyLearner = FTArgs | EWCArgs | LWFArgs | SIArgs | RWalkArgs | MASArgs

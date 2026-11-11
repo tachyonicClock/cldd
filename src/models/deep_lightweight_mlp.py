@@ -1,9 +1,9 @@
-import torch.nn as nn
+from torch import nn
 
 
 class DeepLightweightMLP(nn.Module):
     def __init__(self, input_dim=768, hidden_dim=256, output_dim=20, dropout_rate=0.2):
-        super(DeepLightweightMLP, self).__init__()
+        super().__init__()
 
         # 1. Input Projection: Bring 768 down to a lightweight hidden size
         self.input_layer = nn.Sequential(

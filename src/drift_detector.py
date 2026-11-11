@@ -1,26 +1,27 @@
-from typing import Any, Callable, ClassVar, Literal, Sequence
-from capymoa.base import BatchClassifier
-from capymoa.ocl.events import Dispatcher, Handler
+import enum
+from collections.abc import Callable, Sequence
+from dataclasses import asdict, dataclass
+from typing import Any, ClassVar, Literal
 
-from src.events import LogScalar
+import numpy as np
+import torch
+from capymoa.base import BatchClassifier
+from capymoa.drift.base_detector import BaseDriftDetector
+from capymoa.drift.detectors import ABCD, ADWIN, CUSUM, DDM, SEED, STEPD, PageHinkley
+from capymoa.drift.eval_detector import EvaluateDriftDetector
 from capymoa.ocl.evaluation.events import (
+    TestBegin,
+    TestEnd,
     TrainBatchPredict,
     TrainTaskBegin,
     TrainTaskEnd,
-    TestBegin,
-    TestEnd,
 )
-from capymoa.drift.base_detector import BaseDriftDetector
-from capymoa.drift.detectors import ABCD, ADWIN, DDM, PageHinkley, SEED, STEPD, CUSUM
-from capymoa.drift.eval_detector import EvaluateDriftDetector
-from dataclasses import dataclass, asdict
+from capymoa.ocl.events import Dispatcher, Handler
 from loguru import logger
-import numpy as np
 from torch.nn.functional import cross_entropy
-import torch
-import enum
 
 from src import one_sided_detectors
+from src.events import LogScalar
 from src.metrics import drift_confusion
 
 LOG_EVERY = 10
@@ -82,9 +83,16 @@ class UnattachedLearner(BatchClassifier):
         self.device = learner.device
         self.last_proba: torch.Tensor | None = None
         self.after_train: Callable[[], None] | None = None
+        self.repeats = 1
+        """Training steps per batch. Each sample is still predicted only once."""
+        self.augment: Callable[[torch.Tensor], torch.Tensor] | None = None
+        """Applied to the batch before each extra step."""
 
     def batch_train(self, x: torch.Tensor, y: torch.Tensor) -> None:
         self.learner.batch_train(x, y)
+        for _ in range(self.repeats - 1):
+            x_step = x if self.augment is None else self.augment(x)
+            self.learner.batch_train(x_step, y)
         if self.after_train is not None:
             self.after_train()
 
@@ -170,9 +178,9 @@ class OCLDD(Handler):
         # add them to the respective streams to save for later.
         # The old loop passed probabilities as "logits", so this matches the CE stream
         # of earlier runs (softmax is applied twice).
-        ce_losses = (
-            cross_entropy(proba.cpu().float(), event.y.cpu(), reduction="none").numpy()
-        )
+        ce_losses = cross_entropy(
+            proba.cpu().float(), event.y.cpu(), reduction="none"
+        ).numpy()
         ce_loss = ce_losses.mean()
         errors = (event.y.cpu() != event.y_hat.cpu()).bool().numpy()
         error_rate = errors.mean()
@@ -234,7 +242,7 @@ class OCLDD(Handler):
             self._downstream.notify(event)
             return
         self._dd_trues.append(self._stream_index)
-        logger.info("True drift at instance {}".format(self._stream_index))
+        logger.info(f"True drift at instance {self._stream_index}")
 
     def _proxy(self, event):
         self._downstream.notify(event)
@@ -459,6 +467,99 @@ class OracleArgs(DriftDetectorArgs):
         return OracleDriftDetector()
 
 
+class ScheduleDriftDetector(BaseDriftDetector):
+    """Alarm at fixed instance counts, ignoring the error stream.
+
+    Used for detection-free triggers (periodic, random) and for controlled faults on
+    the oracle (shifted, dropped or extra alarms). ``alarms`` holds 1-based counts of
+    ``add_element`` calls, which match ``OCLDD._stream_index``.
+    """
+
+    def __init__(self, alarms: Sequence[int]):
+        super().__init__()
+        self._alarms = {int(a) for a in alarms}
+        self._count = 0
+        self._fire = False
+
+    def add_element(self, element: float) -> None:
+        self._count += 1
+        self._fire = self._count in self._alarms
+
+    def detected_change(self) -> bool:
+        fire, self._fire = self._fire, False
+        return fire
+
+    def detected_warning(self) -> bool:
+        return False
+
+    def reset(self, clean_history: bool = False) -> None:
+        # OCLDD resets after each alarm; the schedule must keep counting.
+        self._fire = False
+
+    def get_params(self) -> dict:
+        return {"n_alarms": len(self._alarms)}
+
+
+@dataclass
+class ScheduleArgs(DriftDetectorArgs):
+    """Synthetic trigger. Call ``set_stream`` before ``build``.
+
+    mode ``periodic``: every ``period`` instances, from a random phase.
+    mode ``random``: ``n_random`` alarms at uniform random instances.
+    mode ``oracle``: the true drift centres shifted by ``offset`` instances, with
+    ``n_miss`` of them dropped and ``n_extra`` uniform random alarms added.
+    mode ``early``: one drift width before each drift centre, so before the drift starts.
+    mode ``late``: one drift width after each drift centre, once the drift is over.
+    The drift width is the half-width of the transition plus a padding, set by
+    ``set_stream``. For abrupt drift it is only the padding.
+    The randomness is seeded by ``seed`` (set to the run seed).
+    """
+
+    type_: ClassVar[str] = "schedule"
+    mode: Literal["periodic", "random", "oracle", "early", "late"] = "oracle"
+    period: int = 60000
+    n_random: int = 4
+    offset: int = 0
+    n_miss: int = 0
+    n_extra: int = 0
+    seed: int = 0
+
+    def set_stream(
+        self, task_lengths: Sequence[int], seed: int, drift_width: int = 0
+    ) -> None:
+        self._task_lengths = [int(n) for n in task_lengths]
+        self.seed = seed
+        self._drift_width = int(drift_width)
+
+    def alarms(self) -> list[int]:
+        rng = np.random.default_rng(self.seed)
+        total = int(np.sum(self._task_lengths))
+        trues = np.cumsum(self._task_lengths)[:-1]
+        if self.mode == "periodic":
+            phase = int(rng.integers(1, self.period + 1))
+            out = np.arange(phase, total + 1, self.period)
+        elif self.mode == "random":
+            out = rng.integers(1, total + 1, size=self.n_random)
+        elif self.mode in ("early", "late"):
+            sign = -1 if self.mode == "early" else 1
+            out = np.clip(trues + sign * self._drift_width, 1, total)
+        else:
+            out = np.clip(trues + self.offset, 1, total)
+            if self.n_miss > 0:
+                keep = rng.permutation(len(out))[self.n_miss :]
+                out = out[np.sort(keep)]
+            if self.n_extra > 0:
+                out = np.concatenate(
+                    [out, rng.integers(1, total + 1, size=self.n_extra)]
+                )
+        return sorted({int(a) for a in out})
+
+    def build_dd(self) -> BaseDriftDetector:
+        alarms = self.alarms()
+        logger.info("Scheduled alarms ({}): {}", self.mode, alarms)
+        return ScheduleDriftDetector(alarms)
+
+
 AnyDriftDetector = (
     ADWINArgs
     | DDMArgs
@@ -468,4 +569,5 @@ AnyDriftDetector = (
     | ABCDArgs
     | OracleArgs
     | CUSUMArgs
+    | ScheduleArgs
 )

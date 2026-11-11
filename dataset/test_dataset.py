@@ -1,13 +1,15 @@
 import os
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
 
 # --- EXPECTED CONSTANTS FROM DATASHEET ---
 
 # Expected columns and their definitions
 EXPECTED_COLUMNS = [
+    "dataset",
     "boundary",
     "strategy",
     "detector",
@@ -23,6 +25,8 @@ EXPECTED_COLUMNS = [
 BOUNDARIES = ["abrupt", "gradual", "slow"]
 
 # CLDD-A specific configurations
+DATASETS_A = ["rfmnist", "rcifar10_rn18"]
+STREAM_LENGTHS = {"rfmnist": 300_000, "rcifar10_rn18": 250_000}
 STRATEGIES_A = ["EWC", "FT", "LWF", "MAS", "RWalk", "SI"]
 DETECTORS_A = ["oracle"]
 
@@ -36,13 +40,17 @@ DETECTORS_B = ["ADWIN", "DDM", "PH", "SEED", "STEPD"]
 @pytest.fixture(scope="module")
 def cldd_a():
     """Loads CLDD-A from parquet format[cite: 1]."""
-    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_A.parquet")
+    return pd.read_parquet(
+        Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_A.parquet"
+    )
 
 
 @pytest.fixture(scope="module")
 def cldd_b():
     """Loads CLDD-B from parquet format[cite: 1]."""
-    return pd.read_parquet(Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_B.parquet")
+    return pd.read_parquet(
+        Path(os.environ.get("LOGDIR", "logs")) / "cldd" / "CLDD_B.parquet"
+    )
 
 
 # --- TESTS FOR CLDD-A ---
@@ -60,11 +68,14 @@ def test_cldd_a_factorial_size(cldd_a):
     CLDD-A is a full factorial of 3 boundaries × 6 strategies × 1 detector × 20 seeds.
     Total count should be 180[cite: 1].
     """
-    assert len(cldd_a) == 180 * 2, "CLDD-A should have exactly 180 configurations."
+    assert len(cldd_a) == 180 * 2 * len(DATASETS_A), (
+        "CLDD-A should have exactly 360 configurations per dataset."
+    )
 
 
 def test_cldd_a_unique_values(cldd_a):
     """Test that CLDD-A only contains the documented boundaries, strategies, and detectors[cite: 1]."""
+    assert set(cldd_a["dataset"].unique()) == set(DATASETS_A)
     assert set(cldd_a["boundary"].unique()) == set(BOUNDARIES)
     assert set(cldd_a["strategy"].unique()) == set(STRATEGIES_A)
     assert set(cldd_a["detector"].unique()) == set(DETECTORS_A)
@@ -114,21 +125,21 @@ def test_cldd_data_types(cldd_a):
 
 def test_stream_lengths(cldd_a):
     """
-    Check if the error_stream list contains roughly 300,000 values[cite: 1].
+    Check if the error_stream list has roughly the stream length of its dataset[cite: 1].
     We allow a small tolerance window for the word 'Roughly'[cite: 1].
     """
-    first_error_stream = cldd_a["error_stream"].iloc[0]
-
-    assert 290000 <= len(first_error_stream) <= 310000, (
-        "error_stream length is not roughly 300,000."
-    )
+    for dataset, length in STREAM_LENGTHS.items():
+        stream = cldd_a.loc[cldd_a["dataset"] == dataset, "error_stream"].iloc[0]
+        assert 0.97 * length <= len(stream) <= 1.03 * length, (
+            f"{dataset} error_stream length is not roughly {length}."
+        )
 
 
 def test_no_duplicate_seeds(cldd_a, cldd_b):
     """Test that every combination of boundary, strategy, detector, and seed is unique[cite: 1]."""
     assert not cldd_a.duplicated(
-        subset=["boundary", "strategy", "detector", "seed"]
+        subset=["dataset", "boundary", "strategy", "detector", "seed"]
     ).any(), "CLDD-A contains duplicate configurations."
     assert not cldd_b.duplicated(
-        subset=["boundary", "strategy", "detector", "seed"]
+        subset=["dataset", "boundary", "strategy", "detector", "seed"]
     ).any(), "CLDD-B contains duplicate configurations."

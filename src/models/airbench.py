@@ -72,11 +72,12 @@ class AirbenchCNN(nn.Module):
         self,
         num_classes: int,
         channels_per_group: int = 8,
+        width: int = 1,
     ):
         super().__init__()
-        width_block1 = 64
-        width_block2 = 128
-        width_block3 = 128
+        width_block1 = 64 * width
+        width_block2 = 128 * width
+        width_block3 = 128 * width
 
         self.features = nn.Sequential(
             ConvGroup(3, width_block1, channels_per_group),
@@ -90,4 +91,8 @@ class AirbenchCNN(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        if x.dim() == 2:
+            # CapyMOA passes flat rows, so restore a square 3-channel image.
+            side = round((x.shape[1] / 3) ** 0.5)
+            x = x.view(-1, 3, side, side)
         return self.classifier(self.features(x))

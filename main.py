@@ -1,18 +1,19 @@
-import click
-from typing import Any, Dict
-from pathlib import Path
 import pickle
+import sys
+from pathlib import Path
+from typing import Any
 
+import click
 import optuna
-from src.dd_hpsearch import DDHPSearch
-from src.dd_eval import evaluate_dd_stream
-from src.config import get_config, Config
-from src.experiment import Experiment
-from src.hpsearch import HPSearch
-from cattrs import transform_error, BaseValidationError
+from cattrs import BaseValidationError, transform_error
 from loguru import logger
 from omegaconf import OmegaConf
-import sys
+
+from src.config import Config, get_config
+from src.dd_eval import evaluate_dd_stream
+from src.dd_hpsearch import DDHPSearch
+from src.experiment import Experiment
+from src.hpsearch import HPSearch
 
 file = Path(__file__).resolve()
 
@@ -28,7 +29,7 @@ logger.add(sys.stderr, format=_log_format)
 logger.info("Starting experiment with config files:")
 
 
-def dotlist_dict_to_nested(dotlist_dict: Dict[str, Any]) -> dict:
+def dotlist_dict_to_nested(dotlist_dict: dict[str, Any]) -> dict:
     dotlist = [f"{k}={v}" for k, v in dotlist_dict.items()]
     return dict(OmegaConf.from_dotlist(dotlist))
 
@@ -77,7 +78,7 @@ def cli(ctx, config: list[str], dotlist: list[str]):
     except BaseValidationError as e:
         for error in transform_error(e):
             logger.error(f"Validation: {error}")
-        exit(1)
+        sys.exit(1)
         return
     ctx.obj = config_obj
 

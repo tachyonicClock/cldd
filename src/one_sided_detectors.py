@@ -124,7 +124,7 @@ class STEPD(_Detector):
 
 
 class _Block:
-    __slots__ = ("next", "previous", "block_size", "total", "variance", "item_count")
+    __slots__ = ("block_size", "item_count", "next", "previous", "total", "variance")
 
     def __init__(self, block_size: int) -> None:
         self.next: _Block | None = None
@@ -158,7 +158,10 @@ class _Window:
 
     def add(self, value: float) -> None:
         if self.tail.is_full():
-            if self.tail.previous is not None and self.compress_count > self.compress_term:
+            if (
+                self.tail.previous is not None
+                and self.compress_count > self.compress_term
+            ):
                 self.compress_count = 0
                 cursor: _Block | None = self.tail
                 epsilon = 0.0

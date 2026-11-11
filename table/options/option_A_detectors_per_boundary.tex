@@ -1,0 +1,22 @@
+\begin{tabular}{lrrrrrrrrrrrr}
+\toprule
+ & \multicolumn{6}{c}{RFMNIST} & \multicolumn{6}{c}{ECovtype} \\
+\cmidrule(lr){2-7}\cmidrule(lr){8-13}
+ & \multicolumn{2}{c}{Abrupt} & \multicolumn{2}{c}{Gradual} & \multicolumn{2}{c}{Slow} & \multicolumn{2}{c}{Abrupt} & \multicolumn{2}{c}{Gradual} & \multicolumn{2}{c}{Slow} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}\cmidrule(lr){10-11}\cmidrule(lr){12-13}
+Detector & Acc. & F1 & Acc. & F1 & Acc. & F1 & Acc. & F1 & Acc. & F1 & Acc. & F1 \\
+\midrule
+ADWIN & 62.5\tiny{$\pm$1.4} & \textbf{100.0\tiny{$\pm$0.0}} & 63.7\tiny{$\pm$1.1} & \textbf{68.2\tiny{$\pm$2.0}} & \textbf{64.3\tiny{$\pm$1.3}} & \textbf{69.4\tiny{$\pm$2.5}} & 62.8\tiny{$\pm$0.7} & \textbf{82.1\tiny{$\pm$4.1}} & 63.5\tiny{$\pm$0.8} & \textbf{79.1\tiny{$\pm$5.8}} & 64.4\tiny{$\pm$0.5} & \textbf{80.8\tiny{$\pm$3.8}} \\
+ADWIN* & 63.4\tiny{$\pm$1.2} & 89.1\tiny{$\pm$3.8} & 63.0\tiny{$\pm$1.3} & 54.3\tiny{$\pm$2.4} & 62.4\tiny{$\pm$1.8} & 51.3\tiny{$\pm$3.5} & 62.4\tiny{$\pm$2.8} & 61.0\tiny{$\pm$2.8} & 64.5\tiny{$\pm$0.6} & 61.8\tiny{$\pm$4.2} & 64.5\tiny{$\pm$0.4} & 73.2\tiny{$\pm$3.0} \\
+DDM & 62.6\tiny{$\pm$1.4} & 96.5\tiny{$\pm$4.7} & 55.1\tiny{$\pm$1.6} & 34.7\tiny{$\pm$7.2} & 51.7\tiny{$\pm$1.1} & 9.5\tiny{$\pm$8.6} & 61.3\tiny{$\pm$0.9} & 29.8\tiny{$\pm$9.5} & 60.1\tiny{$\pm$0.8} & 29.8\tiny{$\pm$20.4} & 60.8\tiny{$\pm$1.2} & 39.2\tiny{$\pm$23.9} \\
+PH & 63.1\tiny{$\pm$1.2} & 99.8\tiny{$\pm$0.7} & 55.4\tiny{$\pm$1.1} & 31.4\tiny{$\pm$5.8} & 52.5\tiny{$\pm$2.3} & 14.1\tiny{$\pm$11.4} & 62.1\tiny{$\pm$1.2} & 51.0\tiny{$\pm$8.4} & 61.8\tiny{$\pm$1.1} & 50.7\tiny{$\pm$14.6} & 61.9\tiny{$\pm$0.9} & 40.6\tiny{$\pm$9.5} \\
+SEED & 63.0\tiny{$\pm$0.6} & 99.7\tiny{$\pm$0.9} & 60.3\tiny{$\pm$2.4} & 63.1\tiny{$\pm$2.5} & 54.9\tiny{$\pm$0.8} & 48.5\tiny{$\pm$5.1} & 62.3\tiny{$\pm$1.0} & 75.8\tiny{$\pm$9.2} & 61.9\tiny{$\pm$1.1} & 63.9\tiny{$\pm$11.1} & 61.9\tiny{$\pm$0.7} & 57.8\tiny{$\pm$9.3} \\
+STEPD & \textbf{63.6\tiny{$\pm$0.9}} & 95.7\tiny{$\pm$3.8} & 62.9\tiny{$\pm$2.2} & 49.9\tiny{$\pm$2.6} & 60.5\tiny{$\pm$1.1} & 47.1\tiny{$\pm$4.1} & 62.2\tiny{$\pm$0.7} & 73.8\tiny{$\pm$6.0} & 62.5\tiny{$\pm$0.9} & 66.1\tiny{$\pm$6.7} & 62.7\tiny{$\pm$0.8} & 56.6\tiny{$\pm$2.9} \\
+\midrule
+early & 61.5\tiny{$\pm$1.2} &  & 58.8\tiny{$\pm$1.3} &  & 61.5\tiny{$\pm$1.4} &  & 66.2\tiny{$\pm$0.7} &  & 66.2\tiny{$\pm$0.7} &  & 66.5\tiny{$\pm$0.4} &  \\
+mid & 62.6\tiny{$\pm$1.1} &  & \textbf{63.8\tiny{$\pm$1.1}} &  & 64.2\tiny{$\pm$1.5} &  & \textbf{67.0\tiny{$\pm$0.5}} &  & \textbf{67.1\tiny{$\pm$0.6}} &  & \textbf{67.3\tiny{$\pm$0.5}} &  \\
+late & 59.7\tiny{$\pm$0.9} &  & 63.2\tiny{$\pm$1.5} &  & 64.1\tiny{$\pm$1.1} &  & 65.5\tiny{$\pm$0.7} &  & 65.9\tiny{$\pm$0.7} &  & 66.3\tiny{$\pm$0.6} &  \\
+\midrule
+FT & 53.7\tiny{$\pm$0.7} &  & 53.7\tiny{$\pm$0.7} &  & 54.5\tiny{$\pm$0.5} &  & 60.6\tiny{$\pm$0.6} &  & 59.6\tiny{$\pm$0.6} &  & 60.4\tiny{$\pm$0.8} &  \\
+\bottomrule
+\end{tabular}

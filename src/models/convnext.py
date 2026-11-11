@@ -1,6 +1,6 @@
+from torch import Tensor, nn
 from transformers import ConvNextV2ForImageClassification
 from transformers.models.convnextv2.configuration_convnextv2 import ConvNextV2Config
-from torch import nn, Tensor
 
 
 class ConvNextV2(nn.Module):
@@ -17,7 +17,7 @@ class ConvNextV2(nn.Module):
     """
 
     def __init__(self, num_classes: int, pretrained=True):
-        super(ConvNextV2, self).__init__()
+        super().__init__()
         if pretrained:
             self.model = ConvNextV2ForImageClassification.from_pretrained(
                 "facebook/convnextv2-atto-1k-224"
