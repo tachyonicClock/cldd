@@ -51,8 +51,8 @@ GROUPS = [
         ("Triggers $20$ times at equal intervals", "periodic15k"),
         ("Triggers $10$ times at equal intervals", "periodic30k"),
         ("Triggers $5$ times at equal intervals", "periodic60k"),
-        # 2 or 3 triggers by the random offset; shown as 3 to keep the label simple
-        ("Triggers $3$ times at equal intervals", "periodic120k"),
+        # 2 or 3 triggers by the random offset (2 in most runs); shown as 2
+        ("Triggers $2$ times at equal intervals", "periodic120k"),
         ("Random, ADWIN's trigger count", "random_adwin"),
     ],
     [
