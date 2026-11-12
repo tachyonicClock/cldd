@@ -78,8 +78,9 @@ uv run doit run -n 6 synthetic
 
 ## Result Files
 
-The workflow writes two CSV files to `$LOGDIR/cldd/<dataset>`. Copies are in `data/`. The scripts in
-`analysis/` read the ones in `$LOGDIR/cldd/rfmnist`. Each row is one run, and both files share these columns:
+The workflow writes these CSV files to `$LOGDIR/cldd/<dataset>`, where `<dataset>` is `rfmnist` or `covertype`.
+Copies are in `data/<dataset>/`. The scripts in `analysis/` read the ones in `$LOGDIR/cldd`. Each row is one
+run, and the files share these columns:
 
 | Column | Meaning |
 | --- | --- |
@@ -94,7 +95,7 @@ The workflow writes two CSV files to `$LOGDIR/cldd/<dataset>`. Copies are in `da
 | `dd.my_tp`, `dd.my_fp`, `dd.my_fn` | Detection counts from `src/metrics.py`. Each true boundary has one window, from `max_early` before to `max_delay` after it. A detection inside a window is a hit, extra detections are false positives, and a window with none is a miss. |
 | `dd.my_f1` | F1 score of those counts. Used as F1 in the paper. |
 
-`evaluate/data_frame.csv` (1080 rows) holds the final runs of each strategy
+`evaluate/data_frame.csv` (1,380 rows for `rfmnist`, 1,530 for `covertype`) holds the final runs of each strategy
 with a detector on held-out seeds. It has these extra columns:
 
 | Column | Meaning |
@@ -104,9 +105,13 @@ with a detector on held-out seeds. It has these extra columns:
 | `ocl.forward_transfer`, `ocl.backward_transfer` | Forward and backward transfer. |
 | `ttt.accuracy` | Test-then-train accuracy over the stream (percent). |
 
-`dd_run/data_frame.csv` (900 rows) holds only the drift scores. Each tuned
+`dd_run/data_frame.csv` (900 rows per dataset) holds only the drift scores. Each tuned
 detector is replayed on the error stream of the oracle runs from `evaluate`,
 so the detector does not change the learner.
+
+`replay_cldd_b/data_frame.csv` (3,000 rows per dataset) holds the drift scores of each tuned detector
+replayed on the CLDD-B error streams of the four other detectors (named in the `recorder` column).
+It is written by `script/replay_cldd_b.py`.
 
 NMDT in the tables is `dd.mdt` divided by a length set by `boundary`
 (see `compute_nmdt` in `analysis/plots.py`). It is 1.0 when nothing is detected.
